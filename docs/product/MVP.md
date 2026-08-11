@@ -1,6 +1,6 @@
 # GreatDeals.ca MVP
 
-**Status:** DRAFT - awaiting Human Product Checkpoint
+**Status:** APPROVED - Human Product Checkpoint completed
 **Scope:** Product proposal only; no technology or integration is approved by this document.
 
 ## MVP statement
@@ -89,3 +89,5 @@ Save product/deal, target-price email alerts, and a low-noise weekly digest only
 - French-complete experience.
 
 These exclusions keep the first release focused on the evidence-to-click loop and avoid taking on four difficult systems at once: community moderation, flyer/local data, affiliate reconciliation, and cross-market app distribution.
+
+Weekly digest remains a roadmap item at **P2**, not an MVP feature. The first retention loop is Save Product -> Target Price -> Alert -> Return.

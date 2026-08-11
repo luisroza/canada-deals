@@ -1,6 +1,6 @@
 # GreatDeals.ca - Product Research
 
-**Status:** DRAFT - live research completed; awaiting Human Product Checkpoint
+**Status:** Research record - Product Owner recommendation approved at Human Product Checkpoint
 **Research date:** 2026-08-11
 **Market:** Canada; CAD; online-first, with regional availability noted where relevant
 

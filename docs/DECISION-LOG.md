@@ -37,12 +37,24 @@ Only record decisions that have actually been approved. Proposed options and res
 
 ### DEC-004 - Product discovery recommendations
 
-- **Status:** PROPOSED; awaiting Human Product Checkpoint
+- **Status:** Approved at Human Product Checkpoint; technical validation pending
 - **Recommendation:** Validate a Canadian price-truth workflow for planned online purchases, initially focused on electronics plus home improvement/tools.
 - **Proposed audience:** Canadian shoppers planning meaningful online purchases, with expert deal hunters as a secondary tester group.
 - **Proposed MVP retailers:** Amazon.ca, Best Buy Canada, and Home Depot Canada; Walmart Canada is the fallback candidate. All require Data/Affiliate validation.
-- **Proposed monetization:** approved affiliate links with transparent disclosure; affiliate commission must not silently influence organic Deal Quality or ranking.
-- **Proposed retention:** saved products and target-price email alerts, followed by a low-noise digest if validated.
-- **Important constraint:** These are product recommendations, not approved decisions. No frontend, backend, database, cloud, hosting, search, or integration technology has been selected.
+- **Approved monetization direction:** approved affiliate links with transparent disclosure; affiliate commission must not silently influence organic Deal Quality or ranking.
+- **Approved retention direction:** saved products and target-price email alerts. Weekly digest is deferred to P2 and remains on the roadmap.
+- **Important constraint:** Retailer priorities are product-level only and require Data/Affiliate validation. No frontend, backend, database, cloud, hosting, search, or integration technology has been selected.
 - **Evidence:** `docs/product/PRODUCT-RESEARCH.md`, `docs/product/PRODUCT.md`, `docs/product/MVP.md`, `docs/product/ROADMAP.md`, and `docs/product/PRODUCT-BACKLOG.md`.
+- **Date:** 2026-08-11
+
+### DEC-005 - Human Product Checkpoint approved
+
+- **Status:** Confirmed
+- **Decision:** Approve the Product Owner direction and advance the project to UX / Product Design.
+- **Approved positioning:** Canada Deals is a Canadian price-truth layer for planned online purchases.
+- **Approved audience and wedge:** Canadian planned-purchase shoppers, initially electronics plus home improvement/tools; expert deal hunters are a secondary audience.
+- **Approved UX requirements:** evidence before enthusiasm, visible freshness, honest unknown states, safe same-product comparison, conservative historical-price claims, English-first responsive web, and transparent affiliate disclosure.
+- **Approved MVP retention:** Save Product and Target-Price Alert are P1. Weekly digest moves from P1 to P2 and remains deferred, not rejected.
+- **Approved exclusions:** community, AI shopping agent, native app, cashback/rewards, complex personalization, paid ranking, mass programmatic SEO, French-complete launch, push notifications, and browser extension remain outside MVP.
+- **Retailer direction:** Amazon.ca, Best Buy Canada, and Home Depot Canada are approved product priorities requiring Data/Affiliate validation; Walmart Canada remains a fallback candidate. No technical integrations are approved.
 - **Date:** 2026-08-11

@@ -1,6 +1,6 @@
 # GreatDeals.ca Product Backlog
 
-**Status:** DRAFT - product backlog for checkpoint review
+**Status:** APPROVED - Human Product Checkpoint completed; UX refinement pending
 **Priority:** P0 essential, P1 high priority, P2 valuable later, P3 optional/experimental
 
 ## Major feature contract
@@ -16,7 +16,7 @@
 | Save product/deal | P1 | Planned shoppers need a return path | Users can preserve intent without a complex account | Lightweight identity/session model, privacy/consent decision | Saved state is visible, reversible, and linked to the product |
 | Target-price email alert | P1 | Shoppers want to wait for a better price | A user receives a relevant, controlled notification | Fresh evidence, consent, deliverability, unsubscribe, frequency policy | Alert fires only for the saved variant and valid evidence |
 | Retailer handoff and affiliate disclosure | P0 | Commercial links can obscure incentives | Qualified clicks are measured without reducing trust | Approved program, redirect policy, disclosure copy, attribution | CTA clearly discloses commercial relationship and records the outbound event |
-| Weekly digest experiment | P1 | Users may forget the product after first visit | A low-noise digest creates repeat behaviour | Saved/category signals, email consent, content freshness | Digest is opt-in, useful, labelled, and easy to unsubscribe |
+| Weekly digest experiment | P2 | Users may forget the product after the alert loop is validated | A low-noise digest creates repeat behaviour | Saved/category signals, email consent, content freshness | Digest is opt-in, useful, labelled, and easy to unsubscribe |
 
 ## Epic 1 - Trustworthy discovery (P0)
 
@@ -69,9 +69,9 @@
 **Outcome:** A shopper can wait for a defined price.
 **Acceptance:** target price, product variant, consent, frequency, and unsubscribe are explicit; alert fires only when evidence is fresh enough.
 
-### P1-03 Weekly digest experiment
+### P2-01 Weekly digest experiment
 
-**Outcome:** Test low-noise repeat traffic.
+**Outcome:** Test low-noise repeat traffic after Save -> Target Price -> Alert -> Return is validated.
 **Acceptance:** digest is opt-in, uses saved/category signals, labels affiliate content, and exposes unsubscribe.
 
 ## Epic 4 - Commercial measurement (P0)

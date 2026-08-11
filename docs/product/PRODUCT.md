@@ -1,6 +1,6 @@
 # GreatDeals.ca Product Definition
 
-**Status:** DRAFT - awaiting Human Product Checkpoint
+**Status:** APPROVED - Human Product Checkpoint completed
 **Owner:** Product Owner / Market Research
 **Date:** 2026-08-11
 
@@ -67,14 +67,15 @@ Begin with approved affiliate links and transparent disclosure. Do not start wit
 
 Community moderation, full flyer/grocery coverage, cashback, native apps, browser extension, AI shopping agent, mass programmatic SEO, and a 20+ retailer promise.
 
-## Open decisions for the Human Product Checkpoint
+## Approved product decisions
 
-1. Approve the price-truth positioning.
-2. Approve electronics/home/tools as the initial category wedge.
-3. Approve English-first launch with French validation later.
-4. Approve proposed first retailers: Amazon.ca, Best Buy Canada, and Home Depot Canada, with Walmart Canada as a fallback pending permissions.
-5. Approve target-price email alerts as a P1 MVP experiment.
-6. Approve the rule that unknown history or weak product matching is shown as unknown, not inferred as a deal.
+1. Canada Deals is a Canadian price-truth layer for planned online purchases.
+2. Primary users are Canadian shoppers planning meaningful purchases, initially in electronics, home improvement, and tools.
+3. Launch is English-first responsive web; French-complete UX is deferred.
+4. Amazon.ca, Best Buy Canada, and Home Depot Canada are approved product priorities for downstream validation; Walmart Canada is a fallback candidate. These are not approved technical integrations.
+5. Evidence, freshness, safe comparison, conservative historical claims, and transparent affiliate disclosure are product requirements.
+6. Save Product and Target-Price Alert are the P1 retention loop. Weekly digest is deferred to P2.
+7. Community, AI shopping agent, native app, cashback, complex personalization, paid ranking, mass SEO, and French-complete launch remain outside MVP.
 
 ## Downstream handoff
 
