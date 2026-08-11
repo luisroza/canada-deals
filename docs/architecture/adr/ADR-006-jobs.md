@@ -1,6 +1,6 @@
 # ADR-006: Hangfire with PostgreSQL storage for background jobs
 
-**Status:** PROPOSED - awaiting Human Architecture Checkpoint
+**Status:** APPROVED - Human Architecture / Data Integration Checkpoint
 **Date:** 2026-08-11
 
 ## Context

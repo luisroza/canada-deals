@@ -2,69 +2,63 @@
 
 ## Current phase
 
-Human Architecture / Data Integration Checkpoint
+Application Implementation - Vertical Slice 1
 
 ## Completed
 
-- Local workspace linked to the intended GitHub repository context: `luisroza/canada-deals`
-- Project README
-- Root and scoped agent instructions
-- Agent governance refactor: concise repository rules, dedicated Product Owner instructions, and future-role placeholders
-- Documentation structure
-- Initial project status and decision log
-- Canadian market research using current live sources
-- Canadian competitive and product research draft
-- Product definition, MVP, roadmap, and backlog drafts
-- Human Product Checkpoint approved
-- UX / Product Design
-- UX research and benchmark synthesis
-- Responsive UX wireframes
-- Design system proposal
-- UX backlog
-- Human UX Checkpoint
-- Approved UX refinements
-- Solution Architecture analysis
-- Cloud / FinOps analysis
-- Data / Affiliate Integration analysis
+- Local workspace linked to `luisroza/canada-deals`
+- Project and agent governance foundation
+- Canadian market research and product definition
+- Human Product Checkpoint
+- UX / Product Design and Human UX Checkpoint
+- Solution / Cloud / FinOps Architecture
+- Data / Affiliate Integration Architecture
 - Architecture / Data reconciliation
+- Human Architecture / Data Integration Checkpoint approved with refinements
+- Application monorepo foundation
+- PostgreSQL EF Core model and first migration
+- Synthetic fixture seed data
+- Connector-neutral REST API
+- Next.js discovery feed and Product Page
+- Domain and frontend automated tests
+- Hangfire worker foundation
 
 ## Approved product direction
 
 - Positioning: Canadian price-truth layer for planned online purchases
 - Initial wedge: electronics plus home improvement/tools
-- Initial retailer priorities for downstream Data/Affiliate validation: Amazon.ca, Best Buy Canada, and Home Depot Canada; Walmart Canada as fallback
 - English-first responsive web MVP
-- Target-price email alerts as a P1 retention experiment
-- Weekly digest deferred to P2
+- Evidence before enthusiasm, visible freshness, conservative history, and safe same-product comparison
+- Save Product and Target Price Alert remain P1; Weekly Digest remains P2
+- Two high-quality approved retailers are sufficient for launch; retailer count is not an MVP KPI
 
-## Proposed, awaiting Human Architecture / Data approval
+## Current implementation
 
-- Next.js + React + TypeScript public frontend
-- ASP.NET Core REST API and modular-monolith boundaries
-- Managed PostgreSQL system of record
-- PostgreSQL search for MVP
-- Hangfire with PostgreSQL storage for durable jobs
-- DigitalOcean App Platform and managed PostgreSQL in Toronto
-- Resend transactional email, subject to privacy/deliverability review
-- Source-neutral integration contract and field-level merchant policy engine
-- Best Buy Canada and Home Depot Canada as conditional first integration targets
-- Amazon.ca as a gated candidate; Walmart Canada as fallback/Phase 2
-- Adaptive freshness, deterministic matching, bounded history, and approved-link redirect strategy
+- Backend: .NET 10 modular monolith projects under `src/backend/` for Domain, Infrastructure, API, and Worker.
+- Persistence: PostgreSQL/Npgsql with migration `20260811180731_InitialCreate`; local development uses Docker Compose.
+- API: `GET /api/v1/deals`, `GET /api/v1/products/{slug}`, safe fixture-only `GET /go/{listingId}`, and `GET /health`.
+- Fixtures: Products A-F cover strong evidence, current-only history unavailable, partial history, stale price, possible variant review, and no safe comparison.
+- Frontend: Next.js 16 + React 19 pages `/` and `/products/[slug]`, server-rendered API-driven content, responsive cards, evidence/freshness/match states.
+- Tests: 7 domain tests and 3 frontend component tests pass. Four PostgreSQL API integration tests are present and skipped when PostgreSQL is unavailable.
+- Worker: Hangfire PostgreSQL storage and opt-in fixture-safe sample job; no merchant ingestion.
 
-These are proposals, not implementation authorization. Merchant approval, source permissions, exact quotas, data residency, and legal review remain open.
+## Blocked external integrations
+
+- Best Buy Canada: program exists, but feed/API rights, permitted fields, retention, and cadence are unresolved.
+- Home Depot Canada: affiliate program exists, but catalog/API/feed rights are unresolved.
+- Amazon.ca: gated; not on the critical implementation path.
+- Walmart Canada: fallback / Phase 2 pending Rakuten partnership and data access validation.
+
+No merchant-specific production connector may be added until the verified source evidence required by `docs/integrations/INTEGRATION-BACKLOG.md` is committed.
 
 ## Current checkpoint
 
-Human UX Checkpoint: approved. The coordinated Solution/Cloud Architecture and Data/Affiliate Integration tracks are complete and reconciled. The Human Architecture / Data Integration Reconciliation Checkpoint is now awaiting approval.
+Human Architecture / Data Integration Checkpoint: approved. Application implementation is authorized within the approved architecture and connector gate.
 
-## Awaiting
+## Known validation limitation
 
-- Human Architecture / Data Integration Reconciliation Checkpoint
+Docker Desktop's Linux engine was unavailable during this run and no local PostgreSQL service was installed. Therefore migration application, database-backed API assertions, and Playwright E2E were not executed; they are explicitly documented as remaining validation work.
 
-## Next phase after approval
+## Next vertical slice
 
-- Project Foundation / Application Implementation
-- Backend + Frontend first approved vertical slice
-- QA begins with the first technical slices
-
-Do not begin backend, frontend, hosting, database, authentication, deployment, QA implementation, security implementation, or retailer connector implementation as part of this task.
+Implement the persisted stale/wrong listing report boundary: report endpoint and migration, minimal user-facing report entry, and a reviewable status without introducing full accounts/admin or merchant connectors.

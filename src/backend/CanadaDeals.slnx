@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="../../tests/CanadaDeals.Api.IntegrationTests/CanadaDeals.Api.IntegrationTests.csproj" />
+  <Project Path="../../tests/CanadaDeals.Domain.Tests/CanadaDeals.Domain.Tests.csproj" />
+  <Project Path="CanadaDeals.Api/CanadaDeals.Api.csproj" />
+  <Project Path="CanadaDeals.Domain/CanadaDeals.Domain.csproj" />
+  <Project Path="CanadaDeals.Infrastructure/CanadaDeals.Infrastructure.csproj" />
+  <Project Path="CanadaDeals.Worker/CanadaDeals.Worker.csproj" />
+</Solution>

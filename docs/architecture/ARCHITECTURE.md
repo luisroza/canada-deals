@@ -1,9 +1,9 @@
 # Canada Deals - Proposed Solution Architecture
 
-**Status:** PROPOSED - awaiting Human Architecture / Data Integration Checkpoint
+**Status:** APPROVED - Human Architecture / Data Integration Checkpoint completed
 **Prepared:** 2026-08-11
 **Scope:** Solution architecture, cloud, FinOps, application boundaries, delivery and scale path.
-**Explicit non-scope:** no application code, infrastructure, migrations, deployment pipeline, or production integration is created by this phase.
+**Implementation boundary:** application foundation and connector-neutral fixture development are approved. Production retailer connectors, live affiliate credentials, and production infrastructure remain gated by verified source permissions and later release review.
 
 ## Executive recommendation
 
@@ -26,7 +26,7 @@ This is one deployable product boundary, not a microservice estate. The separati
 - Deterministic product matching comes before fuzzy matching; uncertain matches are quarantined for review.
 - One relational database is the initial consistency boundary. Add infrastructure only after a measured trigger.
 - Canadian hosting is a regional preference and a checkpoint question; it is not a claim that every third-party service, email, CDN edge, or affiliate network processes data only in Canada.
-- All implementation choices in this document remain proposed until the Human Architecture / Data Integration Checkpoint approves them.
+- The checkpoint approved the architecture direction. Implementation still requires the constraints and gates in the integration documents, especially for merchant-specific production connectors.
 
 ## Proposed logical architecture
 
@@ -57,6 +57,18 @@ Cloudflare DNS/TLS/CDN baseline
 
 The public UI never trusts a client-provided destination URL. The API resolves an allowlisted `RetailerListing` to an approved affiliate destination and records a privacy-conscious click event before redirecting.
 
+## Approved public routing contract
+
+The MVP should present the browser with one public site boundary:
+
+```text
+https://canadadeals.ca/       -> Next.js web
+https://canadadeals.ca/api/*  -> ASP.NET Core API
+https://canadadeals.ca/go/*   -> ASP.NET Core safe affiliate handoff
+```
+
+The exact DNS and provider reverse-proxy configuration is intentionally deferred until deployment experimentation. The application contracts must nevertheless assume same-site browser/API routing so cookies, CSRF protection, CORS, security headers, and frontend calls remain simple. A separate API origin is not required for MVP.
+
 ## Application modules
 
 The backend remains one bounded application with explicit modules:
@@ -74,7 +86,7 @@ The backend remains one bounded application with explicit modules:
 
 The Next.js application should mirror these user-facing capabilities but should not duplicate domain rules. The API remains authoritative for product identity, price state, eligibility, alerts, disclosures, and redirect safety.
 
-## Technology decisions proposed
+## Approved technology decisions
 
 | Concern | Proposed choice | Why now | Trigger to revisit |
 |---|---|---|---|

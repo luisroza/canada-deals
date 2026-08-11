@@ -85,7 +85,7 @@ Only record decisions that have actually been approved. Proposed options and res
 
 ### DEC-008 - Proposed Solution / Cloud / FinOps architecture
 
-- **Status:** Proposed — awaiting Human Architecture / Data Integration Checkpoint
+- **Status:** Superseded by DEC-010; approved with checkpoint refinements
 - **Recommendation:** Use a single-repository modular monolith with Next.js + React + TypeScript for the public web, ASP.NET Core for the REST/domain API, PostgreSQL as the system of record, PostgreSQL search for MVP, Hangfire with PostgreSQL storage for durable jobs, and separate web/worker runtime components.
 - **Hosting recommendation:** DigitalOcean App Platform and managed PostgreSQL in Toronto, with Cloudflare Free as an optional edge baseline and Azure Canada Central as a future growth/fallback path.
 - **Cost direction:** Plan approximately $32-$62 USD/month without optional Spaces, or $37-$67 USD/month with Spaces, before tax, domain, overage, email/legal/affiliate costs; the CAD conversion is explicitly a planning assumption and must be rechecked before provisioning.
@@ -95,10 +95,22 @@ Only record decisions that have actually been approved. Proposed options and res
 
 ### DEC-009 - Proposed Data / Affiliate Integration architecture
 
-- **Status:** Proposed — awaiting Human Architecture / Data Integration Checkpoint
+- **Status:** Superseded by DEC-010; approved with checkpoint refinements
 - **Recommendation:** Use a source-neutral ingestion contract with field-level merchant policy, API/feed-first acquisition, deterministic matching, idempotent retries, adaptive freshness tiers, bounded policy-compliant history, and internal allowlisted affiliate redirects.
 - **Retailer direction:** Best Buy Canada and Home Depot Canada are conditional first integration targets; Amazon.ca is gated by Associates/PA API policy and legal review; Walmart Canada is a fallback/Phase 2 candidate pending Rakuten partnership and feed rights.
 - **Affiliate principle:** commission, conversion, and network data remain separate from organic Deal Quality and ranking.
 - **Constraints:** No connector, crawler, API credential, raw-feed archive, product migration, or affiliate implementation is approved by this proposal.
 - **Evidence:** `docs/integrations/DATA-INTEGRATIONS.md`, `docs/integrations/AFFILIATE-NETWORKS.md`, `docs/integrations/MERCHANTS.md`, `docs/integrations/DATA-MODEL.md`, `docs/integrations/INTEGRATION-BACKLOG.md`, and `docs/architecture/ARCHITECTURE-DATA-RECONCILIATION.md`.
+- **Date:** 2026-08-11
+
+### DEC-010 - Human Architecture / Data Integration Checkpoint approved
+
+- **Status:** Confirmed
+- **Decision:** Approve the coordinated application architecture and data/integration refinements, and authorize the application foundation plus the first connector-neutral, fixture-backed vertical slice.
+- **Approved stack:** Next.js + React + TypeScript; ASP.NET Core REST API; PostgreSQL; modular monolith; monorepo; PostgreSQL full-text search + `pg_trgm`; Hangfire with PostgreSQL storage; DigitalOcean App Platform and managed PostgreSQL in Toronto subject to final account/pricing/privacy checks; Cloudflare baseline; ASP.NET Core Identity; and an application email abstraction with Resend as the initial provider proposal.
+- **Approved corrections:** same-site browser/API topology (`/`, `/api/*`, `/go/*`); expanded `RetailerListing` contract; structured variant attributes preserving source values; deterministic-first matching; explicit match states; tri-state MerchantPolicy where `UNKNOWN` blocks protected publication/retention; policy-controlled bounded history; no retailer image caching by default; safe internal affiliate handoff; and strict separation of affiliate economics from organic ranking/evidence.
+- **Launch constraint:** two high-quality approved retailers are sufficient for launch. Best Buy Canada and Home Depot Canada are conditional targets. Amazon.ca is gated and not on the critical implementation path. Walmart Canada is fallback/Phase 2.
+- **Connector gate:** no production Best Buy, Home Depot, Amazon, Walmart, or equivalent merchant connector may be implemented until program approval, data source/fields, retention/history/image rights, refresh/quota, deep-link behavior, attribution, and restrictions are verified in repository documentation.
+- **Scope:** connector-neutral domain contracts, local PostgreSQL, migrations, synthetic fixtures, test adapters, REST API, Next.js discovery/product flow, worker foundation, and automated tests are authorized. Full authentication, alerts, production email, admin, live connectors, advanced history, and broad search remain future slices.
+- **Evidence:** `docs/architecture/ARCHITECTURE.md`, approved ADRs `ADR-001` through `ADR-009`, `docs/architecture/ARCHITECTURE-DATA-RECONCILIATION.md`, and approved integration documents.
 - **Date:** 2026-08-11

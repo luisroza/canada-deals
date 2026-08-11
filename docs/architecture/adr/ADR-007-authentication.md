@@ -1,6 +1,6 @@
 # ADR-007: ASP.NET Core Identity with secure cookie sessions
 
-**Status:** PROPOSED - awaiting Human Architecture Checkpoint
+**Status:** APPROVED - Human Architecture / Data Integration Checkpoint
 **Date:** 2026-08-11
 
 ## Context
@@ -14,6 +14,8 @@ ASP.NET Core Identity, Auth0/Clerk, a custom token system, or a hosted regional 
 ## Decision
 
 Use ASP.NET Core Identity with secure cookie sessions, email confirmation, password reset, rate limits, and an internal admin role. Social login is deferred.
+
+The browser/API MVP topology is same-site: the public web is served at `/`, the API is routed under `/api/*` on the same public origin, and safe retailer handoff is routed under `/go/*`. The exact reverse-proxy/DNS implementation is deferred to deployment work; no separate API origin is required for MVP.
 
 ## Reasoning
 

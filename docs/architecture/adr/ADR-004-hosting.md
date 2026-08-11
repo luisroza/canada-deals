@@ -1,6 +1,6 @@
 # ADR-004: DigitalOcean App Platform in Toronto
 
-**Status:** PROPOSED - awaiting Human Architecture Checkpoint
+**Status:** APPROVED - Human Architecture / Data Integration Checkpoint
 **Date:** 2026-08-11
 
 ## Context

@@ -4,7 +4,7 @@ Canada Deals is a Canadian e-commerce deal-discovery platform intended to help s
 
 ## Current status
 
-The Human Product and Human UX Checkpoints are complete. The approved UX baseline and checkpoint refinements are documented, and the repository is ready for coordinated Solution/Cloud Architecture and Data/Affiliate Integration Architecture planning. No application technology or implementation has been selected.
+The Human Product, Human UX, and Human Architecture / Data Integration Checkpoints are complete. The approved architecture and data refinements are documented, and the repository is implementing the first connector-neutral, fixture-backed vertical slice. Production retailer connectors remain blocked until source permissions, data rights, and affiliate terms are verified.
 
 ## Development workflow
 
@@ -12,7 +12,7 @@ The Human Product and Human UX Checkpoints are complete. The approved UX baselin
 2. Human Product Checkpoint
 3. UX / Product Design
 4. Solution/Cloud Architecture and Data/Affiliate Architecture
-5. Human Architecture Checkpoint
+5. Human Architecture / Data Integration Checkpoint
 6. Project foundation and vertical-slice implementation
 7. QA and test automation
 8. Security review
@@ -40,7 +40,8 @@ The source-of-truth documents are not complete until the relevant phase is appro
 
 - The initial market is Canada and prices are primarily CAD.
 - Affiliate revenue must never secretly influence deal quality or organic ranking.
-- Retailer APIs, feeds, affiliate programs, pricing, and policies must be verified before implementation.
+- Retailer APIs, feeds, affiliate programs, pricing, and policies must be verified before production connector implementation.
+- Fixture-backed, connector-neutral development may proceed before merchant approval.
 - Scraping is not the default and is prohibited when terms do not allow it.
 - Amazon must be reviewed separately because its data and affiliate rules may differ from other merchants.
 - Start simple without creating an obvious dead end.

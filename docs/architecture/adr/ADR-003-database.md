@@ -1,6 +1,6 @@
 # ADR-003: Managed PostgreSQL as system of record
 
-**Status:** PROPOSED - awaiting Human Architecture Checkpoint
+**Status:** APPROVED - Human Architecture / Data Integration Checkpoint
 **Date:** 2026-08-11
 
 ## Context

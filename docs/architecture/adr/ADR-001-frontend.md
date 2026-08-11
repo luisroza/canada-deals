@@ -1,6 +1,6 @@
 # ADR-001: Next.js + React + TypeScript for the public frontend
 
-**Status:** PROPOSED - awaiting Human Architecture Checkpoint
+**Status:** APPROVED - Human Architecture / Data Integration Checkpoint
 **Date:** 2026-08-11
 
 ## Context

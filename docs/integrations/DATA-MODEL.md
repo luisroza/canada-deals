@@ -1,6 +1,6 @@
 # Canada Deals - Canonical Data Model and Policy Contract
 
-**Status:** PROPOSED - awaiting Human Architecture / Data Integration Checkpoint
+**Status:** APPROVED - Human Architecture / Data Integration Checkpoint completed
 **Date:** 2026-08-11
 
 ## Canonical entities
@@ -12,7 +12,7 @@
 | `Category` | approved taxonomy and filters | stable slug, parent |
 | `Retailer` | merchant identity and region | merchant key, country, currency |
 | `AffiliateProgram` | network/program relationship | network, merchant, account/program ID, status |
-| `RetailerListing` | retailer-specific product offer | retailer + external listing ID, product ID, URL, availability |
+| `RetailerListing` | retailer-specific product offer and current permitted state | retailer; external listing ID; retailer SKU; canonical product ID; original title; product URL; approved affiliate destination reference; seller; marketplace seller flag; condition; variant attributes; pack quantity; bundle contents; region/availability context; online availability; shipping context; external identifiers; source timestamps; freshness; current permitted price state |
 | `PriceObservation` | source observation when permitted | listing + observed-at + source hash, amount, currency, availability |
 | `Deal` | derived public opportunity | listing/product, score inputs, freshness, evidence state |
 | `PriceAlert` | user threshold and delivery state | user + product/listing, target, consent, status |
@@ -32,6 +32,26 @@ Each source must have explicit values for:
 `AllowPriceStorage`, `AllowPriceHistory`, `AllowImageCaching`, `AllowMetadataCaching`, `PriceMaxAge`, `AllowedComparison`, `RequiredAttribution`, `DisclosureText`, `LinkExpiration`, `RawRetentionDays`, and `DataResidencyNotes`.
 
 Unknown is a first-class value. Unknown means the connector may not publish or retain the affected field until a reviewer changes the policy record.
+
+## RetailerListing contract details
+
+`RetailerListing` must preserve the following fields when a source provides them and must represent absent values as unknown/null rather than fabricated data:
+
+- retailer and external listing ID;
+- retailer SKU and canonical Product ID;
+- original source title and product URL;
+- approved affiliate destination reference, never an arbitrary client URL;
+- seller and marketplace-seller indicator;
+- condition;
+- structured variant attributes and their original source values;
+- pack quantity and bundle contents;
+- region, online availability, and shipping context;
+- external identifiers such as GTIN/UPC/EAN/ISBN/MPN/model;
+- source-observed and fetched timestamps;
+- freshness state;
+- current permitted price amount, currency, and availability state.
+
+Category-specific dimensions belong in structured variant attributes, for example screen size/storage/RAM/generation for electronics and voltage/tool-only/battery/charger/pack quantity for tools. Keep raw source values alongside normalized values; do not create dozens of category-specific nullable columns.
 
 ## Price truth and history
 

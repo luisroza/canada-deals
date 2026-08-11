@@ -1,6 +1,6 @@
 # Canada Deals - Proposed Cost Model
 
-**Status:** PROPOSED - awaiting Human Architecture / Data Integration Checkpoint
+**Status:** APPROVED COST DIRECTION - Human Architecture / Data Integration Checkpoint completed
 **Currency:** USD source prices, converted for planning at an explicit assumption of **1 USD = 1.38 CAD**. Verify exchange rate and provider quotes before provisioning.
 **Date checked:** 2026-08-11
 

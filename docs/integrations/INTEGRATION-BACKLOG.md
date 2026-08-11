@@ -1,6 +1,6 @@
 # Canada Deals - Integration Backlog
 
-**Status:** PROPOSED - gated by Human Architecture / Data Integration Checkpoint
+**Status:** APPROVED GATE - Human Architecture / Data Integration Checkpoint completed
 **Date:** 2026-08-11
 
 ## P0 - required before a first connector
@@ -17,6 +17,12 @@
 | INT-008 | Define ingestion idempotency/retry/DLQ contract | replay and duplicate scenarios documented | reliability |
 | INT-009 | Define freshness tiers per approved source | quota-aware schedule and stale UX mapping | product/data |
 | INT-010 | Define alert threshold and delivery semantics | consent, dedupe, unsubscribe, retry behavior | product/security |
+
+## Connector-neutral foundation now authorized
+
+The application foundation may implement canonical contracts, policy evaluation, matching, freshness, safe handoff boundaries, fixtures, and provider test adapters without merchant approval. Production connector work remains blocked until the source evidence below is committed.
+
+`INT-001` is completed by DEC-010. `INT-002` through `INT-006` remain external approval and policy gates; they are not satisfied by synthetic fixtures.
 
 ## P1 - first reliable vertical slice
 

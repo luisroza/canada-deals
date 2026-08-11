@@ -1,14 +1,16 @@
 # Canada Deals - Proposed Data Integration Architecture
 
-**Status:** PROPOSED - awaiting Human Architecture / Data Integration Checkpoint
+**Status:** APPROVED STRATEGY - Human Architecture / Data Integration Checkpoint completed
 **Prepared:** 2026-08-11
-**Implementation status:** no connectors, crawlers, migrations, or credentials are authorized.
+**Implementation status:** connector-neutral domain contracts, fixtures, migrations, and tests are authorized. Production merchant connectors, crawlers, and live credentials remain blocked by the production connector gate.
 
 ## Executive recommendation
 
 Build a **source-neutral ingestion platform** around approved affiliate/network APIs and product feeds. Begin with two launch candidates, **Best Buy Canada and Home Depot Canada**, only if a current affiliate/network relationship provides lawful product data and deep links. Treat **Amazon.ca as a gated candidate** because its Associates/PA API policies impose special rules for price, availability, caching, comparisons, attribution, timestamps, historical data, and mobile use. Keep Walmart Canada as a fallback/Phase 2 candidate through Rakuten if the required advertiser partnership and feed rights are confirmed.
 
 The connector contract must normalize provider data into canonical entities without leaking provider DTOs into the domain. Each source is controlled by a `MerchantPolicy` record that decides whether price storage, price history, image caching, metadata caching, comparison, attribution, and link expiration are allowed.
+
+The connector-neutral core may be implemented before merchant approval using synthetic fixtures and test adapters. No live retailer content or scraped data may be introduced as a shortcut. A merchant-specific adapter may move from fixture-only to production only after the verified evidence listed in `INTEGRATION-BACKLOG.md` exists in the repository.
 
 ## Source policy hierarchy
 
@@ -113,11 +115,11 @@ The following capabilities were verified against official documentation on 2026-
 - [CJ product feeds](https://developers.cj.com/docs/data-imports/product-feeds) and [CJ developer portal](https://lab-developers.d.cjpowered.com/).
 - [Impact product catalogs](https://help.impact.com/brand/platform-features/product-catalogs/add-product-catalogs-as-a-brand) and [partner marketplace](https://impact.com/partners/).
 
-## Open decisions for the checkpoint
+## Approved checkpoint refinements
 
-- approve the source-neutral canonical model and policy engine;
-- confirm whether the launch may proceed with two non-Amazon retailers if Amazon is gated;
-- confirm whether any source is allowed to provide historical data and for how long;
-- choose the first approved network/merchant contracts after outreach;
-- confirm legal review owner for Amazon comparison, caching, disclosure, and historical claims;
-- approve operational freshness targets after quotas are known.
+- the source-neutral canonical model and policy engine are approved;
+- launch may proceed with two non-Amazon retailers if their rights are verified; Amazon is not required for launch;
+- any history, image, or raw-feed retention remains controlled by the source policy record;
+- the first approved network/merchant contracts must be recorded after outreach;
+- Amazon comparison, caching, disclosure, and historical claims remain a legal/policy gate;
+- freshness targets are configured only after each approved source provides quota and update evidence.

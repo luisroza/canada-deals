@@ -1,10 +1,10 @@
 # Architecture and Data/Affiliate Reconciliation
 
-**Status:** PROPOSED - awaiting Human Architecture / Data Integration Checkpoint
+**Status:** APPROVED - Human Architecture / Data Integration Checkpoint completed
 **Date:** 2026-08-11
 **Tracks reconciled:** Solution/Cloud/FinOps and Data/Affiliate Integration.
 
-## Joint recommendation
+## Approved joint recommendation
 
 Use one source-neutral modular monolith in the existing repository:
 
@@ -59,16 +59,16 @@ The recommended baseline is approximately **$32-$62 USD/month without optional S
 5. **History promise:** UX copy and product claims must be tied to the policy state; no global “price history” promise is approved.
 6. **Email deliverability and consent:** provider selection is proposed; domain authentication, unsubscribe, suppression, and alert volume need a later implementation/security decision.
 
-## Human checkpoint questions
+## Approved checkpoint refinements
 
-- Approve the one-repository modular monolith and the proposed Next.js/ASP.NET Core/PostgreSQL stack?
-- Approve DigitalOcean Toronto as the MVP hosting direction, subject to account-level verification and privacy review?
-- Approve the source-neutral policy engine and canonical model?
-- Approve Best Buy Canada and Home Depot Canada as conditional first integration targets, with Amazon gated and Walmart fallback?
-- Approve PostgreSQL search and Hangfire/PostgreSQL jobs for MVP?
-- Decide whether any source may retain price history, image data, or raw feed snapshots, and for what retention period?
-- Confirm the owner and date for affiliate/legal/network outreach before implementation starts?
+- The one-repository modular monolith and Next.js/ASP.NET Core/PostgreSQL stack are approved.
+- DigitalOcean Toronto is the MVP hosting direction, subject to account-level verification and privacy review before production provisioning.
+- The source-neutral policy engine and canonical model are approved.
+- Two approved retailers are sufficient for launch. Best Buy Canada and Home Depot Canada are conditional targets; Amazon is gated; Walmart is fallback/Phase 2.
+- PostgreSQL search and Hangfire/PostgreSQL jobs are approved for MVP.
+- History, image, and raw-feed retention remain source-policy controlled; no generic permission is implied.
+- Affiliate/legal/network outreach remains a prerequisite for any production merchant connector.
 
 ## After approval
 
-Only after a positive checkpoint should the project create the application foundation, establish solution folders, add local development containers/configuration, implement the first connector-neutral domain contracts, and execute a vertical slice. The next implementation slice should be selected from the approved architecture and the first approved source, not invented by the backend/frontend agents.
+The positive checkpoint authorizes the application foundation, local development containers/configuration, connector-neutral domain contracts, fixtures, migrations, and the first vertical slice. It does not authorize a merchant-specific production connector. The next implementation slice must be selected from the approved architecture and the first fixture-backed contract, not invented by the backend/frontend agents.

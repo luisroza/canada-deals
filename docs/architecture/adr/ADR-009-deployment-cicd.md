@@ -1,6 +1,6 @@
-# ADR-009: Containerized delivery with gated CI/CD proposal
+# ADR-009: Containerized delivery with gated CI/CD direction
 
-**Status:** PROPOSED - awaiting Human Architecture Checkpoint
+**Status:** APPROVED - Human Architecture / Data Integration Checkpoint
 **Date:** 2026-08-11
 
 ## Context

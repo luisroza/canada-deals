@@ -1,9 +1,9 @@
 # Canada Deals - Merchant Integration Matrix
 
-**Status:** PROPOSED - awaiting Human Architecture / Data Integration Checkpoint
+**Status:** APPROVED STRATEGY - Human Architecture / Data Integration Checkpoint completed
 **Date checked:** 2026-08-11
 
-The scores below are screening judgements, not approvals. A merchant enters implementation only after a current program, feed/API rights, permitted data fields, update cadence, and deep-link behavior are recorded.
+The scores below are screening judgements, not approvals. Two high-quality approved retailers are sufficient for launch; retailer count is not an MVP KPI. A merchant enters production implementation only after a current program, feed/API rights, permitted data fields, update cadence, and deep-link behavior are recorded.
 
 | Merchant | Category fit | Affiliate evidence | Feed/API evidence | Policy risk | Screening score | Recommended posture |
 |---|---|---|---|---|---:|---|
@@ -21,7 +21,7 @@ The scores below are screening judgements, not approvals. A merchant enters impl
 
 ## Launch recommendation
 
-Target **two launch retailers** from Best Buy Canada and Home Depot Canada if lawful feeds/APIs and affiliate links are actually available. Keep Amazon.ca outside the launch commitment until the PA/API account, pricing/display/caching/history/comparison rules, and required attribution are reviewed. Keep Walmart Canada as a fallback if Rakuten confirms program and data access.
+Target **two launch retailers** from Best Buy Canada and Home Depot Canada if lawful feeds/APIs and affiliate links are actually available. This is sufficient for MVP; retailer count is not a success metric. Keep Amazon.ca outside the launch commitment until the PA/API account, pricing/display/caching/history/comparison rules, and required attribution are reviewed. Keep Walmart Canada as a fallback/Phase 2 candidate if Rakuten confirms program and data access.
 
 This deliberately favors a smaller, evidence-quality catalog over a broad directory with uncertain rights. Retailer count is not a success metric by itself.
 

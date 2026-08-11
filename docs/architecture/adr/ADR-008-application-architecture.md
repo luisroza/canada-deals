@@ -1,6 +1,6 @@
 # ADR-008: Modular monolith with explicit web, API, and worker boundaries
 
-**Status:** PROPOSED - awaiting Human Architecture Checkpoint
+**Status:** APPROVED - Human Architecture / Data Integration Checkpoint
 **Date:** 2026-08-11
 
 ## Context
