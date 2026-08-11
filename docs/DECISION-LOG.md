@@ -61,11 +61,24 @@ Only record decisions that have actually been approved. Proposed options and res
 
 ### DEC-006 - UX / Product Design phase completed
 
-- **Status:** Confirmed phase completion; awaiting Human UX Checkpoint
+- **Status:** Confirmed phase completion; superseded by DEC-007 Human UX approval
 - **Decision:** Produce the UX source of truth, responsive wireframes, design system proposal, UX backlog, and live research synthesis against the approved product direction.
 - **UX direction:** Keep price-truth, evidence, freshness, safe same-product comparison, honest unknown states, transparent affiliate disclosure, and accessibility first-class across desktop and mobile.
 - **Scope:** P0 core discovery/verification/comparison flow; P1 Save Product and Target-Price Alert; weekly digest remains P2.
 - **Constraint:** No technology, architecture, retailer integration, backend, frontend, hosting, database, authentication, or deployment decision is made by this phase.
-- **Next checkpoint:** Human UX Checkpoint. After approval, proceed to Solution / Cloud Architecture and Data/Affiliate Integration Architecture.
+- **Next checkpoint:** Superseded by DEC-007; proceed to Solution / Cloud Architecture and Data/Affiliate Integration Architecture planning.
 - **Evidence:** `docs/ux/UX-RESEARCH.md`, `docs/ux/UX-DESIGN.md`, `docs/ux/WIREFRAMES.md`, `docs/ux/DESIGN-SYSTEM.md`, and `docs/ux/UX-BACKLOG.md`.
+- **Date:** 2026-08-11
+
+### DEC-007 - Human UX Checkpoint approved
+
+- **Status:** Confirmed
+- **Decision:** Approve the UX baseline and the documented Human UX Checkpoint refinements, and make the repository ready for coordinated Solution/Cloud Architecture and Data/Affiliate Integration Architecture planning.
+- **Approved UX direction:** Search-first homepage; “Deals with strong evidence” evidence language; evidence-led Deal Card; decision-oriented Product Page; visible freshness; human-readable evidence and product-match states; safe same-product comparison; Reliable/Partial/Unavailable price-history states; expanded textual history interpretation; calm, trustworthy, restrained visual language; responsive mobile-first behavior; and WCAG 2.2 AA direction.
+- **Approved interaction refinements:** “Most recently checked” is the initial deal-feed sort; mobile Product Page sticky CTA contains only the primary retailer handoff after the original CTA leaves the viewport; Save Product and Target Price remain normal page actions; affiliate disclosure remains adjacent to retailer CTAs with final legal wording subject to later review.
+- **Approved retention:** Save Product and Target Price Alert remain P1; Weekly Digest remains P2 and is not part of the MVP retention requirement.
+- **Validation sequencing:** UX user testing remains required before final MVP UX freeze and broader release, with 5–8 representative Canadian shoppers, but it does not block Solution Architecture or Data/Affiliate Architecture planning.
+- **Constraint:** No application architecture or implementation technology was selected. No frontend, backend, database, cloud, hosting, authentication, QA, security, or integration implementation is authorized by this decision.
+- **Next checkpoint:** Human Architecture / Data Integration Reconciliation Checkpoint before application implementation.
+- **Evidence:** `docs/ux/UX-DESIGN.md`, `docs/ux/WIREFRAMES.md`, `docs/ux/DESIGN-SYSTEM.md`, `docs/ux/UX-BACKLOG.md`, and `docs/ux/UX-RESEARCH.md`.
 - **Date:** 2026-08-11

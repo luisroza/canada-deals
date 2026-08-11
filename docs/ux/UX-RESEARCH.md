@@ -1,6 +1,6 @@
 # Canada Deals - UX Research
 
-**Status:** UX research completed; awaiting Human UX Checkpoint
+**Status:** Research record supporting the approved UX direction; not an approved specification
 **Date:** 2026-08-11
 **Scope:** Current UX patterns only; no implementation or technology decisions
 

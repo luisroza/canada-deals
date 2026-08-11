@@ -35,7 +35,7 @@ Deal feed, search, filters, evidence-rich deal cards, product pages, freshness s
 
 ### P1 - High-priority retention experiment
 
-Save product/deal, target-price email alerts, and a low-noise weekly digest only if the alert consent and delivery path are validated.
+Save product/deal and target-price email alerts. The retention sequence is Save Product → Target Price → Alert → Return. Weekly Digest is P2 and remains on the roadmap, but is not part of the MVP retention requirement.
 
 ## Major assumptions
 

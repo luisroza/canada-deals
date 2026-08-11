@@ -1,6 +1,6 @@
 # Canada Deals — UX Design System
 
-**Status:** Proposed — awaiting Human UX Checkpoint
+**Status:** APPROVED — Human UX Checkpoint completed
 **Purpose:** Shared visual and interaction language for the approved product direction. This is a design specification, not an implementation instruction.
 
 ## 1. Visual personality
@@ -16,7 +16,7 @@ Use semantic roles so meaning survives theme changes and accessibility review:
 - **Action:** primary CTA, secondary CTA, link, and focus ring.
 - **Evidence:** verified/strong evidence and neutral evidence.
 - **Freshness:** recent, aging, stale, and unknown.
-- **Confidence:** high match, review, and no safe comparison.
+- **Product match:** same product confirmed, review before comparing, and no safe comparison available. Internal confidence remains an implementation signal, not an MVP public percentage.
 - **Feedback:** success, warning, error, and informational.
 - **Disclosure:** neutral affiliate/sponsored information.
 
@@ -91,9 +91,9 @@ Uses controlled labels such as Observed history, Retailer reference, Partial evi
 
 Shows human-readable freshness and exposes exact observation time in the detail context. “May be stale” has a clear next action.
 
-### Match Confidence Label
+### Product Match State
 
-High confidence, Review before comparing, or No safe comparison. The label is text-first and appears near the comparison claim.
+Same product confirmed, Review before comparing, or No safe comparison available. The label is text-first and appears near the comparison claim. “Deals with strong evidence” is reserved for evidence quality, not product identity.
 
 ### Retailer Offer Card / Comparison Table
 
@@ -101,7 +101,7 @@ Uses the same field order across desktop and mobile: retailer, price, observed t
 
 ### Price History Panel
 
-Has reliable, partial, and unavailable variants. Charts have text summaries, labeled axes, and no implication of continuous coverage where observation is sparse.
+Has reliable, partial, and unavailable variants. The textual interpretation is expanded by default, followed by the chart. Charts have text summaries, labeled axes, and no implication of continuous coverage where observation is sparse. P0 requires all states to render correctly; complete history for every MVP product is not required.
 
 ### Save Button and Target Price Dialog
 
@@ -139,7 +139,7 @@ Every interactive component defines default, hover (where relevant), focus-visib
 - Tablet: filter rail may become a collapsible toolbar; comparison may use fewer columns.
 - Mobile: stack offers, use filter sheet, preserve the same evidence order, and keep one primary action per card.
 - At every width, product title, current price, observation time, and confidence state remain visible without interaction.
-- Sticky actions must not cover content or focus targets.
+- The approved mobile sticky action contains only the primary retailer handoff after the original CTA leaves the viewport. It must not cover content or focus targets.
 
 ## 11. Accessibility requirements
 
@@ -164,7 +164,7 @@ Use plain, specific language: “Checked 2 hours ago,” “No verified referenc
 
 ## 13. Sponsored and affiliate treatment
 
-Affiliate disclosures are close to retailer CTAs and use neutral styling. If sponsored placements are introduced later, they must be separated from organic results, labeled before interaction, and excluded from evidence/confidence signals. Paid ranking is outside MVP.
+Affiliate disclosures are close to retailer CTAs and use neutral styling. Conceptual baseline copy is “We may earn a commission if you buy through this link.” Final legal/compliance wording remains subject to later review. If sponsored placements are introduced later, they must be separated from organic results, labeled before interaction, and excluded from evidence/confidence signals. Paid ranking is outside MVP.
 
 ## 14. Quality checklist for new components
 

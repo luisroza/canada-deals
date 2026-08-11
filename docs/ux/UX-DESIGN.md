@@ -1,6 +1,6 @@
 # Canada Deals — UX / Product Design
 
-**Status:** Proposed UX source of truth — awaiting Human UX Checkpoint
+**Status:** APPROVED — Human UX Checkpoint completed
 **Product basis:** Human Product Checkpoint approved on 2026-08-11
 **Scope:** English-first responsive web MVP; no application code or technology decisions
 
@@ -93,7 +93,7 @@ Scans more often, notices stale or weak evidence, and values history and alerts.
 1. Product Page identifies the canonical product and important attributes.
 2. Comparison panel groups same-product offers.
 3. Each retailer row shows price, observed time, availability context, shipping uncertainty, and CTA.
-4. Low-confidence alternatives are separated and never merged into the primary comparison.
+4. Uncertain-match alternatives are separated and never merged into the primary comparison.
 
 ### Journey D — save and alert
 
@@ -132,7 +132,7 @@ The homepage hierarchy is:
 1. **Promise:** “Find a price you can trust.”
 2. **Search:** product-first search with examples such as “Sony WH-1000XM5” or “Makita drill.”
 3. **Trust strip:** current price, evidence, freshness, and safe comparison explained in plain language.
-4. **Curated deal feed:** a small set of high-confidence cards, not an endless wall.
+4. **Deals with strong evidence:** a small set of evidence-led cards, not an endless wall.
 5. **How it works:** discover, verify, compare.
 6. **Optional return path:** save and target-price alert, without forcing account creation.
 
@@ -142,20 +142,19 @@ On mobile, the search and first useful card must appear before educational conte
 
 The feed supports category, retailer, price range, discount/reference availability, freshness, match confidence, and availability-context filters. Filters show active counts, can be cleared individually, and preserve results when a user returns from a Product Page.
 
-Recommended sort choices:
+Sort choices:
 
-- Best evidence
 - Most recently checked
 - Largest supported savings
 - Lowest current price
 
-“Best deal” is not a black-box promise. The default ranking should balance evidence quality and recency before savings magnitude.
+The initial MVP default is **Most recently checked** because it is transparent, deterministic, and reinforces freshness. “Best evidence” may be tested later, but is not the initial default and must not be presented as an opaque “Recommended” or “Best Deals” ranking.
 
 ## 9. Deal Card specification
 
 ### Standard card
 
-Order: product image, category/retailer, product title, current price, reference label or “No verified reference,” savings statement only when supported, freshness label, match confidence, and actions.
+Order: product image, category/retailer, product title and identifying variant, current price, reference/evidence label or “No verified reference,” savings statement only when supported, freshness label, public product-match state, and actions.
 
 Actions: View details, Compare retailers when safe, Save, and Report stale/wrong in an overflow menu.
 
@@ -173,7 +172,7 @@ May add a short reason such as “Recently checked” or “Strong historical ev
 - Current price only; no verified reference.
 - Partial history.
 - Stale observation.
-- Low-confidence product match.
+- Review before comparing.
 - No safe comparison.
 - Expired or unavailable retailer offer.
 - Loading, empty, and error.
@@ -187,9 +186,17 @@ Use a consistent evidence block:
 > Current price: $X CAD
 > Observed: 2 hours ago
 > Reference: observed history / retailer reference / unavailable
-> Match: High confidence
+> Product match: Same product confirmed
 
 Freshness labels: Just checked, Checked today, Checked recently, May be stale, and Last observation unavailable. The exact timestamp is available in the detail view.
+
+Public product-match states are human-readable and distinct from internal confidence signals:
+
+- **Same product confirmed:** included in the safe retailer comparison.
+- **Review before comparing:** a listing may differ by model, size, storage, seller, condition, pack size, bundle, generation, or another meaningful variant.
+- **No safe comparison available:** no listing is confidently equivalent and it is not included in the price comparison.
+
+Do not expose implementation confidence percentages in the MVP.
 
 Savings copy follows evidence:
 
@@ -222,9 +229,11 @@ The page should answer “what is this?” before “how much could I save?”
 
 ## 12. Price history
 
+P0 requires the Product Page to render all price-history evidence states correctly. It does not require complete history for every MVP product. A product or retailer with insufficient permitted or reliable history must remain usable and show **“Price history unavailable.”** Lack of history for one product or retailer does not automatically block MVP launch.
+
 ### Reliable history
 
-Show a readable chart with period selector, current marker, observation coverage, and a short interpretation. Include a text summary for screen readers.
+Show the textual interpretation expanded by default, followed by a readable chart with period selector, current marker, and observation coverage. For example: “Current price: $499 CAD. Lowest observed price since tracking began: $449 CAD. Tracking since: March 2026.” Use exact wording only when supported; never imply all-time coverage without all-time evidence. Include a text summary for screen readers.
 
 ### Partial history
 
@@ -232,7 +241,7 @@ Show the chart only for the supported period and label coverage limitations. Avo
 
 ### Unavailable history
 
-Use a compact explanation: “We do not have enough verified history for this product yet.” Keep current price and retailer actions usable; do not render an empty axis that looks like missing data.
+Use a compact explanation: “Price history unavailable — we do not have enough verified history for this product yet.” Keep current price and retailer actions usable; do not render an empty axis that looks like missing data.
 
 The chart must not imply a continuous observation when data points are sparse.
 
@@ -242,7 +251,9 @@ Desktop uses a comparison table with one row per safely matched retailer offer. 
 
 Mobile uses stacked offer cards with the same information in the same priority order. The primary CTA is “View at retailer,” with “Opens retailer site” and affiliate disclosure close to it.
 
-Offers with low match confidence belong in a separate “Review before comparing” section. “No safe comparison” is a valid final state and should explain that a similar listing was found but not treated as equivalent.
+Offers with an uncertain product match belong in a separate “Review before comparing” section. “No safe comparison available” is a valid final state and should explain that a similar listing was found but not treated as equivalent.
+
+Affiliate disclosure stays close to each retailer CTA, visible, neutral, and understandable. Conceptual baseline copy: “We may earn a commission if you buy through this link.” This is UX copy guidance; final legal and compliance wording remains subject to later review.
 
 ## 14. Search and results
 
@@ -264,7 +275,8 @@ Report reasons: price changed, product mismatch, retailer page unavailable, inco
 
 - Mobile-first content order: search, trust summary, key price, CTA, evidence, comparison, history.
 - One primary action per card; secondary actions move to a visible overflow.
-- Sticky action bar on Product Page may contain View at retailer and Save, but never covers evidence.
+- After the original retailer CTA leaves the viewport, the mobile Product Page may show a sticky bar containing only the primary retailer handoff, such as “View at Best Buy.” It must not contain Save, Target Price, or multiple competing retailer actions.
+- The sticky retailer CTA must not cover evidence, content, or focus targets; it must remain keyboard accessible, have an accessible name, and preserve nearby affiliate-disclosure expectations.
 - Comparison tables become stacked cards at narrow widths.
 - Filters open as a full-height sheet with applied count and clear/apply controls.
 - Touch targets are at least 44 CSS pixels; focus indicators remain visible.
@@ -290,13 +302,15 @@ Public Product Pages should have stable, readable titles, useful structured cont
 
 ## 22. Measurement and validation
 
-Measure time to first useful result, search-to-Product-Page rate, evidence expansion, comparison use, retailer handoff, save conversion, alert creation, report rate, stale-rate by surface, and accessibility defects. Qualitative validation should test trust comprehension, safe comparison, freshness interpretation, and alert expectations with Canadian shoppers.
+Measure time to first useful result, search-to-Product-Page rate, evidence expansion, comparison use, retailer handoff, save conversion, alert creation, report rate, stale-rate by surface, and accessibility defects. User testing remains required, but does not block Solution Architecture or Data/Affiliate Architecture. The recommended sequence is: approved UX baseline → architecture and data planning → interactive/coded prototype → 5–8 representative Canadian shopper usability sessions → UX refinement → final MVP UX freeze and broader release.
+
+Usability sessions should test homepage comprehension, Deal Card comprehension, freshness and evidence interpretation, safe comparison, price-history states, affiliate disclosure, retailer handoff expectations, Save Product, Target Price Alert, and mobile usability. This is a formative comprehension study, not a statistical study.
 
 ## 23. Candidate experiments after baseline approval
 
 - Search-first homepage versus curated-feed-first homepage.
-- Evidence summary expanded by default versus collapsed after the first screen.
-- “Best evidence” versus “Most recently checked” default feed sort.
+- Evidence summary expanded by default versus collapsed after the first screen; the approved baseline is expanded textual history interpretation.
+- “Best evidence” versus “Most recently checked” as a later ranking experiment; the approved initial default is Most recently checked.
 - Save-first versus alert-first return prompt after a verified Product Page.
 
 Experiments must not hide freshness, disclosure, match confidence, or evidence, and must not optimize retailer clicks at the expense of safe decisions.
@@ -312,20 +326,21 @@ Experiments must not hide freshness, disclosure, match confidence, or evidence, 
 7. Save and target-price flow.
 8. Report stale/wrong flow.
 9. Saved products and alerts.
-10. Loading, empty, stale, unavailable, low-confidence, and error states.
+10. Loading, empty, stale, unavailable, uncertain-match, and error states.
 
 Detailed text wireframes are in `docs/ux/WIREFRAMES.md`; tokens and component rules are in `docs/ux/DESIGN-SYSTEM.md`; prioritized UX stories are in `docs/ux/UX-BACKLOG.md`.
 
-## 25. Open items for the Human UX Checkpoint
+## 25. Approved Human UX Checkpoint refinements
 
-- Confirm the information density of the standard Deal Card.
-- Confirm whether “Best evidence” is the initial feed sort.
-- Confirm the mobile sticky action treatment on Product Page.
-- Confirm whether the price-history summary is expanded by default.
-- Confirm the wording and placement of affiliate disclosure.
+- Public evidence wording is “Deals with strong evidence.”
+- Public product-match wording is “Same product confirmed,” “Review before comparing,” and “No safe comparison available.”
+- Initial feed sort is Most recently checked.
+- Textual price-history interpretation is expanded by default.
+- Mobile sticky bar contains only the primary retailer handoff after the original CTA leaves the viewport.
+- Affiliate disclosure remains adjacent to retailer CTAs; final legal/compliance wording remains subject to later review.
 
 These are UX decisions only. They do not authorize technology selection, integrations, or implementation.
 
 ## 26. Final UX recommendation
 
-Approve a narrow, evidence-led responsive experience centered on one trustworthy Product Page and a repeatable Deal Card. Make current price, observation time, evidence basis, and match confidence first-class content. Treat no-history and no-safe-comparison as useful outcomes. Release Save and Target Price as P1 retention flows, keep weekly digest at P2, and move to architecture and data/affiliate design only after the Human UX Checkpoint.
+The approved UX is a narrow, evidence-led responsive experience centered on one trustworthy Product Page and a repeatable Deal Card. Current price, observation time, evidence basis, and product-match state are first-class content. No-history and no-safe-comparison remain useful honest outcomes. Save and Target Price are P1 retention flows, weekly digest remains P2, and the repository is now ready for coordinated Solution/Cloud Architecture and Data/Affiliate planning without starting implementation.

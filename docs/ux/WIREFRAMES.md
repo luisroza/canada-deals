@@ -1,6 +1,6 @@
 # Canada Deals — Text Wireframes
 
-**Status:** Proposed — awaiting Human UX Checkpoint
+**Status:** APPROVED — Human UX Checkpoint completed
 **Purpose:** Make the approved UX behavior concrete without selecting frontend technology or creating application code.
 
 ## Conventions
@@ -24,13 +24,13 @@
 │                                                                             │
 │ CURRENT PRICE  •  EVIDENCE  •  FRESHNESS  •  SAFE COMPARISON                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ High-confidence deals                                      [View all deals] │
+│ Deals with strong evidence                              [View all deals] │
 │ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐          │
 │ │ image        │ │ image        │ │ image        │ │ image        │          │
 │ │ product      │ │ product      │ │ product      │ │ product      │          │
 │ │ $X CAD       │ │ $X CAD       │ │ $X CAD       │ │ $X CAD       │          │
 │ │ Checked ...  │ │ Checked ...  │ │ Checked ...  │ │ Checked ...  │          │
-│ │ High match   │ │ High match   │ │ Price only   │ │ Partial hist │          │
+│ │ Same product │ │ Same product │ │ Price only   │ │ Partial hist │          │
 │ │ [Details]    │ │ [Details]    │ │ [Details]    │ │ [Details]    │          │
 │ └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘          │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -52,12 +52,12 @@ Purpose: begin with search and establish the trust model before the feed. The fi
 │ Current price • Evidence     │
 │ Freshness • Safe comparison  │
 ├──────────────────────────────┤
-│ High-confidence deals        │
+│ Deals with strong evidence   │
 │ ┌──────────────────────────┐ │
 │ │ image  Product title     │ │
 │ │        $X CAD             │ │
 │ │        Checked today     │ │
-│ │        High match        │ │
+│ │        Same product      │ │
 │ │        [View details]    │ │
 │ └──────────────────────────┘ │
 │ [View all deals]             │
@@ -74,19 +74,19 @@ The search, first card, and primary evidence remain above explanatory content. B
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Deals                                                     [search field]     │
 ├───────────────┬─────────────────────────────────────────────────────────────┤
-│ Filters       │  Deals for you to verify                  Sort: [Best evidence]│
+│ Filters       │  Deals for you to verify             Sort: [Most recently checked]│
 │ Category      │  124 results   [Clear all]                                   │
 │ Retailer      │ ┌─────────────────────────────────────────────────────────┐ │
 │ Price         │ │ image │ Product title · retailer                        │ │
 │ Freshness     │ │       │ $X CAD   $Y observed reference                  │ │
-│ Match         │ │       │ Checked 2h ago · High match · [Save] [Details]  │ │
+│ Match         │ │       │ Checked 2h ago · Same product confirmed · [Save] [Details]  │ │
 │ Availability  │ └─────────────────────────────────────────────────────────┘ │
 │ [Apply]       │ ┌─────────────────────────────────────────────────────────┐ │
 │               │ │ ...                                                     │ │
 └───────────────┴─────────────────────────────────────────────────────────────┘
 ```
 
-Filters are reversible and show active counts. Default sort is a checkpoint decision; the proposed value is Best evidence. Discount claims never outrank clear evidence by default.
+Filters are reversible and show active counts. The initial default sort is Most recently checked. Other available choices may include Largest supported savings and Lowest current price; Best evidence is a later experiment, not the initial default. Discount claims never outrank clear evidence by default.
 
 ## 4. Deals feed — mobile
 
@@ -94,13 +94,13 @@ Filters are reversible and show active counts. Default sort is a checkpoint deci
 ┌──────────────────────────────┐
 │ Deals                         │
 │ [Search]  [Filters (3)]      │
-│ 124 results   [Best evidence]│
+│ 124 results   [Most recently checked]│
 ├──────────────────────────────┤
 │ ┌──────────────────────────┐ │
 │ │ image   Product title    │ │
 │ │         $X CAD           │ │
 │ │         Checked 2h ago   │ │
-│ │         High match       │ │
+│ │         Same product     │ │
 │ │         [Details]   ⋯    │ │
 │ └──────────────────────────┘ │
 │ ...                          │
@@ -120,7 +120,7 @@ Query: Sony WH-1000XM5
 │ Products (8)                                             │
 │ ┌───────────────────────────────────────────────────────┐ │
 │ │ Product title · model identifier                       │ │
-│ │ $X CAD · Current price · Checked today · High match    │ │
+│ │ $X CAD · Current price · Checked today · Same product confirmed │ │
 │ │ [Open Product Page]                                    │ │
 │ └───────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
@@ -136,13 +136,13 @@ No results state: repeat the query, offer a category suggestion, and invite a br
 │ Product title and model/variant                           │
 │ $X CAD                                                    │
 │ $Y below observed reference  (only when supported)        │
-│ Checked 2 hours ago  ·  High-confidence match             │
+│ Checked 2 hours ago  ·  Same product confirmed            │
 │ Evidence: observed history                                │
 │ [View Product]  [Save]  [⋯ Report stale or wrong]         │
 └──────────────────────────────────────────────────────────┘
 ```
 
-For price-only cards, replace the reference line with “No verified reference.” For stale cards, add “May be stale” and “Check retailer” as the next action. For low-confidence cards, never display a savings percentage.
+For price-only cards, replace the reference line with “No verified reference.” For stale cards, add “May be stale” and “Check retailer” as the next action. For uncertain-match cards, use “Review before comparing” and never display a savings percentage.
 
 ## 7. Product Page — desktop
 
@@ -153,7 +153,7 @@ For price-only cards, replace the reference line with “No verified reference.�
 ├───────────────────────────────┬─────────────────────────────────────────────┤
 │ image/gallery                  │ $X CAD                                     │
 │                               │ Retailer: Best Buy Canada                  │
-│                               │ Checked 2 hours ago · High match            │
+│                               │ Checked 2 hours ago · Same product confirmed  │
 │                               │ Reference: observed history                 │
 │                               │ [View at retailer]                          │
 │                               │ Affiliate disclosure                        │
@@ -165,14 +165,15 @@ For price-only cards, replace the reference line with “No verified reference.�
 │ Home Depot        —         —             Not available       —       —      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Price history                                                               │
+│ Current price: $499 CAD. Lowest observed since tracking began: $449 CAD.   │
+│ Tracking since: March 2026.                                                 │
 │ [chart]  Reliable history · Coverage: last 12 months                        │
-│ Current price is near the lower end of observed prices.                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Evidence and product details                  [Report stale or wrong]       │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-The CTA opens the retailer and states that it leaves Canada Deals. Affiliate disclosure is adjacent to the retailer action, not buried in the footer.
+The CTA opens the retailer and states that it leaves Canada Deals. Affiliate disclosure is adjacent to the retailer action, not buried in the footer. Conceptual copy: “We may earn a commission if you buy through this link.” Final legal/compliance wording remains subject to later review.
 
 ## 8. Product Page — mobile
 
@@ -183,7 +184,7 @@ The CTA opens the retailer and states that it leaves Canada Deals. Affiliate dis
 │ Product title                │
 │ $X CAD                       │
 │ Best Buy · Checked 2h ago    │
-│ High match · Observed hist.  │
+│ Same product confirmed · Observed hist. │
 │ [View at retailer]           │
 │ Affiliate disclosure         │
 │ [Save]  [Target price]       │
@@ -202,7 +203,7 @@ The CTA opens the retailer and states that it leaves Canada Deals. Affiliate dis
 └──────────────────────────────┘
 ```
 
-The sticky CTA is optional pending checkpoint approval; if used, it must not obscure price, evidence, or focus targets.
+The sticky CTA is approved for mobile. It appears only after the original retailer CTA leaves the viewport and contains only the primary retailer handoff, such as “View at Best Buy.” Save and Target Price remain normal page actions. It must not obscure price, evidence, content, or focus targets; it remains keyboard accessible and keeps affiliate-disclosure expectations clear.
 
 ## 9. Price-history states
 
@@ -211,7 +212,8 @@ Reliable:
 ```text
 Price history · Reliable · Last 12 months
 [chart with labeled dates and CAD values]
-Observed low: $X   Current: $Y   Coverage: 92%
+Current price: $Y   Lowest observed since tracking began: $X   Coverage: 92%
+Tracking since: March 2026
 ```
 
 Partial:
@@ -225,7 +227,7 @@ We have gaps in the observation period, so this is not an all-time-low claim.
 Unavailable:
 
 ```text
-Price history
+Price history unavailable
 We do not have enough verified history for this product yet.
 Current price and retailer evidence are still available.
 ```
@@ -234,9 +236,9 @@ The unavailable state has no empty chart axes.
 
 ## 10. Comparison states
 
-Confident match: show offers in the primary comparison with match label and observation time.
+Same product confirmed: show offers in the primary comparison with the match label and observation time.
 
-Low-confidence review:
+Uncertain match review:
 
 ```text
 Possible related listing — review before comparing

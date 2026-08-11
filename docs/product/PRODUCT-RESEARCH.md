@@ -223,7 +223,7 @@ Scores: User Value (UV), Business Value (BV), Complexity (C), Differentiation (D
 | Save product/deal | 4 | 4 | 2 | 2 | P1 | Low-friction retention |
 | Target-price email alert | 5 | 5 | 3 | 4 | P1 | Converts intent into repeat usage |
 | Price-history chart and 30/90-day context | 4 | 5 | 4 | 4 | P1 | Strong decision value if data rights and quality permit |
-| Weekly personalized digest | 3 | 4 | 3 | 3 | P1 | Efficient retention experiment |
+| Weekly personalized digest | 3 | 4 | 3 | 3 | P2 | Efficient retention experiment after Save -> Target Price -> Alert -> Return is validated |
 | Community votes/comments/submissions | 3 | 3 | 5 | 2 | P2 | Valuable eventually; moderation and abuse cost are high |
 | Browser extension | 3 | 4 | 4 | 3 | P2 | Useful at checkout, but acquisition and policy complexity are high |
 | AI deal explanation | 3 | 3 | 3 | 3 | P2 | Only after evidence pipeline is reliable |
