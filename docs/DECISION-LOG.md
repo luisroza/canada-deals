@@ -10,6 +10,14 @@ Only record decisions that have actually been approved. Proposed options and res
 - **Decision:** Use the `luisroza/canada-deals` GitHub repository for the Canada Deals project.
 - **Scope:** Repository context only; no application technology has been selected.
 - **Date:** 2026-08-11
+
+### DEC-003 - Separate repository governance from specialized role instructions
+
+- **Status:** Confirmed by governance refactor
+- **Decision:** Keep concise repository-wide behavior rules in the root `AGENTS.md`; keep the detailed Product Owner / Market Research specification in `agents/product-owner.md`; use specialized role files or clearly marked placeholders for other agents.
+- **Rationale:** Every agent needs the global workflow and safety rules, while role-specific research and implementation requirements should remain scoped to the responsible agent.
+- **Constraints:** Preserve human checkpoints, avoid technology selection, and do not begin product research or application implementation as part of this refactor.
+- **Date:** 2026-08-11
 ### DEC-001 - Initial development phase
 
 - **Status:** Confirmed by project bootstrap

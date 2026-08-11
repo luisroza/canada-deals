@@ -9,6 +9,7 @@ Product Definition - awaiting Human Product Checkpoint
 - Local workspace linked to the intended GitHub repository context: `luisroza/canada-deals`
 - Project README
 - Root and scoped agent instructions
+- Agent governance refactor: concise repository rules, dedicated Product Owner instructions, and future-role placeholders
 - Documentation structure
 - Initial project status and decision log
 - Canadian competitive and product research draft
