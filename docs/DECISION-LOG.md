@@ -82,3 +82,23 @@ Only record decisions that have actually been approved. Proposed options and res
 - **Next checkpoint:** Human Architecture / Data Integration Reconciliation Checkpoint before application implementation.
 - **Evidence:** `docs/ux/UX-DESIGN.md`, `docs/ux/WIREFRAMES.md`, `docs/ux/DESIGN-SYSTEM.md`, `docs/ux/UX-BACKLOG.md`, and `docs/ux/UX-RESEARCH.md`.
 - **Date:** 2026-08-11
+
+### DEC-008 - Proposed Solution / Cloud / FinOps architecture
+
+- **Status:** Proposed — awaiting Human Architecture / Data Integration Checkpoint
+- **Recommendation:** Use a single-repository modular monolith with Next.js + React + TypeScript for the public web, ASP.NET Core for the REST/domain API, PostgreSQL as the system of record, PostgreSQL search for MVP, Hangfire with PostgreSQL storage for durable jobs, and separate web/worker runtime components.
+- **Hosting recommendation:** DigitalOcean App Platform and managed PostgreSQL in Toronto, with Cloudflare Free as an optional edge baseline and Azure Canada Central as a future growth/fallback path.
+- **Cost direction:** Plan approximately $32-$62 USD/month without optional Spaces, or $37-$67 USD/month with Spaces, before tax, domain, overage, email/legal/affiliate costs; the CAD conversion is explicitly a planning assumption and must be rechecked before provisioning.
+- **Constraints:** No infrastructure, application code, database migration, deployment pipeline, or hosting resource is approved by this proposal.
+- **Evidence:** `docs/architecture/ARCHITECTURE.md`, `docs/architecture/COST-MODEL.md`, and `docs/architecture/adr/ADR-001` through `ADR-009`.
+- **Date:** 2026-08-11
+
+### DEC-009 - Proposed Data / Affiliate Integration architecture
+
+- **Status:** Proposed — awaiting Human Architecture / Data Integration Checkpoint
+- **Recommendation:** Use a source-neutral ingestion contract with field-level merchant policy, API/feed-first acquisition, deterministic matching, idempotent retries, adaptive freshness tiers, bounded policy-compliant history, and internal allowlisted affiliate redirects.
+- **Retailer direction:** Best Buy Canada and Home Depot Canada are conditional first integration targets; Amazon.ca is gated by Associates/PA API policy and legal review; Walmart Canada is a fallback/Phase 2 candidate pending Rakuten partnership and feed rights.
+- **Affiliate principle:** commission, conversion, and network data remain separate from organic Deal Quality and ranking.
+- **Constraints:** No connector, crawler, API credential, raw-feed archive, product migration, or affiliate implementation is approved by this proposal.
+- **Evidence:** `docs/integrations/DATA-INTEGRATIONS.md`, `docs/integrations/AFFILIATE-NETWORKS.md`, `docs/integrations/MERCHANTS.md`, `docs/integrations/DATA-MODEL.md`, `docs/integrations/INTEGRATION-BACKLOG.md`, and `docs/architecture/ARCHITECTURE-DATA-RECONCILIATION.md`.
+- **Date:** 2026-08-11

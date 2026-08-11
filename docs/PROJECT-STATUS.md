@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Human UX Checkpoint Completed — Ready for Architecture Phase
+Human Architecture / Data Integration Checkpoint
 
 ## Completed
 
@@ -23,6 +23,10 @@ Human UX Checkpoint Completed — Ready for Architecture Phase
 - UX backlog
 - Human UX Checkpoint
 - Approved UX refinements
+- Solution Architecture analysis
+- Cloud / FinOps analysis
+- Data / Affiliate Integration analysis
+- Architecture / Data reconciliation
 
 ## Approved product direction
 
@@ -33,35 +37,34 @@ Human UX Checkpoint Completed — Ready for Architecture Phase
 - Target-price email alerts as a P1 retention experiment
 - Weekly digest deferred to P2
 
-## Not yet decided
+## Proposed, awaiting Human Architecture / Data approval
 
-- Frontend technology
-- Backend technology
-- Database
-- Hosting provider and Canadian hosting region
-- Search implementation
-- Background-job implementation
-- Authentication technology
-- Email provider
-- Initial technically feasible retailer integrations
-- Affiliate networks
-- Data sources and source permissions
-- Price refresh strategy
-- Price-history storage strategy
-- Product-matching implementation strategy
-- Monitoring and observability tooling
+- Next.js + React + TypeScript public frontend
+- ASP.NET Core REST API and modular-monolith boundaries
+- Managed PostgreSQL system of record
+- PostgreSQL search for MVP
+- Hangfire with PostgreSQL storage for durable jobs
+- DigitalOcean App Platform and managed PostgreSQL in Toronto
+- Resend transactional email, subject to privacy/deliverability review
+- Source-neutral integration contract and field-level merchant policy engine
+- Best Buy Canada and Home Depot Canada as conditional first integration targets
+- Amazon.ca as a gated candidate; Walmart Canada as fallback/Phase 2
+- Adaptive freshness, deterministic matching, bounded history, and approved-link redirect strategy
+
+These are proposals, not implementation authorization. Merchant approval, source permissions, exact quotas, data residency, and legal review remain open.
 
 ## Current checkpoint
 
-Human UX Checkpoint: approved. The approved UX baseline and refinements are complete; the repository is ready for coordinated architecture and data/affiliate planning.
+Human UX Checkpoint: approved. The coordinated Solution/Cloud Architecture and Data/Affiliate Integration tracks are complete and reconciled. The Human Architecture / Data Integration Reconciliation Checkpoint is now awaiting approval.
 
-## Next phase
+## Awaiting
 
-- Solution / Cloud Architecture
-- Data & Affiliate Integration Architecture
+- Human Architecture / Data Integration Reconciliation Checkpoint
 
-## Required next checkpoint
+## Next phase after approval
 
-Human Architecture / Data Integration Reconciliation Checkpoint before application implementation.
+- Project Foundation / Application Implementation
+- Backend + Frontend first approved vertical slice
+- QA begins with the first technical slices
 
-Do not begin backend, frontend, hosting, database, authentication, deployment, QA implementation, or security implementation as part of this task.
+Do not begin backend, frontend, hosting, database, authentication, deployment, QA implementation, security implementation, or retailer connector implementation as part of this task.
