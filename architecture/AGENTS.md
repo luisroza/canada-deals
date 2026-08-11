@@ -2,7 +2,7 @@
 
 This directory is the architecture workspace for GreatDeals.ca.
 
-When working here, first read [../agents/senior-solution-cloud-finops-architect.md](../agents/senior-solution-cloud-finops-architect.md). This role is separate from the root Product Owner/Market Researcher and the UX/Product Designer agent.
+When working here, first read [../agents/senior-solution-cloud-finops-architect.md](../agents/senior-solution-cloud-finops-architect.md). This role is separate from the Product Owner / Market Research agent in [../agents/product-owner.md](../agents/product-owner.md) and the UX/Product Designer agent.
 
 ## Responsibility boundary
 

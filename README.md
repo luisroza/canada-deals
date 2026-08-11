@@ -4,7 +4,7 @@ Canada Deals is a Canadian e-commerce deal-discovery platform intended to help s
 
 ## Current status
 
-The repository is in project-foundation phase. Product research and the initial MVP decision must be completed and reviewed before UX, architecture, integrations, or application implementation begins.
+The repository is in Product Definition / Product Discovery preparation. Product research and MVP documents exist as drafts, but the Human Product Checkpoint is still pending. Approval is required before UX, architecture, integrations, or application implementation begins.
 
 ## Development workflow
 
@@ -32,7 +32,7 @@ Do not silently skip checkpoints, expand the MVP, or replace approved technologi
 - Security: `docs/security/`
 - SEO: `docs/seo/`
 - Analytics: `docs/analytics/`
-- Agent scopes: `agents/`
+- Agent scopes: `agents/` (the detailed Product Owner role is `agents/product-owner.md`; other specialized roles are maintained there or represented by clearly marked placeholders)
 
 The source-of-truth documents are not complete until the relevant phase is approved. Do not present proposals as decisions.
 
