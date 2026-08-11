@@ -2,7 +2,7 @@
 
 ## Current phase
 
-UX / Product Design
+Human UX Checkpoint
 
 ## Completed
 
@@ -16,6 +16,11 @@ UX / Product Design
 - Canadian competitive and product research draft
 - Product definition, MVP, roadmap, and backlog drafts
 - Human Product Checkpoint approved
+- UX / Product Design
+- UX research and benchmark synthesis
+- Responsive UX wireframes
+- Design system proposal
+- UX backlog
 
 ## Approved product direction
 
@@ -43,7 +48,11 @@ UX / Product Design
 
 ## Current checkpoint
 
-Human Product Checkpoint: approved. UX / Product Design is now executing against the approved product direction.
+Human Product Checkpoint: approved. UX / Product Design is complete and awaiting Human UX Checkpoint approval.
+
+## Awaiting
+
+- Human UX Checkpoint approval
 
 ## Next phase after UX approval
 

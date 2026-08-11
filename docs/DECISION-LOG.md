@@ -58,3 +58,14 @@ Only record decisions that have actually been approved. Proposed options and res
 - **Approved exclusions:** community, AI shopping agent, native app, cashback/rewards, complex personalization, paid ranking, mass programmatic SEO, French-complete launch, push notifications, and browser extension remain outside MVP.
 - **Retailer direction:** Amazon.ca, Best Buy Canada, and Home Depot Canada are approved product priorities requiring Data/Affiliate validation; Walmart Canada remains a fallback candidate. No technical integrations are approved.
 - **Date:** 2026-08-11
+
+### DEC-006 - UX / Product Design phase completed
+
+- **Status:** Confirmed phase completion; awaiting Human UX Checkpoint
+- **Decision:** Produce the UX source of truth, responsive wireframes, design system proposal, UX backlog, and live research synthesis against the approved product direction.
+- **UX direction:** Keep price-truth, evidence, freshness, safe same-product comparison, honest unknown states, transparent affiliate disclosure, and accessibility first-class across desktop and mobile.
+- **Scope:** P0 core discovery/verification/comparison flow; P1 Save Product and Target-Price Alert; weekly digest remains P2.
+- **Constraint:** No technology, architecture, retailer integration, backend, frontend, hosting, database, authentication, or deployment decision is made by this phase.
+- **Next checkpoint:** Human UX Checkpoint. After approval, proceed to Solution / Cloud Architecture and Data/Affiliate Integration Architecture.
+- **Evidence:** `docs/ux/UX-RESEARCH.md`, `docs/ux/UX-DESIGN.md`, `docs/ux/WIREFRAMES.md`, `docs/ux/DESIGN-SYSTEM.md`, and `docs/ux/UX-BACKLOG.md`.
+- **Date:** 2026-08-11
