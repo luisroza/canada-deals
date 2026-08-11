@@ -1,13 +1,13 @@
 # GreatDeals.ca Product Roadmap
 
-**Status:** DRAFT - proposed sequence, awaiting Product Checkpoint
+**Status:** DRAFT - live Product Owner proposal, awaiting Human Product Checkpoint
 **Date:** 2026-08-11
 
 ## Phase 1 - MVP: prove trustworthy deal discovery
 
-**Goal:** prove that Canadian shoppers click, save, and return for evidence-backed offers.
+**Goal:** prove that Canadian planned-purchase shoppers click, save, and return for evidence-backed offers in electronics plus home improvement/tools.
 
-- Electronics, home, and tools category wedge.
+- Electronics plus home improvement/tools category wedge.
 - Initial retailer integrations only after permission and data review.
 - Responsive web deal feed, search, filters, product pages, and retailer handoff.
 - Current CAD price, source, last-checked time, freshness, and confidence states.
@@ -18,6 +18,8 @@
 - Affiliate disclosure and outbound analytics.
 
 **Checkpoint:** product analytics, trust feedback, stale rate, comparison accuracy, and affiliate/data feasibility review.
+
+**Phase 1 exit criteria:** evidence-rich cards generate qualified retailer intent; target-price alerts generate measurable return behaviour; mismatch/stale reports remain within the agreed threshold; and at least one approved retailer path supports compliant measurement.
 
 ## Phase 2 - Product validation: improve repeat value
 

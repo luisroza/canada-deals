@@ -5,7 +5,11 @@
 
 ## MVP statement
 
-Build a responsive English-first web experience that helps Canadian shoppers compare trustworthy online offers in electronics, home, and tools. The MVP should make a shopper's next decision faster: investigate, save/alert, or click to a permitted retailer.
+Build a responsive English-first web experience that helps Canadian shoppers compare trustworthy online offers in electronics, home improvement, and tools. The MVP should make a shopper's next decision faster: investigate, save/alert, or click to a permitted retailer.
+
+## MVP objective
+
+Validate that Canadian planned-purchase shoppers will use an evidence-rich deal page, trust it enough to click to a retailer, and return when a saved product reaches a target price.
 
 ## In scope
 
@@ -22,6 +26,40 @@ Build a responsive English-first web experience that helps Canadian shoppers com
 | Target-price email alert | Users want to wait for a better price | Direct retention hypothesis | User can set a target and consent to relevant email notifications |
 | Affiliate/outbound measurement | Business viability needs qualified traffic | Must be measurable from day one | Retailer handoff is trackable and affiliate disclosure is visible |
 | Stale/incorrect report | Automated data will be imperfect | Creates a correction loop | User can report a stale price or wrong product |
+
+## Priority bands
+
+### P0 - Essential for the validation loop
+
+Deal feed, search, filters, evidence-rich deal cards, product pages, freshness state, product identity confidence, safe comparison, affiliate disclosure, outbound measurement, and stale/mismatch reporting.
+
+### P1 - High-priority retention experiment
+
+Save product/deal, target-price email alerts, and a low-noise weekly digest only if the alert consent and delivery path are validated.
+
+## Major assumptions
+
+- A small set of approved retailer sources can provide enough current price, product, image, availability, and outbound-link data.
+- Planned-purchase shoppers value evidence and comparison enough to change from existing habits.
+- Product identity can be matched conservatively without showing misleading comparisons.
+- Affiliate revenue can be earned without letting commission change organic Deal Quality.
+- English-first web is sufficient for the first behavioural validation, with French expansion treated as a later product decision.
+
+## Dependencies requiring validation
+
+- Amazon Associates Canada acceptance, Product Advertising API eligibility, display rules, and refresh limits.
+- Affiliate or permitted data access for Best Buy Canada, Home Depot Canada, and Walmart Canada.
+- Product variant, seller, condition, pack-size, price-history, and regional-availability rules.
+- Email consent, unsubscribe, deliverability, and alert-frequency requirements.
+- Manual audit of at least 100 product/offer matches before automated scale.
+
+## MVP measurement set
+
+- Search success rate and time to first relevant offer.
+- Deal-card-to-product and product-page-to-retailer CTR.
+- Save rate and target-price alert creation/open/return rate.
+- Stale-price and product-mismatch report rate.
+- Qualified affiliate clicks per session after approved programs are active.
 
 ## Launch boundaries
 

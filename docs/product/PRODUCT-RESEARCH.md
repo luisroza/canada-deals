@@ -1,6 +1,6 @@
 # GreatDeals.ca - Product Research
 
-**Status:** DRAFT - awaiting Human Product Checkpoint
+**Status:** DRAFT - live research completed; awaiting Human Product Checkpoint
 **Research date:** 2026-08-11
 **Market:** Canada; CAD; online-first, with regional availability noted where relevant
 
@@ -14,7 +14,9 @@ The wedge is trust and decision speed:
 
 `What is the real deal in Canada right now, and how confident should I be before I click Buy?`
 
-Research confidence is **medium**. Competitor capabilities were checked primarily on official pages on 2026-08-11. Retailer data permissions, affiliate acceptance, historical-price access, and regional inventory are still **UNKNOWN** and must be verified before technical architecture or implementation.
+Research confidence is **medium**. This execution pass used live official competitor, affiliate-network, and app/product sources plus public Canadian user discussions on 2026-08-11. Retailer data permissions, affiliate acceptance, historical-price access, and regional inventory are still **UNKNOWN** and must be verified before technical architecture or implementation.
+
+The decision from this pass is intentionally narrow: **do not launch as a broad Canadian deal community or flyer clone. Validate a price-truth workflow for planned purchases in electronics, home improvement, and tools.** This is a Product Owner recommendation, not an approved product decision.
 
 ## 2. Canadian Market Overview
 
@@ -119,14 +121,17 @@ The matrix is a directional product comparison, not an API or legal capability s
 
 ### Most common user frustrations
 
-1. **Price or offer freshness is uncertain.** Official community products explicitly need expired/repost/not-valid handling; this is a core reliability problem, not a cosmetic issue.
-2. **The “regular price” may not explain the real value.** Discount percentages without historical context can mislead. This is an inferred product risk that must be tested with shoppers.
-3. **Discovery is fragmented.** A shopper may use a flyer app, a community forum, a retailer site, and an Amazon tracker for one purchase.
-4. **Alerts can be noisy or constrained.** Community discussions describe limits, irrelevant matches, and late or failed deal handoffs. This is anecdotal evidence, not a measured market statistic.
-5. **Canada-specific coverage is inconsistent.** Users ask for Canadian retailers, local availability, and CAD-aware alternatives; regional inventory and shipping make a national claim difficult.
-6. **Affiliate incentives can reduce trust.** Users need to know whether ranking is based on price quality, commission, sponsorship, or editorial selection.
+Ranked by strength of evidence in the current pass:
 
-The strongest source-backed insight is operational: deal systems visibly need dates, expiry handling, and source validation. The strongest anecdotal insight is that shoppers want a simpler, more modern, general-purpose Canadian alert and comparison experience.
+1. **Stale or missed offers.** Official community systems expose expiry/repost/not-valid handling, while Canadian discussions include users seeing discounts after they are gone. This is a recurring operational problem, not a cosmetic issue. [SmartCanucks](https://smartcanucks.ca/), [Canadian deal discussion](https://www.reddit.com/r/ShopCanada/comments/1p6a9ph/where_do_you_usually_check_for_deals_in_canada/)
+2. **Fragmented discovery.** Users report using RedFlagDeals, flyer apps, Amazon trackers, retailer sites, and newsletters for different parts of one purchase journey. [Canadian shopping discussion](https://www.reddit.com/r/ShopCanada/comments/1p6a9ph/where_do_you_usually_check_for_deals_in_canada/)
+3. **Unclear whether a discount is genuinely good.** This is supported by the existence of historical-price tools and is an inferred unmet need for cross-retailer Canadian shopping; it requires user testing rather than being treated as proven demand.
+4. **Alert noise, limits, or retailer-specific coverage.** Public discussions ask for cross-retailer alerts and describe limits or poor handoffs. This is anecdotal evidence, not a measured market statistic. [Alert discussion](https://www.reddit.com/r/Frugal/comments/1txh0ye/is_slick_deals_still_the_main_way_to_get_deal/)
+5. **Outdated or dense experiences.** Some Canadian users describe RedFlagDeals as outdated, while the forum model remains valuable for expert context. This is sentiment evidence and may vary by user segment. [Canadian comparison discussion](https://www.reddit.com/r/BuyCanadian/comments/18fb0fv/any_other_good_sites_similar_to_redflagdeals/)
+6. **Regional and merchant gaps.** CAD pricing, shipping, pickup, seller, and inventory differences make a national “best price” claim difficult and must be visible in the product.
+7. **Affiliate or sponsored bias.** Users need to know whether ranking reflects deal quality, commission, sponsorship, or editorial judgement. This is a trust requirement, not a claim that every competitor violates it.
+
+The strongest source-backed insight is operational: deal systems visibly need dates, expiry handling, product identity, and source validation. The strongest anecdotal insight is that shoppers want a simpler cross-retailer alert and comparison experience without losing the context experts get from communities.
 
 ## 8. Market Gaps and Product Opportunities
 
@@ -146,7 +151,23 @@ The initial hypothesis combines RedFlagDeals discovery/community, CamelCamelCame
 
 **Recommendation:** launch a narrow, structured, evidence-first planned-purchase product. Add community only after the system has trustworthy data and repeat usage. Add grocery/flyer coverage only if a separate local-shopping thesis wins validation. Add AI only where it explains existing evidence or reduces comparison effort.
 
-## 10. Product Vision and Value Proposition
+## 10. Niche versus Broad Market
+
+The broad market is attractive in theory but would force Canada Deals to solve community moderation, flyer/local inventory, cross-retailer ingestion, product matching, price history, and affiliate attribution at once. Existing products already have strong positions in several of those jobs.
+
+| Candidate launch wedge | Demand signal | Affiliate/economic signal | Data and matching difficulty | Competition | Product Owner assessment |
+|---|---|---|---|---|---|
+| Broad all-category deals | High general interest, but fragmented intent | Potentially broad, merchant-by-merchant | Very high | Very high: RFD, Flipp, cashback, trackers, search engines | Reject for MVP; too little differentiation |
+| Electronics | Frequent sales, high search intent, comparable SKUs | Potentially attractive AOV; program approval UNKNOWN | Medium-high; variants and marketplace sellers matter | High: RFD, Amazon tools, Best Buy, Google Shopping | Strong candidate |
+| Home improvement and tools | Planned purchases, brand/model identifiers, meaningful price comparison | Potentially attractive AOV; retailer programs UNKNOWN | Medium; regional stock and pack/variant issues | Medium; fragmented across retailer sale pages | **Recommended co-wedge** |
+| Home and garden | Seasonal demand and retailer promotions | Potentially good, retailer participation UNKNOWN | Medium-high; dimensions, bundles, freight, regional stock | Medium-high | Later expansion after data quality |
+| Appliances | High ticket and comparison value | Potentially high value, but retailer/installation complexity | High; delivery, installation, model variants | High | Later, not MVP |
+| Gaming | Frequent launches and deal interest | Affiliate potential plausible, verification pending | Medium; editions, bundles, consoles, stock | High and community-heavy | Candidate experiment, not initial core |
+| Baby and pets | Repeat purchasing and price sensitivity | Potentially recurring, retailer-specific | Medium; pack sizes and subscriptions complicate identity | Medium-high | Consider only with separate retention evidence |
+
+**Recommendation:** launch focused on **electronics plus home improvement/tools**, not one ultra-narrow retailer. This preserves enough search volume and purchase value for validation while keeping product identity more structured than grocery/flyer shopping. The category choice remains proposed until user interviews, affiliate approval, and a 100-product data audit validate it.
+
+## 11. Product Vision and Value Proposition
 
 ### Vision
 
@@ -164,7 +185,7 @@ For Canadian shoppers planning a meaningful online purchase, who struggle to tel
 4. Never claim historical or cross-retailer certainty when product identity is weak.
 5. Make the first useful action possible without account creation.
 
-## 11. Personas
+## 12. Personas
 
 ### The planned tech buyer
 
@@ -186,7 +207,7 @@ Already uses RedFlagDeals, SmartCanucks, Keepa, or alerts. Wants better signal, 
 
 May need French content, Quebec-specific availability, or regional shipping/inventory information. Important for Canadian scale, but should be a validation and data-quality track rather than a promise in the first release.
 
-## 12. Feature Catalogue and Prioritization
+## 13. Feature Catalogue and Prioritization
 
 Scores: User Value (UV), Business Value (BV), Complexity (C), Differentiation (D), each 1-5.
 
@@ -210,7 +231,7 @@ Scores: User Value (UV), Business Value (BV), Complexity (C), Differentiation (D
 | Native mobile app/push | 3 | 4 | 5 | 2 | P3 | Validate web retention before app investment |
 | Full flyer and grocery platform | 3 | 4 | 5 | 1 | P3 | Strong incumbents and local-data complexity |
 
-## 13. MVP Definition
+## 14. MVP Definition
 
 ### Proposed MVP
 
@@ -248,7 +269,7 @@ An English-first, responsive web product for Canadian online shoppers in electro
 - Programmatic SEO at large scale before page quality is proven.
 - French completeness before translation workflow and Quebec validation are funded.
 
-## 14. Roadmap
+## 15. Roadmap
 
 ### Phase 1 - MVP
 
@@ -266,7 +287,7 @@ Add retailer/brand/category alerts, buying guides, editorial collections, strong
 
 Expand permitted ingestion, mobile apps/push, community workflows, cashback or sponsored placements if trust controls remain credible, and data partnerships. AI may assist with constrained comparison and explanation, not replace evidence.
 
-## 15. Homepage Wireframe
+## 16. Homepage Wireframe
 
 1. **Header:** logo, search, Deals, Categories, Stores, Saved/Alerts, disclosure/help.
 2. **Hero search:** “What are you shopping for?” with category examples and no account gate.
@@ -277,7 +298,7 @@ Expand permitted ingestion, mobile apps/push, community workflows, cashback or s
 7. **Alert capture:** target price or weekly digest with explicit consent.
 8. **Footer:** methodology, retailer coverage, corrections, privacy, terms, accessibility.
 
-## 16. Deal/Product Page Wireframe
+## 17. Deal/Product Page Wireframe
 
 1. Product identity and variant.
 2. Current CAD price, retailer, shipping/availability caveat, and last checked time.
@@ -289,13 +310,23 @@ Expand permitted ingestion, mobile apps/push, community workflows, cashback or s
 8. Report stale price or wrong product controls.
 9. Methodology and source details below the fold.
 
-## 17. Information Architecture and SEO
+## 18. Information Architecture and SEO
 
 Proposed routes: `/deals`, `/deals/[category]`, `/stores/[retailer]`, `/products/[product]`, `/brands/[brand]`, `/alerts`, `/guides/[slug]`, and `/methodology`.
 
 Index only pages with unique, current, useful content and sufficient evidence. Do not mass-generate pages for every thin product/retailer combination. The first SEO experiments should be category pages, retailer pages with real coverage, and evergreen buying guides linked to live offers.
 
-## 18. Data and Affiliate Integration Feasibility
+Promising intent clusters to test, not guaranteed traffic:
+
+- Category: “laptop deals Canada”, “tool deals Canada”, “TV deals Canada”.
+- Retailer: “Amazon.ca deals”, “Best Buy Canada deals”, “Home Depot Canada deals”.
+- Brand: “DeWalt deals Canada”, “Lenovo laptop deals Canada”, or another brand only when current coverage is substantial.
+- Product/history: a product page with genuine current evidence and a useful history explanation.
+- Seasonal: Black Friday, back-to-school, Prime-related shopping, and home-improvement seasons, only with current inventory and non-thin content.
+
+Programmatic SEO is justified only when the page has current offers, unique product/retailer context, evidence, and a clear user decision. A generated URL without those elements should not be indexed.
+
+## 19. Data and Affiliate Integration Feasibility
 
 This is a product gating analysis, not the architecture decision.
 
@@ -311,11 +342,22 @@ This is a product gating analysis, not the architecture decision.
 
 The first integration gate is not “can we scrape it?” It is “can we legally and reliably display enough product, price, availability, image, and outbound-link data under an approved source?” If the answer is no, the retailer is excluded or handled as a manual/editorial experiment rather than silently scraped.
 
-## 19. Canadian Considerations
+### Preliminary retailer recommendation - requires Data/Affiliate validation
+
+1. **Amazon.ca:** broad catalog and strong planned-purchase intent; Amazon Associates Canada is verified, but Product Advertising API eligibility, price/history display rules, refresh limits, and marketplace seller handling remain UNKNOWN. [Amazon Associates Canada](https://associates.amazon.ca/), [Amazon Associates Help](https://associates.amazon.ca/help)
+2. **Best Buy Canada:** strong electronics fit and useful comparison context; affiliate and data access are UNKNOWN and must be verified.
+3. **Home Depot Canada:** strong tools/home-improvement fit and a less community-dominated wedge; affiliate and data access are UNKNOWN and regional inventory must be validated.
+4. **Walmart Canada:** broad fallback with strong consumer relevance; program and catalog access are UNKNOWN.
+
+**Product recommendation:** begin commercial validation with Amazon.ca, Best Buy Canada, and Home Depot Canada; keep Walmart Canada as the substitution candidate if a launch retailer fails approval or data-quality gates. This is not a final integration decision.
+
+Affiliate-network feasibility is directional: Amazon Associates Canada, Rakuten Advertising Canada, and Awin's Canadian publisher route are publicly verified, while CJ/Impact merchant participation and individual retailer approval remain UNKNOWN. [Rakuten Advertising Canada](https://rakutenadvertising.com/en-ca/), [Rakuten publishers](https://rakutenadvertising.com/en-ca/publishers/), [Awin Canada publishers](https://www.awin.com/ca/publishers)
+
+## 20. Canadian Considerations
 
 Product requirements should account for CAD display, province/region differences, shipping and pickup, tax presentation, French-language expansion, accessibility, affiliate disclosure, privacy, consent for email, and Canadian anti-spam obligations. Competition and advertising claims require professional review; this document is not legal advice. Price claims, “lowest price,” historical lows, and discount percentages should be conservative, explainable, and backed by timestamped data.
 
-## 20. Retention and Monetization
+## 21. Retention and Monetization
 
 ### Retention ranking
 
@@ -332,7 +374,21 @@ Start with approved affiliate links and transparent merchant attribution. Do not
 
 Official affiliate sources confirm that Amazon Associates Canada and Rakuten Advertising's Canadian publisher network exist. Acceptance, rates, retailer participation, and data rights remain product and integration gates: [Amazon Associates Canada](https://associates.amazon.ca/), [Rakuten Advertising Canada](https://rakutenadvertising.com/en-ca/), [Rakuten publisher program](https://rakutenadvertising.com/en-ca/publishers/).
 
-## 21. Risks
+## 22. Success Metrics and Validation Plan
+
+The MVP should use a small decision set rather than dozens of dashboards:
+
+| Question | Metric | Early success signal |
+|---|---|---|
+| Are people finding useful offers? | Search success rate and time to first relevant deal click | Most sampled sessions reach a relevant offer without repeated reformulation |
+| Do shoppers trust the result enough to act? | Deal-card-to-product CTR and product-page-to-retailer CTR | Evidence-rich cards are at least as effective as price-only cards in a smoke test |
+| Do shoppers want to wait and return? | Save rate, alert creation rate, alert open/return rate | A meaningful subset of planned-purchase users saves or alerts |
+| Is data quality acceptable? | Stale report rate, mismatch report rate, correction time | Errors are measurable, visible, and below the threshold set before launch |
+| Is affiliate monetization viable? | Qualified affiliate clicks/session and approved-program conversion | At least one approved retailer path produces measurable, policy-compliant value |
+
+Smallest validation sequence: interview 8-12 Canadian shoppers; run a card/explanation smoke test; manually audit 100 product/offer matches; test target-price opt-in; then decide whether to invest in automated ingestion.
+
+## 23. Risks and Mitigations
 
 - **Product risk:** users may prefer familiar community/flyer tools and not care enough about a new comparison layer.
 - **Technical risk:** product identity matching and price freshness can be wrong at scale.
@@ -342,7 +398,9 @@ Official affiliate sources confirm that Amazon Associates Canada and Rakuten Adv
 - **Regional risk:** a national Canadian claim may fail when shipping, taxes, or inventory differ by province.
 - **Compliance risk:** privacy, email consent, disclosures, and retailer/network terms require professional review.
 
-## 22. Final Product Owner Recommendation
+Mitigations are to start with a small approved catalog, store source and timestamps, suppress weak matches, show unknown states honestly, audit affiliate rules before ingestion, and measure correction time before expanding.
+
+## 24. Final Product Owner Recommendation
 
 If personally responsible for launch, I would build:
 
@@ -360,7 +418,7 @@ If personally responsible for launch, I would build:
 - **Biggest business risk:** inability to obtain compliant, economical data and affiliate access for enough launch retailers.
 - **Strongest moat:** a trusted Canadian dataset and explanation layer that connects product identity, price history, freshness, regional context, and outbound conversion.
 
-## 23. Top 10 Next Actions
+## 25. Top 10 Next Actions
 
 1. Approve or reject the proposed positioning and category wedge at the Human Product Checkpoint.
 2. Interview 8-12 Canadian planned-purchase shoppers across the three proposed categories.
@@ -390,3 +448,84 @@ If personally responsible for launch, I would build:
 - [Reddit: Canadian deal projects](https://www.reddit.com/r/canadadeals/comments/1t1yvvr/i_built_a_free_canadian_deals_site_dealdealca_and/) - anecdotal evidence of emerging Canadian alternatives.
 - [Amazon Associates Canada](https://associates.amazon.ca/) - official Canadian affiliate program.
 - [Rakuten Advertising Canada](https://rakutenadvertising.com/en-ca/) and [publisher page](https://rakutenadvertising.com/en-ca/publishers/) - official Canadian publisher-network information.
+
+### Additional live sources used in this execution pass
+
+- [SmartCanucks About](https://smartcanucks.ca/about/) - Canadian community positioning and registered-user/rewards claims, treated as company-provided claims.
+- [CamelCamelCamel features](https://izer.camelcamelcamel.com/features) - supported Amazon locales including Canada.
+- [CamelCamelCamel price watch guide](https://izer.camelcamelcamel.com/support/first_price_watch) - product watch workflow.
+- [Canadian deal-routine discussion](https://www.reddit.com/r/ShopCanada/comments/1p6a9ph/where_do_you_usually_check_for_deals_in_canada/) - anecdotal use of RFD, Flipp, SmartCanucks, and Amazon trackers; sentiment only.
+- [Canadian alert discussion](https://www.reddit.com/r/Frugal/comments/1txh0ye/is_slick_deals_still_the_main_way_to_get_deal/) - anecdotal alert limits, dated UX, and failed click-throughs; sentiment only.
+- [Canadian RFD alternative discussion](https://www.reddit.com/r/BuyCanadian/comments/18fb0fv/any_other_good_sites_similar_to_redflagdeals/) - anecdotal criticism and continued reliance on RFD; sentiment only.
+- [Awin Canada publishers](https://www.awin.com/ca/publishers) - official publisher-network availability; individual merchant approval remains UNKNOWN.
+
+# IF I WERE RESPONSIBLE FOR LAUNCHING CANADA DEALS
+
+## What I would build
+
+I would build a responsive, English-first Canadian price-truth service for planned online purchases. It would show a small set of current offers in electronics, home improvement, and tools; explain the evidence behind each offer; compare equivalent products only when identity confidence is high; expose freshness and regional caveats; and send the shopper to a permitted retailer with clear affiliate disclosure.
+
+## Who I would build it for
+
+I would start with planned-purchase shoppers who are willing to compare before buying a laptop, monitor, TV, tool, appliance accessory, or home-improvement product but do not want to monitor several retailer sites and forums. Expert deal hunters are an important secondary tester group, not the sole target.
+
+## Initial niche or broad strategy
+
+Focused launch: electronics plus home improvement/tools. I would not launch broad all-category coverage because it would dilute product identity quality and place Canada Deals directly against stronger communities, flyer platforms, cashback services, and single-market trackers.
+
+## Why users would choose it
+
+Users would choose it when they need to answer “Is this Canadian offer actually good, and should I buy now?” The product would combine current price, freshness, safe comparison, and historical context in one decision surface instead of requiring a community forum, retailer pages, and an Amazon-only tracker.
+
+## Top 5 differentiators
+
+1. Explainable deal quality based on visible evidence, not an opaque score.
+2. Freshness and source provenance on every offer.
+3. Conservative same-product comparison across approved Canadian retailers.
+4. Target-price alerts for planned purchases, with low notification noise.
+5. Affiliate neutrality: commission never silently changes organic Deal Quality or ranking.
+
+## MVP
+
+Responsive web discovery, search, filters, evidence-rich deal cards, product pages, permitted comparisons, freshness/identity states, saves, target-price email alerts, stale/mismatch reporting, affiliate disclosure, and outbound measurement for a small approved retailer set.
+
+## First retailers
+
+Product recommendation: Amazon.ca, Best Buy Canada, and Home Depot Canada, with Walmart Canada as the fallback. All require Data/Affiliate Architect validation before implementation or launch claims.
+
+## Main acquisition channel
+
+High-quality category, retailer, and product pages supported by useful buying guides and shareable deal pages. I would not rely on mass programmatic SEO or paid acquisition before conversion and trust are proven.
+
+## Main retention mechanism
+
+Target-price alerts attached to saved planned purchases, followed by a low-noise weekly digest after alert behaviour is understood.
+
+## Main monetization method
+
+Approved affiliate links with disclosure adjacent to the retailer CTA. I would delay display ads, sponsored ranking, cashback, and premium features until trust, attribution, and unit economics are measured.
+
+## What I would deliberately NOT build
+
+Community moderation, a full grocery/flyer platform, native apps, browser extensions, cashback wallets, an autonomous AI shopping agent, mass SEO pages, or a 20-plus-retailer launch promise.
+
+## Biggest risk
+
+The biggest risk is not that the product cannot display deals; it is that the evidence layer is not sufficiently accurate or differentiated to change behaviour from existing habits.
+
+## Strongest potential moat
+
+A trusted Canadian dataset connecting product identity, current price, historical evidence, freshness, regional context, and qualified retailer outcomes. That moat only exists if data rights, matching quality, and corrections are managed better than a generic feed.
+
+## Human Product Checkpoint Questions
+
+1. Do we approve the proposed price-truth positioning?
+2. Do we approve planned-purchase shoppers as the primary audience?
+3. Do we approve a focused electronics plus home-improvement/tools launch rather than broad coverage?
+4. Do we approve the proposed MVP?
+5. Do we approve the explicit NOT IN MVP list?
+6. Do we agree with Amazon.ca, Best Buy Canada, and Home Depot Canada as preliminary retailer priorities, subject to integration validation?
+7. Do we agree with approved affiliate links as the initial monetization approach?
+8. Do we agree with SEO-led acquisition supported by useful guides and deal pages?
+9. Do we agree with target-price alerts as the primary retention mechanism?
+10. Which assumptions must be validated before UX begins: category demand, retailer access, product matching, price history, or email alert intent?

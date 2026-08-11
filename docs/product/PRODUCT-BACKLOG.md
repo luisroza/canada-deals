@@ -3,6 +3,21 @@
 **Status:** DRAFT - product backlog for checkpoint review
 **Priority:** P0 essential, P1 high priority, P2 valuable later, P3 optional/experimental
 
+## Major feature contract
+
+| Feature | Priority | User problem | Expected outcome | Dependencies | Acceptance-level product outcome |
+|---|---|---|---|---|---|
+| Verified category deal feed | P0 | Shoppers do not know where to start | A focused feed surfaces current Canadian offers | Approved source, freshness rules, category taxonomy | A visitor can browse offers with source, timestamp, CAD price, and freshness state |
+| Product and brand search | P0 | Planned purchases require repeated retailer searches | A shopper finds a relevant product without an account | Product catalog, identity confidence, search relevance test | Search distinguishes verified, weak, and no-result states |
+| Evidence-rich deal card | P0 | Discount badges do not explain whether a price is good | The card makes the next decision faster | Price evidence, source provenance, deal-quality explanation | Card shows price, retailer, evidence state, timestamp, and CTA |
+| Product decision page | P0 | Shoppers open several tabs to validate an offer | One page explains current value and caveats | Approved UX, product data, disclosure policy | Page exposes variant, availability, evidence, comparison, CTA, and report path |
+| Safe retailer comparison | P0 | Cross-retailer comparison is manual and error-prone | Equivalent offers can be compared safely | Matching rules, variant/seller/condition confidence, retailer data | Comparison is hidden when identity confidence is insufficient |
+| Freshness and mismatch reporting | P0 | Automated prices can become stale or mismatched | Users and operators can detect and correct trust failures | Source timestamps, report workflow, review ownership | Reports are attributable, reviewable, and reflected in offer state |
+| Save product/deal | P1 | Planned shoppers need a return path | Users can preserve intent without a complex account | Lightweight identity/session model, privacy/consent decision | Saved state is visible, reversible, and linked to the product |
+| Target-price email alert | P1 | Shoppers want to wait for a better price | A user receives a relevant, controlled notification | Fresh evidence, consent, deliverability, unsubscribe, frequency policy | Alert fires only for the saved variant and valid evidence |
+| Retailer handoff and affiliate disclosure | P0 | Commercial links can obscure incentives | Qualified clicks are measured without reducing trust | Approved program, redirect policy, disclosure copy, attribution | CTA clearly discloses commercial relationship and records the outbound event |
+| Weekly digest experiment | P1 | Users may forget the product after first visit | A low-noise digest creates repeat behaviour | Saved/category signals, email consent, content freshness | Digest is opt-in, useful, labelled, and easy to unsubscribe |
+
 ## Epic 1 - Trustworthy discovery (P0)
 
 ### P0-01 Browse verified category deals
