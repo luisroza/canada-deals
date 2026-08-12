@@ -89,6 +89,7 @@ public sealed record RetailerOfferResponse(
     string EvidenceState,
     string MatchState,
     string HistoryState,
+    string AvailabilityState,
     DateTimeOffset? ObservedAt,
     string? HandoffPath,
     string Disclosure,

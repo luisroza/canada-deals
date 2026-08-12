@@ -32,6 +32,7 @@ export type RetailerOffer = {
   evidenceState: string;
   matchState: string;
   historyState: string;
+  availabilityState: "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN";
   observedAt: string | null;
   handoffPath: string | null;
   disclosure: string;

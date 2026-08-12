@@ -51,7 +51,7 @@ test("visitor can inspect evidence, freshness, and safe comparison", async ({ pa
   await expect(page.getByRole("heading", { name: "Price evidence" })).toBeVisible();
   await expect(page.getByText(/history coverage|history unavailable/i).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Safe retailer comparison" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Continue to Demo North Electronics" })).toHaveAttribute("href", /\/go\//);
+  await expect(page.locator(".primary-offer").getByRole("link", { name: "Continue to Demo North Electronics" })).toHaveAttribute("href", /\/go\//);
 });
 
 test("visitor sees a possible variant outside safe comparison", async ({ page }) => {
@@ -122,13 +122,23 @@ test("Product history remains readable and contained on mobile", async ({ page }
   await page.goto("/products/northstar-55-qled-tv?history=90d");
   const productHeading = page.getByRole("heading", { name: "Northstar 55-inch QLED TV", level: 1 });
   const historyHeading = page.getByRole("heading", { name: "Price history" });
+  const comparisonHeading = page.getByRole("heading", { name: "Safe retailer comparison" });
 
   await expect(productHeading).toBeVisible();
   await expect(historyHeading).toBeVisible();
   expect(await productHeading.evaluate((node) => node.getBoundingClientRect().top)).toBeLessThan(await historyHeading.evaluate((node) => node.getBoundingClientRect().top));
+  expect(await comparisonHeading.evaluate((node) => node.getBoundingClientRect().top + window.scrollY)).toBeLessThan(await historyHeading.evaluate((node) => node.getBoundingClientRect().top + window.scrollY));
   await expect(page.getByRole("link", { name: "30 days" })).toBeVisible();
   await expect(page.getByRole("link", { name: "90 days" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+
+  const currentOffer = page.getByRole("heading", { name: "Current observed price" });
+  const targetAlert = page.getByRole("heading", { name: "Target-price alert" });
+  expect(await currentOffer.evaluate((node) => node.getBoundingClientRect().top + window.scrollY)).toBeLessThan(await targetAlert.evaluate((node) => node.getBoundingClientRect().top + window.scrollY));
+  await expect(page.locator(".primary-offer").getByRole("link", { name: "Continue to Demo North Electronics" })).toBeVisible();
+  await expect(page.locator(".mobile-retailer-bar")).not.toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 1400));
+  await expect(page.locator(".mobile-retailer-bar")).toBeVisible();
 });
 
 test("homepage remains usable at a representative mobile viewport", async ({ page }) => {
@@ -141,6 +151,12 @@ test("homepage remains usable at a representative mobile viewport", async ({ pag
   await expect(page.locator(":focus")).toBeVisible();
   const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(hasHorizontalOverflow).toBe(false);
+  const searchTop = await page.getByLabel("Search a product or model number").evaluate((node) => node.getBoundingClientRect().top);
+  const trustTop = await page.locator(".trust-strip").evaluate((node) => node.getBoundingClientRect().top);
+  const firstDealTop = await page.locator("article.deal-card").first().evaluate((node) => node.getBoundingClientRect().top);
+  expect(searchTop).toBeLessThan(trustTop);
+  expect(firstDealTop).toBeLessThan(1000);
+  await expect(page.getByText(/Alert product [0-9a-f]{32}/i)).not.toBeVisible();
 });
 
 test("exact model search uses relevance and opens the canonical product", async ({ page }) => {
@@ -189,10 +205,30 @@ test("mobile filter sheet is labelled, focusable, and applies controls", async (
   const dialog = page.getByRole("dialog", { name: "Filter deals" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("heading", { name: "Filter deals" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Filters" })).toBeFocused();
+  await page.getByRole("button", { name: "Filters" }).click();
   await dialog.getByLabel("Availability").selectOption("unavailable");
   await dialog.getByRole("button", { name: "Apply filters" }).click();
   await expect(page).toHaveURL(/availability=unavailable/);
   await expect(page.getByRole("link", { name: "Northstar Search Fixture Kettle" })).toBeVisible();
+});
+
+test("public SEO endpoints and stale Product structured data remain truthful", async ({ page }) => {
+  const robots = await page.request.get("/robots.txt");
+  const sitemap = await page.request.get("/sitemap.xml");
+  expect(robots.ok()).toBe(true);
+  expect(await robots.text()).toContain("Sitemap: http://localhost:3000/sitemap.xml");
+  expect(sitemap.ok()).toBe(true);
+  expect(await sitemap.text()).toContain("/products/northstar-55-qled-tv");
+
+  await page.goto("/products/northstar-65-oled-tv?history=90d");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "http://localhost:3000/products/northstar-65-oled-tv");
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", /Northstar 65-inch OLED TV/);
+  const jsonLd = JSON.parse(await page.locator('script[type="application/ld+json"]').textContent() ?? "{}");
+  expect(jsonLd.offers.availability).toBeUndefined();
+  await expect(page.getByText(/price may have changed/i).first()).toBeVisible();
 });
 
 test("no-result search offers a clear recovery action", async ({ page }) => {
@@ -332,8 +368,9 @@ test("confirmed shopper creates a target alert and the real worker captures one 
 
   await expect.poll(async () => {
     const response = await page.request.get(`/api/internal/price-alert-evaluation/deliveries?productId=${productId}`);
-    return (await response.json() as unknown[]).length;
-  }, { timeout: 30_000 }).toBe(1);
+    const deliveries = await response.json() as Array<{ status: string }>;
+    return deliveries[0]?.status;
+  }, { timeout: 30_000 }).toBe("DEVELOPMENTCAPTURED");
   const capturedResponse = await page.request.get(`/api/internal/price-alert-evaluation/deliveries?productId=${productId}`);
   const captured = await capturedResponse.json() as Array<{ status: string; statusReason: string }>;
   expect(captured[0]).toEqual(expect.objectContaining({ status: "DEVELOPMENTCAPTURED", statusReason: "CONTROLLED_DEVELOPMENT_TEST_CAPTURE" }));

@@ -28,6 +28,26 @@ describe("DiscoveryControls", () => {
     expect(trigger).toHaveFocus();
   });
 
+  it("closes the mobile filter dialog with Escape and contains keyboard focus", () => {
+    render(<DiscoveryControls params={{}} categories={facets} retailers={[]} resultCount={6} />);
+    const trigger = screen.getByRole("button", { name: "Filters" });
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Filter deals" });
+    const close = screen.getByRole("button", { name: "Close" });
+    const clear = screen.getByRole("link", { name: "Clear all" });
+
+    clear.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(close).toHaveFocus();
+    close.focus();
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(clear).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Filter deals" })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
   it("keeps the approved sorting and filter controls explicit", () => {
     render(<DiscoveryControls params={{ sort: "savings" }} categories={facets} retailers={[]} resultCount={1} />);
     expect(screen.getByLabelText("Sort")).toHaveValue("savings");

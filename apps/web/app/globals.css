@@ -8,10 +8,10 @@ a { color:var(--accent); }
 .site-header { background:var(--surface); border-bottom:1px solid var(--line); }
 .header-inner, .page-shell { width:min(1120px, calc(100% - 2rem)); margin-inline:auto; }
 .header-inner { display:flex; align-items:center; justify-content:space-between; min-height:4rem; gap:1rem; }
-.brand { font-weight:800; text-decoration:none; color:var(--ink); }
+.brand { display:inline-flex; align-items:center; min-height:2.75rem; font-weight:800; text-decoration:none; color:var(--ink); }
 .site-nav { display:flex; align-items:center; gap:1rem; }
-.site-nav a { text-decoration:none; font-size:.95rem; }
-.nav-button { border:0; padding:0; background:transparent; color:var(--accent); font:inherit; cursor:pointer; }
+.site-nav a { display:inline-flex; align-items:center; min-height:2.75rem; padding-inline:.25rem; text-decoration:none; font-size:.95rem; }
+.nav-button { min-height:2.75rem; border:0; padding-inline:.25rem; background:transparent; color:var(--accent); font:inherit; cursor:pointer; }
 .page-shell { padding-block:2rem 4rem; }
 .hero { max-width:760px; padding-block:1rem 2rem; }
 .eyebrow { margin:0 0 .35rem; color:var(--muted); font-size:.8rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
@@ -68,6 +68,13 @@ input:focus, textarea:focus, select:focus, button:focus-visible, a:focus-visible
 .deal-card-footer { display:flex; justify-content:space-between; align-items:center; gap:.75rem; margin-top:1rem; }
 .product-hero { max-width:800px; }
 .product-hero h1 { margin-bottom:.5rem; }
+.primary-offer { margin:1rem 0 1.5rem; padding:1.1rem; border:1px solid #b5d9c0; border-radius:.75rem; background:var(--surface); }
+.primary-offer h2 { margin:.1rem 0; font-size:1.2rem; }
+.primary-price { font-size:2rem; }
+.primary-offer .disclosure { margin:.75rem 0 0; }
+.stale-guidance { padding:.7rem; border-left:4px solid #d29b31; border-radius:.35rem; background:var(--warning-soft); color:#573700; }
+.mobile-retailer-bar { display:none; }
+.retention-section { max-width:800px; margin-top:1rem; }
 .save-control { margin:1rem 0; }
 .alert-control { margin:1rem 0 1.5rem; padding:1rem; border:1px solid #b5d9c0; border-radius:.75rem; background:var(--accent-soft); }
 .alert-control > h2, .alert-form h3 { margin-top:0; }
@@ -153,11 +160,18 @@ footer { border-top:1px solid var(--line); color:var(--muted); font-size:.9rem; 
   .header-inner { align-items:flex-start; padding-block:.9rem; }
   .site-nav { gap:.6rem; flex-wrap:wrap; justify-content:flex-end; }
   .page-shell { padding-top:1rem; }
-  .trust-strip, .deal-grid, .product-layout, .saved-grid { grid-template-columns:1fr; }
+  .hero { padding-block:.5rem .75rem; }
+  .hero .lede { margin-bottom:0; }
+  .trust-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; margin:.75rem 0 1.25rem; }
+  .trust-item { padding:.65rem .75rem; }
+  .trust-item strong { font-size:.85rem; }
+  .trust-item span { display:none; }
+  .deal-grid, .product-layout, .saved-grid { grid-template-columns:1fr; }
   .search-row, .report-actions, .inline-actions { flex-direction:column; align-items:stretch; }
   .button { width:100%; }
   .control-toolbar { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
-  .control-toolbar > *, .deal-card, .deal-card h2 { min-width:0; overflow-wrap:anywhere; }
+  .control-toolbar > *, .deal-card, .deal-card h2, .offer-card, .offer-card .button, .primary-offer .button { min-width:0; overflow-wrap:anywhere; }
+  .offer-card .button, .primary-offer .button { white-space:normal; text-align:center; }
   .control-toolbar > label { grid-column:1; }
   .mobile-filter-trigger { display:inline-flex; grid-column:1 / -1; }
   .filter-panel { display:none; position:fixed; inset:0; z-index:20; overflow-y:auto; margin:0; padding:1rem; border:0; background:var(--surface); }
@@ -173,4 +187,9 @@ footer { border-top:1px solid var(--line); color:var(--muted); font-size:.9rem; 
   .history-range { width:100%; }
   .history-range a { flex:1; justify-content:center; }
   .history-data { overflow-x:auto; }
+  .product-page { padding-bottom:5.5rem; }
+  .primary-offer { margin-bottom:1rem; }
+  .primary-price { font-size:2.1rem; }
+  .mobile-retailer-bar { display:block; position:fixed; inset:auto 0 0; z-index:15; padding:.65rem 1rem; border-top:1px solid var(--line); background:rgba(255,255,255,.98); box-shadow:0 -4px 16px rgba(23,33,27,.12); }
+  .mobile-retailer-bar .button { width:min(100%, 560px); margin-inline:auto; }
 }

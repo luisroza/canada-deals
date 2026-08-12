@@ -51,6 +51,9 @@ services:
       - key: API_BASE_URL
         scope: RUN_TIME
         value: ${api.PRIVATE_URL}
+      - key: SITE_URL
+        scope: RUN_TIME
+        value: ${APP_URL}
     health_check:
       http_path: /healthz
       initial_delay_seconds: 20

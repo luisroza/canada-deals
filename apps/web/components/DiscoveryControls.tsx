@@ -27,11 +27,50 @@ function hrefWithout(params: DiscoveryParams, key: keyof DiscoveryParams) {
 export function DiscoveryControls({ params, categories, retailers, resultCount }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const panelHeadingRef = useRef<HTMLHeadingElement>(null);
   const active = Object.entries(params).filter(([key, value]) => key in parameterLabels && value) as Array<[keyof DiscoveryParams, string]>;
 
   useEffect(() => {
     if (mobileOpen) panelHeadingRef.current?.focus();
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeFilters();
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )).filter((element) => element.getAttribute("aria-hidden") !== "true");
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (!focusable.includes(active as HTMLElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [mobileOpen]);
 
   function openFilters() {
@@ -65,7 +104,7 @@ export function DiscoveryControls({ params, categories, retailers, resultCount }
         <button className="button button-secondary" type="submit">Apply</button>
       </div>
 
-      <aside id="filter-panel" className={`filter-panel${mobileOpen ? " is-open" : ""}`} role={mobileOpen ? "dialog" : undefined} aria-modal={mobileOpen || undefined} aria-labelledby="filter-heading">
+      <aside ref={panelRef} id="filter-panel" className={`filter-panel${mobileOpen ? " is-open" : ""}`} role={mobileOpen ? "dialog" : undefined} aria-modal={mobileOpen || undefined} aria-labelledby="filter-heading">
         <div className="filter-heading-row">
           <h2 id="filter-heading" ref={panelHeadingRef} tabIndex={-1}>Filter deals</h2>
           <button className="button button-text mobile-filter-close" type="button" onClick={closeFilters}>Close</button>

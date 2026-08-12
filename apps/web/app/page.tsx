@@ -3,6 +3,7 @@ import Link from "next/link";
 import { DealCard } from "../components/DealCard";
 import { DiscoveryControls } from "../components/DiscoveryControls";
 import { getDeals, type DiscoveryParams } from "../lib/api";
+import { absoluteUrl } from "../lib/seo";
 
 type RawParams = Record<string, string | string[] | undefined>;
 
@@ -20,7 +21,15 @@ function pageHref(params: DiscoveryParams, page: number) {
 export async function generateMetadata({ searchParams }: { searchParams: Promise<RawParams> }): Promise<Metadata> {
   const params = normalize(await searchParams);
   const narrowed = Object.values(params).some(Boolean);
-  return { title: params.search ? `Search results for ${params.search} | Canada Deals` : "Deals with strong evidence | Canada Deals", robots: narrowed ? { index: false, follow: true } : undefined };
+  const title = params.search ? `Search results for ${params.search} | Canada Deals` : "Deals with strong evidence | Canada Deals";
+  const description = "Compare Canadian online offers with visible price evidence, freshness, and safe product matching.";
+  return {
+    title,
+    description,
+    alternates: { canonical: absoluteUrl("/") },
+    openGraph: { title, description, type: "website", url: absoluteUrl("/"), siteName: "Canada Deals", locale: "en_CA" },
+    robots: narrowed ? { index: false, follow: true } : undefined,
+  };
 }
 
 export default async function Home({ searchParams }: { searchParams: Promise<RawParams> }) {
@@ -32,10 +41,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<Raw
 
   return <>
     <section className="hero"><p className="eyebrow">Canadian price-truth layer</p><h1>Deals with strong evidence.</h1><p className="lede">Find current CAD offers, understand when they were checked, and compare only listings we can safely identify as the same product.</p></section>
-    <div className="trust-strip" aria-label="What we show"><div className="trust-item"><strong>Current CAD price</strong><span>What the fixture source observed</span></div><div className="trust-item"><strong>Freshness</strong><span>When the offer was checked</span></div><div className="trust-item"><strong>Evidence</strong><span>What the available history supports</span></div><div className="trust-item"><strong>Safe matching</strong><span>Variants stay out when uncertain</span></div></div>
     {result && <DiscoveryControls params={params} categories={result.facets.categories} retailers={result.facets.retailers} resultCount={result.count} />}
+    <div className="trust-strip" aria-label="What we show"><div className="trust-item"><strong>Current CAD price</strong><span>What the source last observed</span></div><div className="trust-item"><strong>Freshness</strong><span>When the offer was checked</span></div><div className="trust-item"><strong>Evidence</strong><span>What the available history supports</span></div><div className="trust-item"><strong>Safe matching</strong><span>Variants stay out when uncertain</span></div></div>
     <section aria-labelledby="deal-feed-heading">
-      <div className="section-heading"><div><p className="eyebrow">{params.search ? `Results for “${params.search}”` : "Fixture discovery feed"}</p><h2 id="deal-feed-heading">{effectiveSort === "relevance" ? "Most relevant" : effectiveSort === "savings" ? "Strongest supported savings" : effectiveSort === "price-asc" ? "Lowest current price" : "Most recently checked"}</h2></div></div>
+      <div className="section-heading"><div><p className="eyebrow">{params.search ? `Results for “${params.search}”` : "Curated discovery feed"}</p><h2 id="deal-feed-heading">{effectiveSort === "relevance" ? "Most relevant" : effectiveSort === "savings" ? "Strongest supported savings" : effectiveSort === "price-asc" ? "Lowest current price" : "Most recently checked"}</h2></div></div>
       {error && <div className="error-state" role="alert">Deals are temporarily unavailable. Check that the API and local PostgreSQL are running.</div>}
       {!error && result?.items.length === 0 && <div className="empty-state"><h3>No products match these controls.</h3><p>Try another product name, model number, or remove one or more filters.</p><Link className="button button-secondary" href="/">Clear search and filters</Link></div>}
       {!error && result && <div className="deal-grid">{result.items.map(deal => <DealCard key={deal.productId} deal={deal} />)}</div>}

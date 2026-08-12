@@ -14,6 +14,8 @@ namespace CanadaDeals.Api.Services;
 
 public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, ILogger<CatalogQueryService> logger)
 {
+    private const string TestOnlyAttribution = "TEST_ONLY";
+
     public async Task<IReadOnlyList<KeyValuePair<string, string>>> ValidateDiscoveryRequestAsync(
         DiscoveryQueryRequest request,
         CancellationToken cancellationToken)
@@ -22,7 +24,13 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         var categoryKeys = DiscoveryQueryRequest.Values(request.Category);
         if (categoryKeys.Length > 0)
         {
-            var existing = await db.Categories.Where(x => categoryKeys.Contains(x.Slug)).Select(x => x.Slug).ToListAsync(cancellationToken);
+            var existing = await db.Categories
+                .Where(x => categoryKeys.Contains(x.Slug) && db.RetailerListings.Any(listing =>
+                    listing.Product.CategoryId == x.Id &&
+                    listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
+                    listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
+                .Select(x => x.Slug)
+                .ToListAsync(cancellationToken);
             foreach (var missing in categoryKeys.Except(existing, StringComparer.OrdinalIgnoreCase))
                 errors.Add(new(nameof(request.Category), $"Unknown category '{missing}'."));
         }
@@ -30,7 +38,13 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         var retailerKeys = DiscoveryQueryRequest.Values(request.Retailer);
         if (retailerKeys.Length > 0)
         {
-            var existing = await db.Retailers.Where(x => retailerKeys.Contains(x.Key)).Select(x => x.Key).ToListAsync(cancellationToken);
+            var existing = await db.Retailers
+                .Where(x => retailerKeys.Contains(x.Key) && db.RetailerListings.Any(listing =>
+                    listing.RetailerId == x.Id &&
+                    listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
+                    listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
+                .Select(x => x.Key)
+                .ToListAsync(cancellationToken);
             foreach (var missing in retailerKeys.Except(existing, StringComparer.OrdinalIgnoreCase))
                 errors.Add(new(nameof(request.Retailer), $"Unknown retailer '{missing}'."));
         }
@@ -55,7 +69,11 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         var query = db.RetailerListings.AsNoTracking()
             .Where(x => x.CurrentPriceAmount != null &&
                         x.CurrentPriceCurrency == PriceAlert.SupportedCurrency &&
-                        x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed);
+                        x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
+                        x.MerchantPolicy.RequiredAttribution != TestOnlyAttribution);
+
+        if (search.Length == 0 && availability.Length == 0)
+            query = query.Where(x => x.OnlineAvailability != OnlineAvailabilityState.Unavailable);
 
         if (categoryKeys.Length > 0) query = query.Where(x => categoryKeys.Contains(x.Product.Category.Slug));
         if (retailerKeys.Length > 0) query = query.Where(x => retailerKeys.Contains(x.Retailer.Key));
@@ -167,7 +185,9 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                 .Include(x => x.Product).ThenInclude(x => x.Category)
                 .Include(x => x.Retailer)
                 .Include(x => x.MerchantPolicy)
-                .Where(x => productIds.Contains(x.ProductId) && x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed)
+                .Where(x => productIds.Contains(x.ProductId) &&
+                            x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
+                            x.MerchantPolicy.RequiredAttribution != TestOnlyAttribution)
                 .ToListAsync(cancellationToken);
         var selected = listings.ToDictionary(x => x.Id);
         var items = rows
@@ -176,9 +196,16 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             .ToList();
 
         var categories = await db.Categories.AsNoTracking().OrderBy(x => x.Name)
+            .Where(x => db.RetailerListings.Any(listing =>
+                listing.Product.CategoryId == x.Id &&
+                listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
+                listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
             .Select(x => new DiscoveryFacetOption(x.Slug, x.Name)).ToListAsync(cancellationToken);
         var retailers = await db.Retailers.AsNoTracking().OrderBy(x => x.Name)
-            .Where(x => db.RetailerListings.Any(listing => listing.RetailerId == x.Id && listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed))
+            .Where(x => db.RetailerListings.Any(listing =>
+                listing.RetailerId == x.Id &&
+                listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
+                listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
             .Select(x => new DiscoveryFacetOption(x.Key, x.Name)).ToListAsync(cancellationToken);
         var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)request.PageSize);
 
@@ -273,9 +300,13 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             .AsNoTracking()
             .Include(x => x.Retailer)
             .Include(x => x.MerchantPolicy)
-            .Where(x => x.ProductId == product.Id)
+            .Where(x => x.ProductId == product.Id &&
+                        x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
+                        x.MerchantPolicy.RequiredAttribution != TestOnlyAttribution)
             .OrderByDescending(x => x.SourceObservedAt)
             .ToListAsync(cancellationToken);
+
+        if (listings.Count == 0) return null;
 
         var now = clock.GetUtcNow();
         var offers = listings.Select(x => ToOffer(x, now)).ToList();
@@ -321,6 +352,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                 && listing.Condition == ProductCondition.New
                 && listing.IsMarketplaceSeller != true
                 && policy.AllowPriceStorage == PolicyPermission.Allowed
+                && policy.RequiredAttribution != TestOnlyAttribution
                 && policy.AllowPriceHistory == PolicyPermission.Allowed
                 && observation.IsPermitted
                 && observation.Amount > 0
@@ -436,7 +468,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         var evidence = EvidenceCalculator.Calculate(listing.MerchantPolicy, listing.History, listing.CurrentPriceAmount);
         return new RetailerOfferResponse(listing.Id, listing.Retailer.Name, listing.OriginalTitle, listing.CurrentPriceAmount,
             listing.CurrentPriceCurrency ?? "CAD", freshness.ToString().ToUpperInvariant(), evidence.ToString().ToUpperInvariant(),
-            PublicMatchState(listing.MatchState), listing.History.ToString().ToUpperInvariant(), listing.SourceObservedAt,
+            PublicMatchState(listing.MatchState), listing.History.ToString().ToUpperInvariant(), listing.OnlineAvailability.ToString().ToUpperInvariant(), listing.SourceObservedAt,
             HandoffPath(listing), listing.MerchantPolicy.DisclosureText, ComparisonRules.IsSafeComparison(listing));
     }
 

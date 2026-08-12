@@ -14,14 +14,13 @@ public sealed class SearchAndFilterTests(ApiFixture fixture) : IClassFixture<Api
 {
     private const string UnavailableSlug = "search-fixture-unavailable-kettle";
     private const string HiddenSlug = "search-fixture-policy-hidden-speaker";
+    private const string TestOnlySlug = "search-fixture-test-only-monitor";
     private HttpClient Client() => fixture.CreateClient(new() { AllowAutoRedirect = false });
 
     public async Task InitializeAsync()
     {
         await using var scope = fixture.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<DealsDbContext>();
-        if (await db.Products.AnyAsync(product => product.Slug == UnavailableSlug)) return;
-
         var category = await db.Categories.SingleAsync(item => item.Slug == "electronics");
         var brand = await db.Brands.SingleAsync(item => item.Slug == "northstar-demo");
         var retailer = await db.Retailers.SingleAsync(item => item.Key == "demo-north-electronics");
@@ -29,14 +28,28 @@ public sealed class SearchAndFilterTests(ApiFixture fixture) : IClassFixture<Api
         var unknown = await db.MerchantPolicies.SingleAsync(item => item.SourceKey == "unknown-fixture-policy");
         var now = DateTimeOffset.UtcNow;
         var empty = new Dictionary<string, string>();
-        var unavailable = Product.Create(UnavailableSlug, "Northstar Search Fixture Kettle", brand, category, "NS-KETTLE-404", "NS-KETTLE-404", "990000000001", empty);
-        var hidden = Product.Create(HiddenSlug, "Northstar Policy Hidden Speaker", brand, category, "NS-HIDDEN-404", "NS-HIDDEN-404", "990000000002", empty);
-        db.AddRange(unavailable, hidden);
-        await db.SaveChangesAsync();
-        db.AddRange(
-            RetailerListing.Create(unavailable.Id, retailer.Id, "SEARCH-UNAVAILABLE", unavailable.Title, "https://demo.local/search-unavailable", allowed.Id, MatchState.Confirmed, now.AddMinutes(-30), now.AddMinutes(-30), 49.99m, "CAD", FreshnessState.Recent, EvidenceState.Unknown, HistoryAvailability.Unavailable, empty, empty, onlineAvailability: OnlineAvailabilityState.Unavailable),
-            RetailerListing.Create(hidden.Id, retailer.Id, "SEARCH-HIDDEN", hidden.Title, "https://demo.local/search-hidden", unknown.Id, MatchState.Confirmed, now, now, 9.99m, "CAD", FreshnessState.Recent, EvidenceState.Unknown, HistoryAvailability.Unavailable, empty, empty, onlineAvailability: OnlineAvailabilityState.Available));
-        await db.SaveChangesAsync();
+
+        if (!await db.Products.AnyAsync(product => product.Slug == UnavailableSlug))
+        {
+            var unavailable = Product.Create(UnavailableSlug, "Northstar Search Fixture Kettle", brand, category, "NS-KETTLE-404", "NS-KETTLE-404", "990000000001", empty);
+            var hidden = Product.Create(HiddenSlug, "Northstar Policy Hidden Speaker", brand, category, "NS-HIDDEN-404", "NS-HIDDEN-404", "990000000002", empty);
+            db.AddRange(unavailable, hidden);
+            await db.SaveChangesAsync();
+            db.AddRange(
+                RetailerListing.Create(unavailable.Id, retailer.Id, "SEARCH-UNAVAILABLE", unavailable.Title, "https://demo.local/search-unavailable", allowed.Id, MatchState.Confirmed, now.AddMinutes(-30), now.AddMinutes(-30), 49.99m, "CAD", FreshnessState.Recent, EvidenceState.Unknown, HistoryAvailability.Unavailable, empty, empty, onlineAvailability: OnlineAvailabilityState.Unavailable),
+                RetailerListing.Create(hidden.Id, retailer.Id, "SEARCH-HIDDEN", hidden.Title, "https://demo.local/search-hidden", unknown.Id, MatchState.Confirmed, now, now, 9.99m, "CAD", FreshnessState.Recent, EvidenceState.Unknown, HistoryAvailability.Unavailable, empty, empty, onlineAvailability: OnlineAvailabilityState.Available));
+            await db.SaveChangesAsync();
+        }
+
+        if (!await db.Products.AnyAsync(product => product.Slug == TestOnlySlug))
+        {
+            var testOnlyPolicy = MerchantPolicy.Create("search-test-only-policy", PolicyPermission.Allowed, PolicyPermission.Allowed, PolicyPermission.Denied, PolicyPermission.Allowed, 24, "SAME_PRODUCT_ONLY", "TEST_ONLY", "Internal fixture only.", 1, "Local synthetic data only", now);
+            var testOnlyProduct = Product.Create(TestOnlySlug, "Internal Alert Monitor Fixture", brand, category, "INTERNAL-TEST-ONLY", "INTERNAL-TEST-ONLY", null, empty);
+            db.AddRange(testOnlyPolicy, testOnlyProduct);
+            await db.SaveChangesAsync();
+            db.Add(RetailerListing.Create(testOnlyProduct.Id, retailer.Id, "SEARCH-TEST-ONLY", testOnlyProduct.Title, "https://demo.local/search-test-only", testOnlyPolicy.Id, MatchState.Confirmed, now, now, 1m, "CAD", FreshnessState.Recent, EvidenceState.Strong, HistoryAvailability.Reliable, empty, empty));
+            await db.SaveChangesAsync();
+        }
     }
 
     public Task DisposeAsync() => Task.CompletedTask;
@@ -174,5 +187,15 @@ public sealed class SearchAndFilterTests(ApiFixture fixture) : IClassFixture<Api
     {
         using var json = await GetJsonAsync("/api/v1/deals?search=NS-HIDDEN-404");
         Assert.DoesNotContain(json.RootElement.GetProperty("items").EnumerateArray(), item => item.GetProperty("productSlug").GetString() == HiddenSlug);
+    }
+
+    [RequiresPostgresFact]
+    public async Task Test_only_policy_data_is_never_published_or_exposed_as_a_facet()
+    {
+        using var search = await GetJsonAsync("/api/v1/deals?search=INTERNAL-TEST-ONLY");
+        Assert.DoesNotContain(search.RootElement.GetProperty("items").EnumerateArray(), item => item.GetProperty("productSlug").GetString() == TestOnlySlug);
+
+        using var feed = await GetJsonAsync("/api/v1/deals");
+        Assert.DoesNotContain(feed.RootElement.GetProperty("items").EnumerateArray(), item => item.GetProperty("productSlug").GetString() == TestOnlySlug);
     }
 }
