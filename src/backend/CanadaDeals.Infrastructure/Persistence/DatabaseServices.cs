@@ -24,7 +24,13 @@ public static class DatabaseServices
         await using var scope = services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<DealsDbContext>();
         await context.Database.MigrateAsync(cancellationToken);
-        if (seedDemoData) await DemoDataSeeder.SeedAsync(context, cancellationToken);
+        if (seedDemoData)
+        {
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+            await context.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(1120260811)", cancellationToken);
+            await DemoDataSeeder.SeedAsync(context, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
     }
 }
 
@@ -32,7 +38,11 @@ public static class DemoDataSeeder
 {
     public static async Task SeedAsync(DealsDbContext db, CancellationToken cancellationToken)
     {
-        if (await db.Products.AnyAsync(cancellationToken)) return;
+        if (await db.Products.AnyAsync(cancellationToken))
+        {
+            await EnsureSlice6HistoryFixturesAsync(db, DateTimeOffset.UtcNow, cancellationToken);
+            return;
+        }
 
         var now = DateTimeOffset.UtcNow;
         var policy = MerchantPolicy.Create(
@@ -95,9 +105,11 @@ public static class DemoDataSeeder
         {
             ["voltage"] = "18V", ["toolOnly"] = "true"
         });
+        var productG = Product.Create("search-fixture-unavailable-kettle", "Northstar Search Fixture Kettle", northstar, electronics, "NS-KETTLE-404", "NS-KETTLE-404", "990000000001", new Dictionary<string, string>());
+        var productH = Product.Create("search-fixture-policy-hidden-speaker", "Northstar Policy Hidden Speaker", northstar, electronics, "NS-HIDDEN-404", "NS-HIDDEN-404", "990000000002", new Dictionary<string, string>());
 
         db.AddRange(policy, unknownPolicy, electronics, tools, northstar, mapleforge, ridgeway, demoNorth, demoHome, demoMarket);
-        db.AddRange(productA, productB, productC, productD, productE, productF);
+        db.AddRange(productA, productB, productC, productD, productE, productF, productG, productH);
         await db.SaveChangesAsync(cancellationToken);
 
         var listingA1 = RetailerListing.Create(productA.Id, demoNorth.Id, "DEMO-A-NORTH", productA.Title, "https://demo.local/products/northstar-55-qled-tv", policy.Id, MatchState.Confirmed, now.AddHours(-2), now.AddHours(-2), 1099.99m, "CAD", FreshnessState.Recent, EvidenceState.Strong, HistoryAvailability.Reliable, productA.VariantAttributes, new Dictionary<string, string> { ["gtin"] = "000000000001" }, retailerSku: "DN-NS55", seller: "Demo North Electronics", isMarketplaceSeller: false, condition: ProductCondition.New, packQuantity: 1, regionAvailabilityContext: "Canada", onlineAvailability: OnlineAvailabilityState.Available, shippingContext: "Shipping calculated at checkout", approvedAffiliateDestinationReference: "https://demo.local/retailer/demo-a-north");
@@ -108,8 +120,10 @@ public static class DemoDataSeeder
         var listingD = RetailerListing.Create(productD.Id, demoNorth.Id, "DEMO-D-NORTH", productD.Title, "https://demo.local/products/northstar-65-oled-tv", policy.Id, MatchState.Confirmed, now.AddDays(-3), now.AddDays(-3), 1399.99m, "CAD", FreshnessState.Stale, EvidenceState.Partial, HistoryAvailability.Partial, productD.VariantAttributes, new Dictionary<string, string> { ["gtin"] = "000000000004" }, "DN-NS65");
         var listingE = RetailerListing.Create(productE.Id, demoMarket.Id, "DEMO-E-TOOL", productE.Title, "https://demo.local/products/ridgeway-20v-drill-tool-only", policy.Id, MatchState.PossibleMatchReview, now.AddHours(-1), now.AddHours(-1), 79.99m, "CAD", FreshnessState.Recent, EvidenceState.Partial, HistoryAvailability.Unavailable, productE.VariantAttributes, new Dictionary<string, string> { ["gtin"] = "000000000005" }, retailerSku: "DM-RW20TOOL", seller: "Demo Market Lab", isMarketplaceSeller: false);
         var listingF = RetailerListing.Create(productF.Id, demoMarket.Id, "DEMO-F-UNKNOWN", productF.Title, "https://demo.local/products/mapleforge-compact-impact-driver", policy.Id, MatchState.NoMatch, now.AddHours(-2), now.AddHours(-2), 119.99m, "CAD", FreshnessState.Recent, EvidenceState.Unknown, HistoryAvailability.Unavailable, productF.VariantAttributes, new Dictionary<string, string> { ["gtin"] = "000000000006" }, "DM-MFID");
+        var listingG = RetailerListing.Create(productG.Id, demoNorth.Id, "SEARCH-UNAVAILABLE", productG.Title, "https://demo.local/search-unavailable", policy.Id, MatchState.Confirmed, now.AddMinutes(-30), now.AddMinutes(-30), 49.99m, "CAD", FreshnessState.Recent, EvidenceState.Unknown, HistoryAvailability.Unavailable, productG.VariantAttributes, new Dictionary<string, string>(), onlineAvailability: OnlineAvailabilityState.Unavailable);
+        var listingH = RetailerListing.Create(productH.Id, demoNorth.Id, "SEARCH-HIDDEN", productH.Title, "https://demo.local/search-hidden", unknownPolicy.Id, MatchState.Confirmed, now, now, 9.99m, "CAD", FreshnessState.Recent, EvidenceState.Unknown, HistoryAvailability.Unavailable, productH.VariantAttributes, new Dictionary<string, string>(), onlineAvailability: OnlineAvailabilityState.Available);
 
-        db.AddRange(listingA1, listingA2, listingB, listingC1, listingC2, listingD, listingE, listingF);
+        db.AddRange(listingA1, listingA2, listingB, listingC1, listingC2, listingD, listingE, listingF, listingG, listingH);
         await db.SaveChangesAsync(cancellationToken);
 
         var observations = new List<PriceObservation>
@@ -126,6 +140,61 @@ public static class DemoDataSeeder
             PriceObservation.Create(listingF.Id, 119.99m, "CAD", now.AddHours(-2), now.AddHours(-2), true, "demo-f-current")
         };
         db.AddRange(observations);
+        await db.SaveChangesAsync(cancellationToken);
+        await EnsureSlice6HistoryFixturesAsync(db, now, cancellationToken);
+    }
+
+    private static async Task EnsureSlice6HistoryFixturesAsync(DealsDbContext db, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var listingKeys = new[] { "DEMO-A-NORTH", "DEMO-A-HOME", "DEMO-D-NORTH", "DEMO-C-TOOL", "SEARCH-HIDDEN" };
+        var listings = await db.RetailerListings
+            .Where(listing => listingKeys.Contains(listing.ExternalListingId))
+            .ToDictionaryAsync(listing => listing.ExternalListingId, cancellationToken);
+        if (listings.Count == 0) return;
+
+        var definitions = new List<(string ListingKey, int DaysAgo, decimal Amount, string SourceHash)>
+        {
+            ("DEMO-A-NORTH", 84, 1299.99m, "slice6-a1-84"),
+            ("DEMO-A-NORTH", 72, 1279.99m, "slice6-a1-72"),
+            ("DEMO-A-NORTH", 60, 1249.99m, "slice6-a1-60"),
+            ("DEMO-A-NORTH", 48, 1229.99m, "slice6-a1-48"),
+            ("DEMO-A-NORTH", 36, 1199.99m, "slice6-a1-36"),
+            ("DEMO-A-NORTH", 29, 1179.99m, "slice6-a1-29"),
+            ("DEMO-A-NORTH", 24, 1169.99m, "slice6-a1-24"),
+            ("DEMO-A-NORTH", 20, 1149.99m, "slice6-a1-20"),
+            ("DEMO-A-HOME", 20, 1049.99m, "slice6-a2-20"),
+            ("DEMO-A-NORTH", 18, 1139.99m, "slice6-a1-18"),
+            ("DEMO-A-NORTH", 8, 1089.99m, "slice6-a1-8"),
+            ("DEMO-A-NORTH", 4, 1119.99m, "slice6-a1-4"),
+            ("DEMO-A-NORTH", 1, 1099.99m, "slice6-a1-1"),
+            ("DEMO-D-NORTH", 86, 1599.99m, "slice6-d-86"),
+            ("DEMO-D-NORTH", 74, 1579.99m, "slice6-d-74"),
+            ("DEMO-D-NORTH", 62, 1549.99m, "slice6-d-62"),
+            ("DEMO-D-NORTH", 50, 1529.99m, "slice6-d-50"),
+            ("DEMO-D-NORTH", 38, 1499.99m, "slice6-d-38"),
+            ("DEMO-D-NORTH", 29, 1479.99m, "slice6-d-29"),
+            ("DEMO-D-NORTH", 24, 1469.99m, "slice6-d-24"),
+            ("DEMO-D-NORTH", 18, 1449.99m, "slice6-d-18"),
+            ("DEMO-D-NORTH", 12, 1429.99m, "slice6-d-12"),
+            ("DEMO-D-NORTH", 7, 1419.99m, "slice6-d-7"),
+            ("DEMO-C-TOOL", 20, 49.99m, "slice6-unsafe-c2-20"),
+            ("DEMO-C-TOOL", 4, 59.99m, "slice6-unsafe-c2-4"),
+            ("SEARCH-HIDDEN", 10, 19.99m, "slice6-policy-hidden-10"),
+            ("SEARCH-HIDDEN", 2, 9.99m, "slice6-policy-hidden-2")
+        };
+        var hashes = definitions.Select(definition => definition.SourceHash).ToArray();
+        var existingHashes = await db.PriceObservations
+            .Where(observation => hashes.Contains(observation.SourceHash))
+            .Select(observation => observation.SourceHash)
+            .ToHashSetAsync(cancellationToken);
+
+        foreach (var definition in definitions.Where(definition => !existingHashes.Contains(definition.SourceHash)))
+        {
+            if (!listings.TryGetValue(definition.ListingKey, out var listing)) continue;
+            var observedAt = now.AddDays(-definition.DaysAgo);
+            db.Add(PriceObservation.Create(listing.Id, definition.Amount, "CAD", observedAt, observedAt, true, definition.SourceHash));
+        }
+
         await db.SaveChangesAsync(cancellationToken);
     }
 }

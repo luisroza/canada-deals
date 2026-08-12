@@ -96,6 +96,18 @@ public sealed class RetailerListing
     public IReadOnlyDictionary<string, string> VariantAttributes => Deserialize(VariantAttributesJson);
     public IReadOnlyDictionary<string, string> ExternalIdentifiers => Deserialize(ExternalIdentifiersJson);
 
+    public void RecordCurrentPrice(decimal amount, string currency, DateTimeOffset observedAt, DateTimeOffset fetchedAt)
+    {
+        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        if (decimal.Round(amount, 2) != amount) throw new ArgumentException("Price supports at most two decimal places.", nameof(amount));
+        if (string.IsNullOrWhiteSpace(currency)) throw new ArgumentException("Currency is required.", nameof(currency));
+
+        CurrentPriceAmount = amount;
+        CurrentPriceCurrency = currency.ToUpperInvariant();
+        SourceObservedAt = observedAt;
+        FetchedAt = fetchedAt;
+    }
+
     private static IReadOnlyDictionary<string, string> Deserialize(string json) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new Dictionary<string, string>();
 }

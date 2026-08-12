@@ -4,6 +4,7 @@ import { DealCard } from "./DealCard";
 
 const baseDeal = {
   listingId: "a",
+  productId: "product-a",
   productSlug: "northstar-55-qled-tv",
   productTitle: "Northstar 55-inch QLED TV",
   brand: "Northstar Demo",
@@ -17,6 +18,8 @@ const baseDeal = {
   observedAt: "2026-08-11T12:00:00Z",
   matchState: "Same product confirmed",
   historyState: "RELIABLE" as const,
+  referencePrice: 1299.99,
+  supportedSavingsPercent: 15.4,
   hasSafeComparison: true,
   detailsPath: "/products/northstar-55-qled-tv",
   handoffPath: "/go/a",
@@ -30,6 +33,7 @@ describe("DealCard", () => {
     expect(screen.getByText("Strong evidence")).toBeInTheDocument();
     expect(screen.getByText("Checked recently")).toBeInTheDocument();
     expect(screen.getByText(/Safe comparison available/)).toBeInTheDocument();
+    expect(screen.getByText(/15.4% below supported reference/)).toBeInTheDocument();
   });
 
   it("renders stale and unavailable evidence honestly", () => {

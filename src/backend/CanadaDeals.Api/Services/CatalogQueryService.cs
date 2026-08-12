@@ -1,42 +1,262 @@
 using CanadaDeals.Api.Contracts;
+using CanadaDeals.Domain.Accounts;
+using CanadaDeals.Domain.Alerts;
 using CanadaDeals.Domain.Common;
 using CanadaDeals.Domain.PriceTruth;
 using CanadaDeals.Domain.Retailers;
+using CanadaDeals.Domain.Search;
 using CanadaDeals.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using NpgsqlTypes;
+using System.Diagnostics;
 
 namespace CanadaDeals.Api.Services;
 
-public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock)
+public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, ILogger<CatalogQueryService> logger)
 {
-    public async Task<DiscoveryResponse> GetDiscoveryAsync(string? search, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<KeyValuePair<string, string>>> ValidateDiscoveryRequestAsync(
+        DiscoveryQueryRequest request,
+        CancellationToken cancellationToken)
     {
-        var query = db.RetailerListings
-            .AsNoTracking()
-            .Include(x => x.Product).ThenInclude(x => x.Brand)
-            .Include(x => x.Product).ThenInclude(x => x.Category)
-            .Include(x => x.Retailer)
-            .Include(x => x.MerchantPolicy)
-            .Where(x => x.CurrentPriceAmount != null && x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed);
-
-        if (!string.IsNullOrWhiteSpace(search))
+        var errors = new List<KeyValuePair<string, string>>();
+        var categoryKeys = DiscoveryQueryRequest.Values(request.Category);
+        if (categoryKeys.Length > 0)
         {
-            var term = search.Trim();
-            query = query.Where(x =>
-                EF.Functions.ILike(x.Product.Title, $"%{term}%") ||
-                EF.Functions.ILike(x.Product.Brand.Name, $"%{term}%") ||
-                (x.Product.ModelNumber != null && EF.Functions.ILike(x.Product.ModelNumber, $"%{term}%")));
+            var existing = await db.Categories.Where(x => categoryKeys.Contains(x.Slug)).Select(x => x.Slug).ToListAsync(cancellationToken);
+            foreach (var missing in categoryKeys.Except(existing, StringComparer.OrdinalIgnoreCase))
+                errors.Add(new(nameof(request.Category), $"Unknown category '{missing}'."));
         }
 
-        var listings = await query
-            .OrderByDescending(x => x.SourceObservedAt)
-            .ThenBy(x => x.Product.Title)
-            .Take(50)
+        var retailerKeys = DiscoveryQueryRequest.Values(request.Retailer);
+        if (retailerKeys.Length > 0)
+        {
+            var existing = await db.Retailers.Where(x => retailerKeys.Contains(x.Key)).Select(x => x.Key).ToListAsync(cancellationToken);
+            foreach (var missing in retailerKeys.Except(existing, StringComparer.OrdinalIgnoreCase))
+                errors.Add(new(nameof(request.Retailer), $"Unknown retailer '{missing}'."));
+        }
+
+        return errors;
+    }
+
+    public async Task<DiscoveryResponse> GetDiscoveryAsync(DiscoveryQueryRequest request, CancellationToken cancellationToken)
+    {
+        var started = Stopwatch.GetTimestamp();
+        var now = clock.GetUtcNow();
+        var search = request.Search?.Trim() ?? string.Empty;
+        var normalizedSearch = DiscoveryRules.NormalizeIdentifier(search);
+        var escapedSearch = EscapeLike(search);
+        var sort = ParseSort(request.Sort) ?? DiscoveryRules.DefaultSort(search);
+        var categoryKeys = DiscoveryQueryRequest.Values(request.Category);
+        var retailerKeys = DiscoveryQueryRequest.Values(request.Retailer);
+        var freshness = DiscoveryQueryRequest.Values(request.Freshness);
+        var matches = DiscoveryQueryRequest.Values(request.Match);
+        var availability = DiscoveryQueryRequest.Values(request.Availability);
+
+        var query = db.RetailerListings.AsNoTracking()
+            .Where(x => x.CurrentPriceAmount != null &&
+                        x.CurrentPriceCurrency == PriceAlert.SupportedCurrency &&
+                        x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed);
+
+        if (categoryKeys.Length > 0) query = query.Where(x => categoryKeys.Contains(x.Product.Category.Slug));
+        if (retailerKeys.Length > 0) query = query.Where(x => retailerKeys.Contains(x.Retailer.Key));
+
+        if (request.MinPrice.HasValue || request.MaxPrice.HasValue)
+        {
+            query = query.Where(x =>
+                (x.MatchState == MatchState.AutoMatched || x.MatchState == MatchState.Confirmed) &&
+                x.OnlineAvailability == OnlineAvailabilityState.Available);
+            if (request.MinPrice.HasValue) query = query.Where(x => x.CurrentPriceAmount >= request.MinPrice.Value);
+            if (request.MaxPrice.HasValue) query = query.Where(x => x.CurrentPriceAmount <= request.MaxPrice.Value);
+        }
+
+        if (request.HasReference.HasValue)
+        {
+            query = query.Where(x =>
+                (x.MerchantPolicy.AllowPriceHistory == PolicyPermission.Allowed &&
+                 db.PriceObservations.Any(observation =>
+                     observation.RetailerListingId == x.Id && observation.IsPermitted &&
+                     observation.ObservedAt < x.SourceObservedAt && observation.Amount > x.CurrentPriceAmount)) == request.HasReference.Value);
+        }
+
+        if (freshness.Length > 0)
+        {
+            var recentBoundary = now.AddHours(-6);
+            var agingBoundary = now.AddHours(-24);
+            query = query.Where(x =>
+                (freshness.Contains("recent") && x.SourceObservedAt >= recentBoundary) ||
+                (freshness.Contains("aging") && x.SourceObservedAt < recentBoundary && x.SourceObservedAt >= agingBoundary) ||
+                (freshness.Contains("stale") && x.SourceObservedAt < agingBoundary) ||
+                (freshness.Contains("unknown") && x.SourceObservedAt == null));
+        }
+
+        if (matches.Length > 0)
+        {
+            query = query.Where(x =>
+                (matches.Contains("safe") && (x.MatchState == MatchState.AutoMatched || x.MatchState == MatchState.Confirmed)) ||
+                (matches.Contains("review") && (x.MatchState == MatchState.PossibleMatchReview || x.MatchState == MatchState.ManualReview)) ||
+                (matches.Contains("none") && x.MatchState == MatchState.NoMatch));
+        }
+
+        if (availability.Length > 0)
+        {
+            query = query.Where(x =>
+                (availability.Contains("online") && x.OnlineAvailability == OnlineAvailabilityState.Available) ||
+                (availability.Contains("unavailable") && x.OnlineAvailability == OnlineAvailabilityState.Unavailable) ||
+                (availability.Contains("unknown") && x.OnlineAvailability == OnlineAvailabilityState.Unknown));
+        }
+
+        if (search.Length > 0)
+        {
+            query = query.Where(x =>
+                x.Product.NormalizedModelNumber == normalizedSearch ||
+                x.Product.NormalizedManufacturerPartNumber == normalizedSearch ||
+                x.Product.Gtin == normalizedSearch ||
+                EF.Functions.ILike(x.Product.Title, escapedSearch, "\\") ||
+                EF.Functions.ILike(x.Product.Title, $"{escapedSearch}%", "\\") ||
+                EF.Property<NpgsqlTsVector>(x.Product, "SearchVector")
+                    .Matches(EF.Functions.WebSearchToTsQuery("english", search)) ||
+                EF.Functions.TrigramsAreWordSimilar(search, x.Product.SearchDocument));
+        }
+
+        var representativeListings = query.Where(candidate => candidate.Id == query
+            .Where(other => other.ProductId == candidate.ProductId)
+            .OrderByDescending(other => other.MatchState == MatchState.AutoMatched || other.MatchState == MatchState.Confirmed)
+            .ThenByDescending(other => other.SourceObservedAt)
+            .ThenBy(other => other.Id)
+            .Select(other => other.Id)
+            .First());
+
+        var representatives = representativeListings.Select(x => new DiscoveryCandidate
+        {
+            ListingId = x.Id,
+            ProductId = x.ProductId,
+            ObservedAt = x.SourceObservedAt,
+            CurrentPrice = x.CurrentPriceAmount!.Value,
+            SafeMatch = x.MatchState == MatchState.AutoMatched || x.MatchState == MatchState.Confirmed,
+            ExactModel = search.Length > 0 && x.Product.NormalizedModelNumber == normalizedSearch,
+            ExactMpn = search.Length > 0 && x.Product.NormalizedManufacturerPartNumber == normalizedSearch,
+            ExactGtin = search.Length > 0 && x.Product.Gtin == normalizedSearch,
+            ExactTitle = search.Length > 0 && EF.Functions.ILike(x.Product.Title, escapedSearch, "\\"),
+            TitlePrefix = search.Length > 0 && EF.Functions.ILike(x.Product.Title, $"{escapedSearch}%", "\\"),
+            FullTextRank = search.Length > 0
+                ? EF.Property<NpgsqlTsVector>(x.Product, "SearchVector").Rank(EF.Functions.WebSearchToTsQuery("english", search))
+                : 0f,
+            TrigramSimilarity = search.Length > 0 ? EF.Functions.TrigramsWordSimilarity(search, x.Product.SearchDocument) : 0d,
+            ReferencePrice = x.MerchantPolicy.AllowPriceHistory == PolicyPermission.Allowed
+                ? db.PriceObservations
+                    .Where(observation => observation.RetailerListingId == x.Id && observation.IsPermitted &&
+                        observation.ObservedAt < x.SourceObservedAt && observation.Amount > x.CurrentPriceAmount)
+                    .Select(observation => (decimal?)observation.Amount)
+                    .Max()
+                : null
+        });
+
+        var totalCount = await representatives.CountAsync(cancellationToken);
+        var ordered = ApplySort(representatives, sort);
+        var rows = await ordered
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
             .ToListAsync(cancellationToken);
 
-        var now = clock.GetUtcNow();
-        var items = listings.Select(x => ToCard(x, now, listings)).ToList();
-        return new DiscoveryResponse(items, items.Count, "Most recently checked");
+        var productIds = rows.Select(x => x.ProductId).ToArray();
+        var listings = productIds.Length == 0
+            ? []
+            : await db.RetailerListings
+                .AsNoTracking()
+                .Include(x => x.Product).ThenInclude(x => x.Brand)
+                .Include(x => x.Product).ThenInclude(x => x.Category)
+                .Include(x => x.Retailer)
+                .Include(x => x.MerchantPolicy)
+                .Where(x => productIds.Contains(x.ProductId) && x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed)
+                .ToListAsync(cancellationToken);
+        var selected = listings.ToDictionary(x => x.Id);
+        var items = rows
+            .Where(row => selected.ContainsKey(row.ListingId))
+            .Select(row => ToCard(selected[row.ListingId], now, listings, row.ReferencePrice))
+            .ToList();
+
+        var categories = await db.Categories.AsNoTracking().OrderBy(x => x.Name)
+            .Select(x => new DiscoveryFacetOption(x.Slug, x.Name)).ToListAsync(cancellationToken);
+        var retailers = await db.Retailers.AsNoTracking().OrderBy(x => x.Name)
+            .Where(x => db.RetailerListings.Any(listing => listing.RetailerId == x.Id && listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed))
+            .Select(x => new DiscoveryFacetOption(x.Key, x.Name)).ToListAsync(cancellationToken);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)request.PageSize);
+
+        logger.LogInformation(
+            "Discovery query completed in {ElapsedMs}ms with {ResultCount} results, {FilterCount} filters, page {Page}, sort {Sort}, zero results {ZeroResults}.",
+            Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+            totalCount,
+            AppliedFilterCount(request),
+            request.Page,
+            DiscoveryRules.SortKey(sort),
+            totalCount == 0);
+
+        return new DiscoveryResponse(
+            items,
+            totalCount,
+            DiscoveryRules.SortKey(sort),
+            request.Page,
+            request.PageSize,
+            totalPages,
+            request.Page < totalPages,
+            new DiscoveryFacetsResponse(categories, retailers));
+    }
+
+    private static IOrderedQueryable<DiscoveryCandidate> ApplySort(IQueryable<DiscoveryCandidate> query, DiscoverySort sort) => sort switch
+    {
+        DiscoverySort.Relevance => query
+            .OrderByDescending(x => x.ExactModel)
+            .ThenByDescending(x => x.ExactMpn)
+            .ThenByDescending(x => x.ExactGtin)
+            .ThenByDescending(x => x.ExactTitle)
+            .ThenByDescending(x => x.TitlePrefix)
+            .ThenByDescending(x => x.FullTextRank)
+            .ThenByDescending(x => x.TrigramSimilarity)
+            .ThenByDescending(x => x.ObservedAt)
+            .ThenBy(x => x.ProductId),
+        DiscoverySort.SupportedSavings => query
+            .OrderByDescending(x => x.ReferencePrice != null && x.ReferencePrice > x.CurrentPrice)
+            .ThenByDescending(x => x.ReferencePrice == null ? 0 : (x.ReferencePrice - x.CurrentPrice) / x.ReferencePrice)
+            .ThenByDescending(x => x.ObservedAt)
+            .ThenBy(x => x.ProductId),
+        DiscoverySort.LowestPrice => query
+            .OrderBy(x => x.CurrentPrice)
+            .ThenByDescending(x => x.ObservedAt)
+            .ThenBy(x => x.ProductId),
+        _ => query.OrderByDescending(x => x.ObservedAt).ThenBy(x => x.ProductId)
+    };
+
+    private static DiscoverySort? ParseSort(string? value) => value?.ToLowerInvariant() switch
+    {
+        null or "" => null,
+        "relevance" => DiscoverySort.Relevance,
+        "recent" => DiscoverySort.RecentlyChecked,
+        "savings" => DiscoverySort.SupportedSavings,
+        "price-asc" => DiscoverySort.LowestPrice,
+        _ => null
+    };
+
+    private static int AppliedFilterCount(DiscoveryQueryRequest request) =>
+        new object?[] { request.Category, request.Retailer, request.MinPrice, request.MaxPrice, request.HasReference, request.Freshness, request.Match, request.Availability }
+            .Count(value => value is not null && value.ToString()!.Length > 0);
+
+    private static string EscapeLike(string value) => value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+
+    private sealed class DiscoveryCandidate
+    {
+        public Guid ListingId { get; init; }
+        public Guid ProductId { get; init; }
+        public DateTimeOffset? ObservedAt { get; init; }
+        public decimal CurrentPrice { get; init; }
+        public bool SafeMatch { get; init; }
+        public bool ExactModel { get; init; }
+        public bool ExactMpn { get; init; }
+        public bool ExactGtin { get; init; }
+        public bool ExactTitle { get; init; }
+        public bool TitlePrefix { get; init; }
+        public float FullTextRank { get; init; }
+        public double TrigramSimilarity { get; init; }
+        public decimal? ReferencePrice { get; init; }
     }
 
     public async Task<ProductDetailResponse?> GetProductAsync(string slug, CancellationToken cancellationToken)
@@ -65,7 +285,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock)
         var history = primary.HistoryState switch
         {
             "RELIABLE" => "Reliable history coverage supports a stronger comparison context.",
-            "PARTIAL" => "Partial history coverage is available; this is not an all-time-low claim.",
+            "PARTIAL" => "Partial history coverage is available; gaps prevent stronger conclusions.",
             _ => "Price history unavailable. Current price and retailer evidence are still shown."
         };
         var evidence = primary.EvidenceState switch
@@ -75,19 +295,139 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock)
             _ => "There is not enough verified evidence for a stronger claim."
         };
 
-        return new ProductDetailResponse(product.Slug, product.Title, product.Brand.Name, product.Category.Name,
+        return new ProductDetailResponse(product.Id, product.Slug, product.Title, product.Brand.Name, product.Category.Name,
             product.VariantAttributes, primary, safe, related, history, evidence);
     }
 
-    private DealCardResponse ToCard(RetailerListing listing, DateTimeOffset now, IReadOnlyList<RetailerListing> feed)
+    public async Task<ProductHistoryResponse?> GetProductHistoryAsync(
+        string slug,
+        ProductHistoryWindow window,
+        CancellationToken cancellationToken)
+    {
+        var product = await db.Products.AsNoTracking()
+            .Where(candidate => candidate.Slug == slug)
+            .Select(candidate => new { candidate.Id, candidate.Slug })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (product is null) return null;
+
+        var now = clock.GetUtcNow();
+        var windowStart = now.AddDays(-(int)window);
+        var qualifying =
+            from observation in db.PriceObservations.AsNoTracking()
+            join listing in db.RetailerListings.AsNoTracking() on observation.RetailerListingId equals listing.Id
+            join policy in db.MerchantPolicies.AsNoTracking() on listing.MerchantPolicyId equals policy.Id
+            where listing.ProductId == product.Id
+                && (listing.MatchState == MatchState.AutoMatched || listing.MatchState == MatchState.Confirmed)
+                && listing.Condition == ProductCondition.New
+                && listing.IsMarketplaceSeller != true
+                && policy.AllowPriceStorage == PolicyPermission.Allowed
+                && policy.AllowPriceHistory == PolicyPermission.Allowed
+                && observation.IsPermitted
+                && observation.Amount > 0
+                && observation.Currency == ProductHistoryRules.SupportedCurrency
+                && observation.ObservedAt <= now
+            select observation;
+
+        var trackingStart = await qualifying
+            .Select(observation => (DateTimeOffset?)observation.ObservedAt)
+            .MinAsync(cancellationToken);
+        var bounded = await qualifying
+            .Where(observation => observation.ObservedAt >= windowStart)
+            .OrderBy(observation => observation.ObservedAt)
+            .Select(observation => new ProductHistoryObservation(observation.Amount, observation.Currency, observation.ObservedAt))
+            .ToListAsync(cancellationToken);
+        var evidence = ProductHistoryRules.Evaluate(window, now, bounded, trackingStart);
+
+        logger.LogInformation(
+            "Product history projected for Product {ProductId}, window {Window}, state {State}, {ObservationCount} observations and {ObservedDayCount} observed days.",
+            product.Id,
+            ProductHistoryRules.WindowKey(window),
+            evidence.State,
+            evidence.ObservationCount,
+            evidence.ObservedDayCount);
+
+        return new ProductHistoryResponse(
+            product.Id,
+            product.Slug,
+            ProductHistoryRules.WindowKey(window),
+            (int)window,
+            evidence.State.ToString().ToUpperInvariant(),
+            evidence.TrackingStart,
+            evidence.ObservationStart,
+            evidence.ObservationEnd,
+            evidence.LowestObservedPrice,
+            evidence.HighestObservedPrice,
+            evidence.ObservationCount,
+            evidence.ObservedDayCount,
+            evidence.LargestGapDays,
+            evidence.CoverageSummary,
+            evidence.Interpretation,
+            evidence.Points.Select(point => new ProductHistoryPointResponse(
+                point.ObservedDate,
+                point.LowestPrice,
+                point.Currency,
+                point.ObservationCount)).ToList());
+    }
+
+    public async Task<IReadOnlyList<SavedProductResponse>> GetSavedProductsAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var saves = await db.SavedProducts
+            .AsNoTracking()
+            .Include(x => x.Product).ThenInclude(x => x.Brand)
+            .Include(x => x.Product).ThenInclude(x => x.Category)
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        if (saves.Count == 0) return [];
+
+        var productIds = saves.Select(x => x.ProductId).ToArray();
+        var listings = await db.RetailerListings
+            .AsNoTracking()
+            .Include(x => x.Retailer)
+            .Include(x => x.MerchantPolicy)
+            .Where(x => productIds.Contains(x.ProductId) &&
+                        x.CurrentPriceAmount != null &&
+                        x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed)
+            .OrderByDescending(x => x.SourceObservedAt)
+            .ToListAsync(cancellationToken);
+
+        var now = clock.GetUtcNow();
+        return saves.Select(saved =>
+        {
+            var listing = listings.FirstOrDefault(x => x.ProductId == saved.ProductId && ComparisonRules.IsSafeComparison(x))
+                ?? listings.FirstOrDefault(x => x.ProductId == saved.ProductId);
+            var offer = listing is null ? null : ToOffer(listing, now);
+
+            return new SavedProductResponse(
+                saved.ProductId,
+                saved.Product.Slug,
+                saved.Product.Title,
+                saved.Product.Brand.Name,
+                saved.Product.Category.Name,
+                offer?.CurrentPrice,
+                offer?.Currency ?? "CAD",
+                offer?.FreshnessState ?? "UNKNOWN",
+                offer?.EvidenceState ?? "UNKNOWN",
+                offer?.HistoryState ?? "UNAVAILABLE",
+                offer?.Retailer,
+                saved.CreatedAt,
+                $"/products/{saved.Product.Slug}");
+        }).ToList();
+    }
+
+    private DealCardResponse ToCard(RetailerListing listing, DateTimeOffset now, IReadOnlyList<RetailerListing> feed, decimal? referencePrice)
     {
         var offer = ToOffer(listing, now);
-        return new DealCardResponse(listing.Id, listing.Product.Slug, listing.Product.Title, listing.Product.Brand.Name,
+        return new DealCardResponse(listing.Id, listing.ProductId, listing.Product.Slug, listing.Product.Title, listing.Product.Brand.Name,
             listing.Product.Category.Name, listing.Retailer.Name, listing.CurrentPriceAmount, listing.CurrentPriceCurrency ?? "CAD",
             offer.FreshnessState, offer.EvidenceState, EvidenceExplanation(offer.EvidenceState), listing.SourceObservedAt,
-            PublicMatchState(listing.MatchState), offer.HistoryState,
+            PublicMatchState(listing.MatchState), offer.HistoryState, referencePrice,
+            DiscoveryRules.SupportedSavings(listing.CurrentPriceAmount!.Value, referencePrice)
+                ? Math.Round((referencePrice!.Value - listing.CurrentPriceAmount.Value) / referencePrice.Value * 100m, 1)
+                : null,
             feed.Any(x => x.ProductId == listing.ProductId && x.Id != listing.Id && ComparisonRules.IsSafeComparison(x)),
-            $"/products/{listing.Product.Slug}", $"/go/{listing.Id}", listing.MerchantPolicy.DisclosureText);
+            $"/products/{listing.Product.Slug}", HandoffPath(listing), listing.MerchantPolicy.DisclosureText);
     }
 
     private static RetailerOfferResponse ToOffer(RetailerListing listing, DateTimeOffset now)
@@ -97,7 +437,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock)
         return new RetailerOfferResponse(listing.Id, listing.Retailer.Name, listing.OriginalTitle, listing.CurrentPriceAmount,
             listing.CurrentPriceCurrency ?? "CAD", freshness.ToString().ToUpperInvariant(), evidence.ToString().ToUpperInvariant(),
             PublicMatchState(listing.MatchState), listing.History.ToString().ToUpperInvariant(), listing.SourceObservedAt,
-            $"/go/{listing.Id}", listing.MerchantPolicy.DisclosureText, ComparisonRules.IsSafeComparison(listing));
+            HandoffPath(listing), listing.MerchantPolicy.DisclosureText, ComparisonRules.IsSafeComparison(listing));
     }
 
     private static string PublicMatchState(MatchState matchState) => matchState switch
@@ -106,6 +446,9 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock)
         MatchState.PossibleMatchReview or MatchState.ManualReview => "Review before comparing",
         _ => "No safe comparison available"
     };
+
+    private static string? HandoffPath(RetailerListing listing) =>
+        string.IsNullOrWhiteSpace(listing.ApprovedAffiliateDestinationReference) ? null : $"/go/{listing.Id}";
 
     private static string EvidenceExplanation(string state) => state switch
     {

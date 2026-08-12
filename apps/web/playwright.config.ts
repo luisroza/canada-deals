@@ -10,7 +10,13 @@ export default defineConfig({
     {
       command: "dotnet run --project ../../src/backend/CanadaDeals.Api --urls http://localhost:5099",
       url: "http://localhost:5099/health",
-      reuseExistingServer: true,
+      reuseExistingServer: false,
+      env: { ASPNETCORE_ENVIRONMENT: "Development", Email__AutoConfirmDevelopmentAccounts: "false", AuthenticationRateLimit__PermitLimit: "1000" },
+    },
+    {
+      command: "dotnet run --project ../../src/backend/CanadaDeals.Worker --urls http://localhost:5100",
+      url: "http://localhost:5100/health",
+      reuseExistingServer: false,
       env: { ASPNETCORE_ENVIRONMENT: "Development" },
     },
     {

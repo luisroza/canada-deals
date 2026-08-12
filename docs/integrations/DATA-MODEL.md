@@ -15,14 +15,20 @@
 | `RetailerListing` | retailer-specific product offer and current permitted state | retailer; external listing ID; retailer SKU; canonical product ID; original title; product URL; approved affiliate destination reference; seller; marketplace seller flag; condition; variant attributes; pack quantity; bundle contents; region/availability context; online availability; shipping context; external identifiers; source timestamps; freshness; current permitted price state |
 | `PriceObservation` | source observation when permitted | listing + observed-at + source hash, amount, currency, availability |
 | `Deal` | derived public opportunity | listing/product, score inputs, freshness, evidence state |
-| `PriceAlert` | user threshold and delivery state | user + product/listing, target, consent, status |
-| `SavedProduct` | user intent | user + product, created-at |
+| `PriceAlert` | implemented user-owned canonical Product threshold configuration | user + product, CAD target, status/version, consent, evaluation/trigger state |
+| `NotificationDelivery` | implemented provider-neutral alert delivery intent/audit | alert + target version + price observation, channel/destination, target/qualifying price, attempts/retry schedule, provider ID, acceptance/delivery/event timestamps |
+| `AccountConfirmationDelivery` | implemented account-confirmation delivery audit | user, destination, attempts, provider ID, provider lifecycle timestamps/status |
+| `ControlledEmailCapture` | Development/Test-only deterministic evidence | stable idempotency key, destination, exact subject/HTML/text, captured timestamp |
+| `ProcessedEmailWebhook` | provider webhook replay boundary | provider + unique event ID, type, message ID, provider/processed timestamps |
+| `EmailSuppression` | minimal application send suppression | normalized destination, bounce/complaint/provider-suppression reason and timestamps |
+| `SavedProduct` | implemented authenticated user intent; never a ranking or price-truth input | composite user + canonical product key, created-at |
 | `AffiliateLink` | approved server-side handoff | listing/program, destination, expiry, disclosure |
 | `ClickEvent` | minimum non-PII redirect telemetry | opaque event, link, placement, timestamp |
 | `ImportJob` | fetch/normalize/match execution | connector, cursor, state, retries, counts |
 | `Connector` | provider adapter configuration | network/merchant, version, health, quota |
 | `MerchantPolicy` | rights and retention controls | merchant/source, field flags, max age, reviewer, expiry |
 | `MatchDecision` | product identity audit | candidate, method, confidence state, reviewer |
+| `ListingIssueReport` | anonymous correction/review signal for a retailer listing | report ID; retailer listing ID; controlled reason; OPEN/REVIEWED/RESOLVED/DISMISSED status; optional bounded note; timestamps |
 | `AuditRecord` | sensitive operational decision trail | actor/service, action, reason, before/after reference |
 
 ## Policy flags
@@ -87,6 +93,19 @@ Never use a retailer URL alone as proof of product identity. Preserve source ext
 - click telemetry: pseudonymous operational data, short retention and no unnecessary IP/email;
 - provider credentials: secrets, never in source control or raw logs;
 - raw feeds: restricted and short-lived only when contract permits.
+- listing issue reports: product-quality signals with no required name, email, full IP address, or other direct personal data; notes remain untrusted plain text.
+
+## Implemented Saved Product contract
+
+`SavedProduct` is implemented by migration `20260811192055_AddIdentityAndSavedProducts`. `(UserId, ProductId)` is the composite primary key and duplicate guard. The User foreign key cascades because the row is user-owned intent; the Product foreign key restricts deletion so catalog changes cannot silently discard intent. User identity always comes from the authenticated server session and is never client-assigned. A save contains no price, evidence, Deal Quality, affiliate economics, or ranking fields and does not change those systems.
+
+## Implemented Target Price Alert contract
+
+Migration `20260811202709_AddPriceAlertsAndNotificationDeliveries` implements one configuration per `(UserId, ProductId)`. Targets are canonical-Product-level, CAD in the MVP, versioned on change/reactivation, and ACTIVE only for a confirmed account email with explicit consent timestamp/version. Alert configuration is separate from delivery attempts.
+
+Eligibility uses current `PriceObservation` plus `RetailerListing`/`MerchantPolicy`: policy-permitted storage, safe confirmed/auto matching, online availability, matching currency, valid value, and source-defined freshness (24-hour default). History is not required. Deal Quality, affiliate commission, and Save/popularity are not inputs.
+
+`NotificationDelivery` enforces unique `(PriceAlertId, TargetVersion, PriceObservationId)`. `IsBelowTargetCycle` prevents repeated notification while price remains continuously at/below target; above-target evaluation resets the cycle, and target change creates a new version. A durable delivery ID also produces the stable provider idempotency key. Development/Test persists exact captured evidence. Production distinguishes provider acceptance from webhook-confirmed delivery and never fabricates `Delivered`.
 
 ## Future-proofing
 

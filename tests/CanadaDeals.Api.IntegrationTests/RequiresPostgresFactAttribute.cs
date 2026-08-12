@@ -6,12 +6,24 @@ namespace CanadaDeals.Api.IntegrationTests;
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class RequiresPostgresFactAttribute : FactAttribute
 {
-    private static readonly bool IsAvailable = CheckAvailability();
-
     public RequiresPostgresFactAttribute()
     {
-        if (!IsAvailable) Skip = "PostgreSQL is not available. Start docker compose before running API integration tests.";
+        if (!PostgresAvailability.IsAvailable) Skip = "PostgreSQL is not available. Start docker compose before running API integration tests.";
     }
+}
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public sealed class RequiresPostgresTheoryAttribute : TheoryAttribute
+{
+    public RequiresPostgresTheoryAttribute()
+    {
+        if (!PostgresAvailability.IsAvailable) Skip = "PostgreSQL is not available. Start docker compose before running API integration tests.";
+    }
+}
+
+internal static class PostgresAvailability
+{
+    public static readonly bool IsAvailable = CheckAvailability();
 
     private static bool CheckAvailability()
     {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AccountNav } from "../components/AccountNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +13,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en-CA">
       <body>
         <a className="skip-link" href="#main-content">Skip to content</a>
-        <header className="site-header"><div className="header-inner"><Link className="brand" href="/">Canada Deals</Link><nav className="site-nav" aria-label="Primary"><Link href="/">Deals</Link><Link href="/">How evidence works</Link></nav></div></header>
+        <header className="site-header"><div className="header-inner"><Link className="brand" href="/">Canada Deals</Link><AccountNav /></div></header>
         <main id="main-content" className="page-shell">{children}</main>
         <footer><div className="header-inner">Fixture-backed foundation. No live retailer data or affiliate relationship is represented here.</div></footer>
       </body>

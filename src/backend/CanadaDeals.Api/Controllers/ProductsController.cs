@@ -16,4 +16,20 @@ public sealed class ProductsController(CatalogQueryService catalog) : Controller
         var result = await catalog.GetProductAsync(slug, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
+
+    [HttpGet("{slug}/history")]
+    [ProducesResponseType<ProductHistoryResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetHistory(string slug, [FromQuery] string? window, CancellationToken cancellationToken)
+    {
+        if (!CanadaDeals.Domain.PriceTruth.ProductHistoryRules.TryParseWindow(window, out var parsedWindow))
+        {
+            ModelState.AddModelError(nameof(window), "History window must be 30d or 90d.");
+            return ValidationProblem(ModelState);
+        }
+
+        var result = await catalog.GetProductHistoryAsync(slug, parsedWindow, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
 }

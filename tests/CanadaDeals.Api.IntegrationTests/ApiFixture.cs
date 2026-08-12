@@ -15,5 +15,6 @@ public sealed class ApiFixture : WebApplicationFactory<Program>
         builder.UseSetting("Database:SeedDemoData", "true");
         builder.UseSetting("AffiliateHandoff:Enabled", "true");
         builder.UseSetting("AffiliateHandoff:AllowedHosts:0", "demo.local");
+        builder.UseSetting("AuthenticationRateLimit:PermitLimit", "1000");
     }
 }

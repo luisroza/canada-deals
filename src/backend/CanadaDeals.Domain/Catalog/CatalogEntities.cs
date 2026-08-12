@@ -1,5 +1,6 @@
 using System.Text.Json;
 using CanadaDeals.Domain.Common;
+using CanadaDeals.Domain.Search;
 
 namespace CanadaDeals.Domain.Catalog;
 
@@ -43,6 +44,9 @@ public sealed class Product
     public Guid CategoryId { get; private set; }
     public Category Category { get; private set; } = null!;
     public string VariantAttributesJson { get; private set; } = "{}";
+    public string SearchDocument { get; private set; } = string.Empty;
+    public string? NormalizedModelNumber { get; private set; }
+    public string? NormalizedManufacturerPartNumber { get; private set; }
 
     public static Product Create(
         string slug,
@@ -64,6 +68,9 @@ public sealed class Product
         ModelNumber = modelNumber,
         ManufacturerPartNumber = manufacturerPartNumber,
         Gtin = gtin,
+        SearchDocument = string.Join(' ', new[] { title, brand.Name, category.Name, modelNumber, manufacturerPartNumber, gtin }.Where(x => !string.IsNullOrWhiteSpace(x))),
+        NormalizedModelNumber = string.IsNullOrWhiteSpace(modelNumber) ? null : DiscoveryRules.NormalizeIdentifier(modelNumber),
+        NormalizedManufacturerPartNumber = string.IsNullOrWhiteSpace(manufacturerPartNumber) ? null : DiscoveryRules.NormalizeIdentifier(manufacturerPartNumber),
         VariantAttributesJson = JsonSerializer.Serialize(variantAttributes ?? new Dictionary<string, string>())
     };
 

@@ -1,4 +1,5 @@
 using Hangfire;
+using CanadaDeals.Infrastructure.Alerts;
 
 namespace CanadaDeals.Worker;
 
@@ -11,6 +12,11 @@ public sealed class Worker(ILogger<Worker> logger, IBackgroundJobClient jobs, IC
         if (configuration.GetValue<bool>("Worker:EnqueueSampleJob"))
         {
             jobs.Enqueue<FixtureJob>(job => job.Run());
+        }
+
+        if (configuration.GetValue<bool>("Worker:EnqueueAlertEvaluationJob"))
+        {
+            jobs.Enqueue<PriceAlertEvaluationJob>(job => job.RunAsync());
         }
 
         return Task.CompletedTask;

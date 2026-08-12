@@ -10,6 +10,16 @@ public sealed class DiscoveryController(CatalogQueryService catalog) : Controlle
 {
     [HttpGet]
     [ProducesResponseType<DiscoveryResponse>(StatusCodes.Status200OK)]
-    public Task<DiscoveryResponse> Get([FromQuery] string? search, CancellationToken cancellationToken) =>
-        catalog.GetDiscoveryAsync(search, cancellationToken);
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<DiscoveryResponse>> Get([FromQuery] DiscoveryQueryRequest request, CancellationToken cancellationToken)
+    {
+        var validation = await catalog.ValidateDiscoveryRequestAsync(request, cancellationToken);
+        if (validation.Count > 0)
+        {
+            foreach (var (key, message) in validation) ModelState.AddModelError(key, message);
+            return ValidationProblem(ModelState);
+        }
+
+        return Ok(await catalog.GetDiscoveryAsync(request, cancellationToken));
+    }
 }

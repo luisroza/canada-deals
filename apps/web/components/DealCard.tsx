@@ -24,6 +24,9 @@ export function DealCard({ deal }: { deal: DealCardModel }) {
         <p className="price">{formatPrice(deal.currentPrice, deal.currency)}</p>
       </div>
       <div className="card-meta"><span>{deal.retailer}</span><span>{deal.brand}</span></div>
+      {deal.supportedSavingsPercent !== null && deal.referencePrice !== null && <p className="savings-proof">
+        {deal.supportedSavingsPercent}% below supported reference of {formatPrice(deal.referencePrice, deal.currency)}
+      </p>}
       <div className="state-row">
         <StateBadge label={humanEvidence(deal.evidenceState)} tone={deal.evidenceState === "STRONG" ? "good" : "neutral"} />
         <StateBadge label={deal.freshnessState === "RECENT" ? "Checked recently" : deal.freshnessState === "STALE" ? "May be stale" : `Freshness: ${deal.freshnessState.toLowerCase()}`} tone={freshnessTone(deal.freshnessState)} />

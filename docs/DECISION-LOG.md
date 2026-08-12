@@ -114,3 +114,36 @@ Only record decisions that have actually been approved. Proposed options and res
 - **Scope:** connector-neutral domain contracts, local PostgreSQL, migrations, synthetic fixtures, test adapters, REST API, Next.js discovery/product flow, worker foundation, and automated tests are authorized. Full authentication, alerts, production email, admin, live connectors, advanced history, and broad search remain future slices.
 - **Evidence:** `docs/architecture/ARCHITECTURE.md`, approved ADRs `ADR-001` through `ADR-009`, `docs/architecture/ARCHITECTURE-DATA-RECONCILIATION.md`, and approved integration documents.
 - **Date:** 2026-08-11
+
+### DEC-011 - Target Price Alert delivery boundary
+
+- **Status:** Implemented and validated in Vertical Slice 4
+- **Decision:** Store one canonical Product Target Price Alert per user/Product, require confirmed email plus explicit alert-only consent for ACTIVE state, and keep alert configuration separate from notification delivery intent.
+- **Eligibility:** Only current CAD observations that are policy-permitted, available, safely matched, valid, and fresh may qualify at or below the user target. History, Deal Quality, saves/popularity, and affiliate commission are not inputs.
+- **Deduplication:** Use target version plus observation identity and a continuous-below-target cycle; target change or a rise-above/fall-below transition may create a new cycle.
+- **Delivery:** Use a provider-neutral persisted boundary. Development/Test records controlled capture. Production records suppression with `PRODUCTION_EMAIL_PROVIDER_NOT_CONFIGURED`; it never claims `SENT`.
+- **Production status:** `PRODUCTION EMAIL DELIVERY NOT YET CONFIGURED`. Production account-confirmation delivery remains unchanged and gated.
+- **Evidence:** `docs/backend/JOBS.md`, `docs/integrations/DATA-MODEL.md`, and `docs/qa/SLICE-4-TEST-REPORT.md`.
+- **Date:** 2026-08-11
+
+### DEC-012 - Product-level history evidence rule
+
+- **Status:** Implemented and validated in Vertical Slice 6
+- **Decision:** Public Product history uses the lowest qualifying safely matched, policy-permitted new-product CAD observation per UTC day across the canonical Product's non-marketplace listings. Missing days are not generated or interpolated.
+- **Coverage:** Fewer than two observed days is `UNAVAILABLE`. `RELIABLE` requires at least 6 days spanning 21 days with no gap over 10 days for 30d, or at least 10 days spanning 60 days with no gap over 21 days for 90d. Other usable coverage is `PARTIAL`.
+- **Boundary:** Current freshness remains separate from historical coverage. `Tracking since` is the earliest retained qualifying observation. Denied/`UNKNOWN` history policy, unsafe variants, non-new condition, marketplace sellers, future/non-positive observations, and non-CAD values are excluded.
+- **Evidence:** `docs/backend/BACKEND.md`, `docs/backend/DATABASE.md`, and `docs/qa/SLICE-6-TEST-REPORT.md`.
+- **Date:** 2026-08-12
+
+### DEC-013 - Production transactional email delivery boundary
+
+- **Status:** Implemented and deterministically validated in Vertical Slice 7; live provider operation blocked pending credentials/DNS
+- **Decision:** Keep application/domain behavior provider-neutral through `ITransactionalEmailSender`; use a Resend HTTPS adapter as the initial production implementation and a persisted, network-free capture adapter in Development/Test.
+- **Account confirmation:** Use the supported ASP.NET Core Identity email-confirmation token provider with an explicit 24-hour default lifetime. Encode tokens with base64url, perform confirmation through a CSRF-protected POST, and build links only from configured `Email:PublicOrigin`, never request Host headers.
+- **Delivery truth:** Distinguish durable intent, Development capture, provider acceptance, delivered, transient/permanent failure, suppressed, bounced, and complained. A successful send API response is only `ProviderAccepted`; `Delivered` requires a verified webhook.
+- **Idempotency and retries:** Derive each Resend idempotency key from the immutable delivery ID, commit attempts before external calls, preserve the key across retries, honor `429 Retry-After`, bound retries, and stop ambiguous retries before the provider's 24-hour deduplication window expires.
+- **Webhooks:** Verify the raw-body Svix signature and timestamp, deduplicate by provider event ID, correlate by provider message ID, and apply timestamp-aware monotonic transitions. Bounce, complaint, and provider suppression create an application suppression record.
+- **Privacy/scope:** HTML and text transactional templates contain no marketing, open/click tracking, remote images, Weekly Digest, password recovery, MFA, retailer connector, or new Product behavior.
+- **Production status:** `PRODUCTION EMAIL PROVIDER IMPLEMENTED — OPERATIONAL VALIDATION BLOCKED` until a verified sender domain/address, production API key, webhook signing secret, canonical origin, and controlled provider smoke evidence exist.
+- **Evidence:** `docs/backend/EMAIL.md` and `docs/qa/SLICE-7-TEST-REPORT.md`.
+- **Date:** 2026-08-12

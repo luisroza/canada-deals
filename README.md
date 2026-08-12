@@ -4,7 +4,7 @@ Canada Deals is a Canadian e-commerce deal-discovery platform intended to help s
 
 ## Current status
 
-The Human Product, Human UX, and Human Architecture / Data Integration Checkpoints are complete. The approved architecture and data refinements are documented, and the repository is implementing the first connector-neutral, fixture-backed vertical slice. Production retailer connectors remain blocked until source permissions, data rights, and affiliate terms are verified.
+The Human Product, Human UX, and Human Architecture / Data Integration Checkpoints are complete. Seven connector-neutral vertical slices are implemented and validated: trusted fixture-backed discovery, persisted stale/wrong listing reports, Save Product behind a minimal ASP.NET Core Identity boundary, Target Price Alert persistence/evaluation with durable deduplication, PostgreSQL Search + Filters, a bounded policy-safe Product History Evidence View, and the Production Email Delivery Boundary. The Resend adapter, confirmation, alert delivery, idempotency/retry, signed webhooks, and suppression are implemented; provider/DNS operational validation, password recovery, and retailer connectors remain gated.
 
 ## Development workflow
 

@@ -38,7 +38,7 @@ The application foundation may implement canonical contracts, policy evaluation,
 
 - Add the second approved merchant connector.
 - Add permitted bounded price history and interpretation states.
-- Add Save Product and Target Price Alert using the approved email provider.
+- Configure and validate the production email provider for the implemented Target Price Alert boundary and the still-gated account-confirmation lifecycle.
 - Add manual admin review for match, policy, conflict, source disable, and import retry.
 - Add reconciliation reports for source count, stale listings, duplicate matches, and click/link failures.
 
