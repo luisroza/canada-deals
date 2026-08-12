@@ -26,6 +26,7 @@ public sealed class TransactionalEmailOptions
     public bool AutoConfirmDevelopmentAccounts { get; set; } = true;
     public int ConfirmationTokenHours { get; set; } = 24;
     public int MaxDeliveryAttempts { get; set; } = 4;
+    public bool EmergencyStop { get; set; }
 }
 
 public enum EmailSendOutcome { DevelopmentCaptured, ProviderAccepted, TransientFailure, PermanentFailure, Suppressed }
@@ -65,6 +66,9 @@ public sealed class ResendTransactionalEmailSender(HttpClient client, IOptions<T
 
     public async Task<EmailSendResult> SendAsync(TransactionalEmailMessage message, CancellationToken cancellationToken)
     {
+        if (settings.EmergencyStop)
+            return new EmailSendResult(EmailSendOutcome.Suppressed, Reason: "EMAIL_EMERGENCY_STOP");
+
         using var request = new HttpRequestMessage(HttpMethod.Post, "emails");
         request.Headers.Authorization = new("Bearer", settings.ApiKey);
         request.Headers.Add("Idempotency-Key", message.IdempotencyKey);

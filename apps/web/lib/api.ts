@@ -122,11 +122,14 @@ export type SavedProduct = {
   detailsPath: string;
 };
 
-const apiBase = process.env.API_BASE_URL ?? "http://localhost:5099";
+const configuredApiBase = process.env.API_BASE_URL;
+if (process.env.NODE_ENV === "production" && !configuredApiBase) {
+  throw new Error("API_BASE_URL is required in production.");
+}
+const apiBase = configuredApiBase ?? "http://localhost:5099";
 
 export function publicHandoffPath(path: string) {
-  const origin = process.env.NEXT_PUBLIC_API_ORIGIN ?? "";
-  return `${origin}${path}`;
+  return path;
 }
 
 export async function getDeals(params: DiscoveryParams = {}): Promise<DiscoveryResponse> {

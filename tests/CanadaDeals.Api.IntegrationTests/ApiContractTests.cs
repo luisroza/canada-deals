@@ -22,6 +22,18 @@ public sealed class ApiContractTests(ApiFixture fixture) : IClassFixture<ApiFixt
     }
 
     [RequiresPostgresFact]
+    public async Task API_responses_include_the_approved_security_headers()
+    {
+        using var response = await CreateClient().GetAsync("/api/v1/deals");
+        response.EnsureSuccessStatusCode();
+
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.Equal("strict-origin-when-cross-origin", response.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Contains("default-src 'none'", response.Headers.GetValues("Content-Security-Policy").Single());
+    }
+
+    [RequiresPostgresFact]
     public async Task Discovery_returns_fixture_evidence_and_freshness_states()
     {
         using var strongResponse = await CreateClient().GetAsync("/api/v1/deals?search=NS55QLED-2026");
@@ -250,17 +262,11 @@ public sealed class ApiContractTests(ApiFixture fixture) : IClassFixture<ApiFixt
     [RequiresPostgresFact]
     public async Task Internal_report_review_endpoint_is_not_exposed_outside_development()
     {
-        using var productionFactory = fixture.WithWebHostBuilder(builder =>
+        using var nonDevelopmentFactory = fixture.WithWebHostBuilder(builder =>
         {
-            builder.UseEnvironment("Production");
-            builder.UseSetting("Email:Enabled", "true");
-            builder.UseSetting("Email:Provider", "Resend");
-            builder.UseSetting("Email:ApiKey", "re_test_only");
-            builder.UseSetting("Email:FromAddress", "alerts@example.test");
-            builder.UseSetting("Email:PublicOrigin", "https://example.test");
-            builder.UseSetting("Email:WebhookSigningSecret", "whsec_MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=");
+            builder.UseEnvironment("Testing");
         });
-        using var response = await productionFactory.CreateClient().GetAsync("/api/internal/listing-issue-reports?status=OPEN");
+        using var response = await nonDevelopmentFactory.CreateClient().GetAsync("/api/internal/listing-issue-reports?status=OPEN");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

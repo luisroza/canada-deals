@@ -10,7 +10,7 @@
     "start": "next start -p 3000",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "docker exec canada-deals-postgres dropdb --if-exists --force -U canadadeals canadadeals_e2e && docker exec canada-deals-postgres createdb -U canadadeals canadadeals_e2e && playwright test"
   },
   "dependencies": {
     "next": "16.3.0",

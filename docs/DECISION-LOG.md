@@ -147,3 +147,14 @@ Only record decisions that have actually been approved. Proposed options and res
 - **Production status:** `PRODUCTION EMAIL PROVIDER IMPLEMENTED — OPERATIONAL VALIDATION BLOCKED` until a verified sender domain/address, production API key, webhook signing secret, canonical origin, and controlled provider smoke evidence exist.
 - **Evidence:** `docs/backend/EMAIL.md` and `docs/qa/SLICE-7-TEST-REPORT.md`.
 - **Date:** 2026-08-12
+
+### DEC-014 - Production deployment preparation boundary
+
+- **Status:** Implemented and locally validated in Vertical Slice 8; external operation blocked pending authorized inputs
+- **Decision:** Prepare the approved DigitalOcean App Platform direction as a declarative Toronto deployment topology: separate Next.js web and ASP.NET API services, one Hangfire worker, a managed PostgreSQL binding, and an idempotent EF Core `PRE_DEPLOY` migration job. Keep the same-site `/api/*` and `/go/*` ingress boundaries.
+- **Data Protection:** Persist the ASP.NET Core Data Protection key ring in PostgreSQL with a fixed application name. Production startup requires a private-key PFX so key rows are encrypted at rest and container replacement does not invalidate active cookies or confirmation tokens.
+- **Operational safety:** Run all application containers as non-root, require PostgreSQL TLS verification in Production, use security headers/forwarded-header handling, keep email emergency-stop enabled in the template, and provide smoke/preflight/runbook scripts.
+- **Scope:** This does not provision infrastructure, DNS, database, email, or provider resources and does not add Product functionality or merchant connectors.
+- **Blocked status:** `DEPLOYMENT PREPARED, OPERATIONAL VALIDATION BLOCKED` until validated source is published and DigitalOcean, canonical domain, managed PostgreSQL, Resend sender/webhook, Data Protection certificate, and controlled-mailbox access are supplied.
+- **Evidence:** `docs/operations/DEPLOYMENT.md`, `docs/operations/PRODUCTION-RUNBOOK.md`, and `docs/qa/SLICE-8-TEST-REPORT.md`.
+- **Date:** 2026-08-12

@@ -10,7 +10,7 @@ PostgreSQL is the system of record. EF Core/Npgsql owns the relational model and
 - `ListingIssueReport`
 - ASP.NET Core Identity tables, `SavedProduct`, `PriceAlert`, `NotificationDelivery`, `AccountConfirmationDelivery`, `ControlledEmailCapture`, `ProcessedEmailWebhook`, and `EmailSuppression`
 
-Slice 7 migrations `20260812134659_AddProductionEmailDelivery` and `20260812135446_AddEmailRetrySchedule` add provider message/status timestamps, durable confirmation deliveries, exact Development/Test captures, replay-safe webhook events, normalized suppression, and persisted retry scheduling. Provider message IDs and webhook `(Provider, EventId)` values are unique when present; controlled capture idempotency keys and normalized suppression addresses are unique.
+Slice 7 migrations `20260812134659_AddProductionEmailDelivery` and `20260812135446_AddEmailRetrySchedule` add provider message/status timestamps, durable confirmation deliveries, exact Development/Test captures, replay-safe webhook events, normalized suppression, and persisted retry scheduling. Slice 8 migration `20260812143802_AddPersistentDataProtectionKeys` adds the ASP.NET Core Data Protection key ring table. Provider message IDs and webhook `(Provider, EventId)` values are unique when present; controlled capture idempotency keys and normalized suppression addresses are unique.
 
 `RetailerListing` stores source identifiers, original title, SKU, canonical product ID, URL, approved handoff reference, seller/marketplace information, condition, JSON structured variant attributes, pack/bundle fields, region/availability/shipping context, timestamps, freshness, current permitted price, matching state, and policy reference.
 
@@ -25,6 +25,9 @@ The migration chain is:
 3. `20260811192055_AddIdentityAndSavedProducts`
 4. `20260811202709_AddPriceAlertsAndNotificationDeliveries`
 5. `20260811205846_AddPostgresProductSearch`
+6. `20260812134659_AddProductionEmailDelivery`
+7. `20260812135446_AddEmailRetrySchedule`
+8. `20260812143802_AddPersistentDataProtectionKeys`
 
 No earlier migration was modified retroactively.
 
@@ -56,3 +59,5 @@ Multiple qualifying observations on the same UTC date become one public point us
 A separate empty PostgreSQL 17 database named `canadadeals_slice6_validation` applied all five existing migrations in order. A second application was current, and the complete 80-test PostgreSQL integration suite then passed with zero skips.
 
 Slice 7 repeated that validation on `canadadeals_slice7_validation`: all seven migrations applied from empty, the second application reported current, and all 87 PostgreSQL integrations passed with zero skips. The exact temporary database was then removed.
+
+Slice 8 validated the full eight-migration chain in `canadadeals_slice8_validation`. The API `--migrate-only` command applied the clean database without fixture seeding; its second execution was current. `DataProtectionKeys` and `pg_trgm` were present, and all 91 PostgreSQL integrations passed with zero skips. In Production, the Data Protection key ring is persisted here and encrypted with the configured PFX; startup rejects an absent certificate or non-persistent configuration.

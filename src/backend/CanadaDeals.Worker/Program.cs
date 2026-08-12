@@ -6,9 +6,9 @@ using Hangfire;
 using Hangfire.PostgreSql;
 
 var builder = WebApplication.CreateBuilder(args);
-var connectionString = builder.Configuration.GetConnectionString("Database") ?? DatabaseServices.DefaultConnection;
+var connectionString = DatabaseServices.GetValidatedConnectionString(builder.Configuration, builder.Environment);
 
-builder.Services.AddCanadaDealsPersistence(builder.Configuration);
+builder.Services.AddCanadaDealsPersistence(builder.Configuration, builder.Environment);
 builder.Services.AddHangfire(configuration => configuration.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString)));
 builder.Services.AddHangfireServer(options => options.WorkerCount = 1);
 builder.Services.AddSingleton(TimeProvider.System);

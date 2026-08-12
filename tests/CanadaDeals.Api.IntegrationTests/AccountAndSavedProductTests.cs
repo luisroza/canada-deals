@@ -75,8 +75,8 @@ public sealed class AccountAndSavedProductTests(ApiFixture fixture) : IClassFixt
     {
         using var productionFactory = fixture.WithWebHostBuilder(builder =>
         {
-            builder.UseEnvironment("Production");
-            ConfigureProductionEmail(builder);
+            builder.UseEnvironment("Testing");
+            builder.UseSetting("Email:AutoConfirmDevelopmentAccounts", "false");
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<ITransactionalEmailSender>();
@@ -108,16 +108,6 @@ public sealed class AccountAndSavedProductTests(ApiFixture fixture) : IClassFixt
             value.Contains("secure", StringComparison.OrdinalIgnoreCase) &&
             value.Contains("httponly", StringComparison.OrdinalIgnoreCase) &&
             value.Contains("samesite=lax", StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static void ConfigureProductionEmail(IWebHostBuilder builder)
-    {
-        builder.UseSetting("Email:Enabled", "true");
-        builder.UseSetting("Email:Provider", "Resend");
-        builder.UseSetting("Email:ApiKey", "re_test_only");
-        builder.UseSetting("Email:FromAddress", "alerts@example.test");
-        builder.UseSetting("Email:PublicOrigin", "https://example.test");
-        builder.UseSetting("Email:WebhookSigningSecret", "whsec_MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=");
     }
 
     [RequiresPostgresFact]

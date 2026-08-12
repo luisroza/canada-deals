@@ -5,7 +5,7 @@ Validated environment (2026-08-11): Windows 11, .NET SDK 10.0.300, PostgreSQL 17
 Prerequisites: .NET 10 SDK, Docker Desktop with the PostgreSQL engine running, and the repository checkout.
 
 ```powershell
-dotnet restore src/backend/CanadaDeals.slnx
+dotnet restore CanadaDeals.slnx
 docker compose up -d postgres
 & .tools\dotnet-ef.exe database update --project src/backend/CanadaDeals.Infrastructure --startup-project src/backend/CanadaDeals.Api
 $env:ASPNETCORE_ENVIRONMENT = "Development"
@@ -27,3 +27,5 @@ dotnet run --project src/backend/CanadaDeals.Worker --urls http://localhost:5100
 Worker health is `http://localhost:5100/health`. Set `Worker__EnqueueSampleJob=true` only to exercise the existing fixture-safe sample, or `Worker__EnqueueAlertEvaluationJob=true` for one explicit alert-evaluation enqueue. Alert creation also enqueues evaluation. The job reads persisted fixture observations and performs no merchant fetch. Hangfire creates its PostgreSQL storage schema on worker startup.
 
 Development/Test notifications are persisted as `DevelopmentCaptured` with reason `CONTROLLED_DEVELOPMENT_TEST_CAPTURE`; no email leaves the machine. Production fails closed unless the complete email-provider configuration is supplied through the deployment secret/configuration boundary. No email or retailer credentials belong in committed local configuration.
+
+Production-shaped images can be built locally with the Dockerfiles under `apps/web/`, `src/backend/CanadaDeals.Api/`, and `src/backend/CanadaDeals.Worker/`. See `docs/operations/DEPLOYMENT.md`; local Development key-ring rows are intentionally unencrypted, while Production requires the persisted PFX-protected configuration.

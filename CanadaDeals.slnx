@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="src/backend/CanadaDeals.Api/CanadaDeals.Api.csproj" />
+  <Project Path="src/backend/CanadaDeals.Domain/CanadaDeals.Domain.csproj" />
+  <Project Path="src/backend/CanadaDeals.Infrastructure/CanadaDeals.Infrastructure.csproj" />
+  <Project Path="src/backend/CanadaDeals.Worker/CanadaDeals.Worker.csproj" />
+  <Project Path="tests/CanadaDeals.Api.IntegrationTests/CanadaDeals.Api.IntegrationTests.csproj" />
+  <Project Path="tests/CanadaDeals.Domain.Tests/CanadaDeals.Domain.Tests.csproj" />
+</Solution>

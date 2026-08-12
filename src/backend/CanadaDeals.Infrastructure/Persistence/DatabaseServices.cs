@@ -5,6 +5,10 @@ using CanadaDeals.Domain.Retailers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Npgsql;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace CanadaDeals.Infrastructure.Persistence;
 
@@ -12,11 +16,60 @@ public static class DatabaseServices
 {
     public const string DefaultConnection = "Host=localhost;Port=5432;Database=canadadeals;Username=canadadeals;Password=canadadeals";
 
-    public static IServiceCollection AddCanadaDealsPersistence(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddCanadaDealsPersistence(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
-        var connectionString = configuration.GetConnectionString("Database") ?? DefaultConnection;
+        var connectionString = GetValidatedConnectionString(configuration, environment);
         services.AddDbContext<DealsDbContext>(options => options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly(typeof(DealsDbContext).Assembly.FullName)));
         return services;
+    }
+
+    public static string GetValidatedConnectionString(IConfiguration configuration, IHostEnvironment environment)
+    {
+        var configured = configuration.GetConnectionString("Database");
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            if (environment.IsProduction())
+                throw new InvalidOperationException("ConnectionStrings:Database is required in Production.");
+            configured = DefaultConnection;
+        }
+
+        var builder = configured.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+                      configured.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)
+            ? FromPostgresUri(configured)
+            : new NpgsqlConnectionStringBuilder(configured);
+
+        if (!environment.IsProduction()) return builder.ConnectionString;
+        if (builder.Host is "localhost" or "127.0.0.1" or "::1")
+            throw new InvalidOperationException("Production PostgreSQL must not use a loopback host.");
+
+        var certificateAuthority = configuration["Database:CaCertificate"];
+        if (string.IsNullOrWhiteSpace(certificateAuthority))
+            throw new InvalidOperationException("Database:CaCertificate is required for Production TLS verification.");
+
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(certificateAuthority)))[..16];
+        var certificatePath = Path.Combine(Path.GetTempPath(), $"canada-deals-postgres-{hash}.crt");
+        if (!File.Exists(certificatePath)) File.WriteAllText(certificatePath, certificateAuthority, Encoding.ASCII);
+        builder.SslMode = SslMode.VerifyFull;
+        builder.RootCertificate = certificatePath;
+        return builder.ConnectionString;
+    }
+
+    private static NpgsqlConnectionStringBuilder FromPostgresUri(string value)
+    {
+        var uri = new Uri(value);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        if (userInfo.Length != 2 || string.IsNullOrWhiteSpace(uri.Host))
+            throw new InvalidOperationException("The PostgreSQL URL is missing credentials or host information.");
+
+        return new NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.IsDefaultPort ? 5432 : uri.Port,
+            Database = Uri.UnescapeDataString(uri.AbsolutePath.TrimStart('/')),
+            Username = Uri.UnescapeDataString(userInfo[0]),
+            Password = Uri.UnescapeDataString(userInfo[1]),
+            SslMode = SslMode.Require
+        };
     }
 
     public static async Task ApplyMigrationsAndSeedAsync(this IServiceProvider services, bool seedDemoData, CancellationToken cancellationToken = default)

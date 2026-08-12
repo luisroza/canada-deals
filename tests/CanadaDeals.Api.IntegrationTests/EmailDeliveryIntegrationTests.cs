@@ -203,6 +203,21 @@ public sealed class EmailDeliveryIntegrationTests(ApiFixture fixture) : IClassFi
         Assert.Equal(TimeSpan.FromSeconds(3), result.RetryAfter);
     }
 
+    [Fact]
+    public async Task Email_emergency_stop_suppresses_delivery_before_the_provider_request()
+    {
+        var handler = new RecordingHandler(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new { id = "provider-id" }) });
+        var options = ResendOptions();
+        options.EmergencyStop = true;
+        var sender = new ResendTransactionalEmailSender(new HttpClient(handler) { BaseAddress = new Uri("https://api.resend.com/") }, Options.Create(options));
+
+        var result = await sender.SendAsync(new("stable-key", "user@example.test", "Subject", "<p>Body</p>", "Body"), CancellationToken.None);
+
+        Assert.Equal(EmailSendOutcome.Suppressed, result.Outcome);
+        Assert.Equal("EMAIL_EMERGENCY_STOP", result.Reason);
+        Assert.Null(handler.Request);
+    }
+
     private static TransactionalEmailOptions ResendOptions() => new() { Enabled = true, Provider = "Resend", ApiKey = "re_test", FromAddress = "alerts@example.test", PublicOrigin = "https://example.test", WebhookSigningSecret = WebhookSecret };
 
     private static async Task<HttpResponseMessage> MutateAsync(HttpClient client, string path, object body)

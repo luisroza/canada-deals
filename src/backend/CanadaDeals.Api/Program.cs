@@ -10,14 +10,24 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (args.Contains("--migrate-only", StringComparer.Ordinal))
+{
+    builder.Services.AddCanadaDealsPersistence(builder.Configuration, builder.Environment);
+    var migrationApp = builder.Build();
+    await migrationApp.Services.ApplyMigrationsAndSeedAsync(false);
+    return;
+}
+
 builder.Services.AddControllersWithViews();
-builder.Services.AddCanadaDealsPersistence(builder.Configuration);
-var databaseConnection = builder.Configuration.GetConnectionString("Database") ?? DatabaseServices.DefaultConnection;
-builder.Services.AddHangfire(configuration => configuration.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(databaseConnection)));
 builder.Services.AddCanadaDealsTransactionalEmail(builder.Configuration, builder.Environment);
+builder.Services.AddCanadaDealsPersistence(builder.Configuration, builder.Environment);
+builder.Services.AddCanadaDealsDataProtection(builder.Configuration, builder.Environment);
+var databaseConnection = DatabaseServices.GetValidatedConnectionString(builder.Configuration, builder.Environment);
+builder.Services.AddHangfire(configuration => configuration.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(databaseConnection)));
 builder.Services.AddScoped<PriceAlertEvaluationJob>();
 builder.Services.AddScoped<AccountConfirmationEmailService>();
 builder.Services
@@ -96,6 +106,16 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<CatalogQueryService>();
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("postgresql");
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    if (builder.Environment.IsProduction())
+    {
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+        options.ForwardLimit = 1;
+    }
+});
 
 var app = builder.Build();
 
@@ -109,6 +129,20 @@ app.UseExceptionHandler(errorApplication => errorApplication.Run(async context =
     context.Response.StatusCode = StatusCodes.Status500InternalServerError;
     await Results.Problem("An unexpected error occurred.").ExecuteAsync(context);
 }));
+app.UseForwardedHeaders();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.XContentTypeOptions = "nosniff";
+    context.Response.Headers.XFrameOptions = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers.ContentSecurityPolicy = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'";
+    await next();
+});
 app.UseRouting();
 app.UseAuthentication();
 app.UseRateLimiter();

@@ -44,4 +44,8 @@ The source-of-truth documents are not complete until the relevant phase is appro
 - Fixture-backed, connector-neutral development may proceed before merchant approval.
 - Scraping is not the default and is prohibited when terms do not allow it.
 - Amazon must be reviewed separately because its data and affiliate rules may differ from other merchants.
+
+## Current deployment status
+
+Vertical Slice 8 is `DEPLOYMENT PREPARED, OPERATIONAL VALIDATION BLOCKED`. Local Docker images, migration, health routes, App Spec schema, tests, and operations procedures are validated; no DigitalOcean/Resend/DNS resource was provisioned. See `docs/operations/DEPLOYMENT.md`, `docs/operations/PRODUCTION-RUNBOOK.md`, and `docs/qa/SLICE-8-TEST-REPORT.md`.
 - Start simple without creating an obvious dead end.

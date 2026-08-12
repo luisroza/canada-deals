@@ -1,0 +1,241 @@
+name: canada-deals-production
+region: tor
+
+alerts:
+  - rule: DEPLOYMENT_FAILED
+  - rule: DOMAIN_FAILED
+
+domains:
+  - domain: deals.example.ca
+    type: PRIMARY
+
+ingress:
+  rules:
+    - component:
+        name: api
+        preserve_path_prefix: true
+      match:
+        path:
+          prefix: /api
+    - component:
+        name: api
+        preserve_path_prefix: true
+      match:
+        path:
+          prefix: /go
+    - component:
+        name: api
+        preserve_path_prefix: true
+      match:
+        path:
+          prefix: /health
+    - component:
+        name: web
+        preserve_path_prefix: true
+      match:
+        path:
+          prefix: /
+
+services:
+  - name: web
+    github:
+      repo: luisroza/canada-deals
+      branch: main
+      deploy_on_push: false
+    dockerfile_path: apps/web/Dockerfile
+    source_dir: /
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb-fixed
+    envs:
+      - key: API_BASE_URL
+        scope: RUN_TIME
+        value: ${api.PRIVATE_URL}
+    health_check:
+      http_path: /healthz
+      initial_delay_seconds: 20
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 5
+
+  - name: api
+    github:
+      repo: luisroza/canada-deals
+      branch: main
+      deploy_on_push: false
+    dockerfile_path: src/backend/CanadaDeals.Api/Dockerfile
+    source_dir: /
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb-fixed
+    envs:
+      - key: ConnectionStrings__Database
+        scope: RUN_TIME
+        type: SECRET
+        value: ${postgres.DATABASE_PRIVATE_URL}
+      - key: Database__CaCertificate
+        scope: RUN_TIME
+        type: SECRET
+        value: ${postgres.CA_CERT}
+      - key: Email__Enabled
+        scope: RUN_TIME
+        value: "true"
+      - key: Email__Provider
+        scope: RUN_TIME
+        value: Resend
+      - key: Email__ApiKey
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_WITH_RESEND_SENDING_KEY
+      - key: Email__FromAddress
+        scope: RUN_TIME
+        value: deals@deals.example.ca
+      - key: Email__FromDisplayName
+        scope: RUN_TIME
+        value: Canada Deals
+      - key: Email__PublicOrigin
+        scope: RUN_TIME
+        value: ${APP_URL}
+      - key: Email__WebhookSigningSecret
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_WITH_RESEND_WEBHOOK_SECRET
+      - key: Email__EmergencyStop
+        scope: RUN_TIME
+        value: "true"
+      - key: DataProtection__PersistKeysToDatabase
+        scope: RUN_TIME
+        value: "true"
+      - key: DataProtection__ApplicationName
+        scope: RUN_TIME
+        value: CanadaDeals
+      - key: DataProtection__CertificateBase64
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_WITH_BASE64_PFX
+      - key: DataProtection__CertificatePassword
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_WITH_PFX_PASSWORD
+      - key: ASPNETCORE_ENVIRONMENT
+        scope: RUN_TIME
+        value: Production
+      - key: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+        scope: RUN_TIME
+        value: "true"
+      - key: AllowedHosts
+        scope: RUN_TIME
+        value: ${APP_DOMAIN}
+      - key: Database__ApplyMigrations
+        scope: RUN_TIME
+        value: "false"
+      - key: Database__SeedDemoData
+        scope: RUN_TIME
+        value: "false"
+      - key: AffiliateHandoff__Enabled
+        scope: RUN_TIME
+        value: "false"
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 30
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 5
+
+workers:
+  - name: worker
+    github:
+      repo: luisroza/canada-deals
+      branch: main
+      deploy_on_push: false
+    dockerfile_path: src/backend/CanadaDeals.Worker/Dockerfile
+    source_dir: /
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    envs:
+      - key: ConnectionStrings__Database
+        scope: RUN_TIME
+        type: SECRET
+        value: ${postgres.DATABASE_PRIVATE_URL}
+      - key: Database__CaCertificate
+        scope: RUN_TIME
+        type: SECRET
+        value: ${postgres.CA_CERT}
+      - key: Email__Enabled
+        scope: RUN_TIME
+        value: "true"
+      - key: Email__Provider
+        scope: RUN_TIME
+        value: Resend
+      - key: Email__ApiKey
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_WITH_RESEND_SENDING_KEY
+      - key: Email__FromAddress
+        scope: RUN_TIME
+        value: deals@deals.example.ca
+      - key: Email__FromDisplayName
+        scope: RUN_TIME
+        value: Canada Deals
+      - key: Email__PublicOrigin
+        scope: RUN_TIME
+        value: ${APP_URL}
+      - key: Email__WebhookSigningSecret
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_WITH_RESEND_WEBHOOK_SECRET
+      - key: Email__EmergencyStop
+        scope: RUN_TIME
+        value: "true"
+      - key: ASPNETCORE_ENVIRONMENT
+        scope: RUN_TIME
+        value: Production
+      - key: Worker__EnqueueSampleJob
+        scope: RUN_TIME
+        value: "false"
+      - key: Worker__EnqueueAlertEvaluationJob
+        scope: RUN_TIME
+        value: "true"
+    liveness_health_check:
+      http_path: /health
+      port: 8080
+      initial_delay_seconds: 30
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 5
+
+jobs:
+  - name: migrate
+    kind: PRE_DEPLOY
+    github:
+      repo: luisroza/canada-deals
+      branch: main
+      deploy_on_push: false
+    dockerfile_path: src/backend/CanadaDeals.Api/Dockerfile
+    source_dir: /
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    run_command: dotnet CanadaDeals.Api.dll --migrate-only
+    envs:
+      - key: ConnectionStrings__Database
+        scope: RUN_TIME
+        type: SECRET
+        value: ${postgres.DATABASE_PRIVATE_URL}
+      - key: Database__CaCertificate
+        scope: RUN_TIME
+        type: SECRET
+        value: ${postgres.CA_CERT}
+      - key: ASPNETCORE_ENVIRONMENT
+        scope: RUN_TIME
+        value: Production
+
+databases:
+  - name: postgres
+    engine: PG
+    production: true
+    cluster_name: REPLACE_WITH_MANAGED_POSTGRES_CLUSTER
+    db_name: canada_deals
+    db_user: canada_deals

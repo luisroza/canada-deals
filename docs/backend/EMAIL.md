@@ -17,6 +17,7 @@ Configuration is read from `Email` and production fails during startup unless ev
 | `Email:WebhookSigningSecret` | required `whsec_...` secret; deployment secret store only |
 | `Email:ConfirmationTokenHours` | explicit Identity email-token lifetime; defaults to 24, bounded to 1–72 |
 | `Email:MaxDeliveryAttempts` | bounded attempts; defaults to 4, bounded to 1–10 |
+| `Email:EmergencyStop` | when `true`, Resend delivery is suppressed before any provider network call; use for deployment and incident containment |
 
 `Email:AutoConfirmDevelopmentAccounts=true` preserves fast ordinary local development. Set it to `false` to exercise the captured-email confirmation journey. This option has no production bypass because production startup requires the live provider configuration.
 
@@ -63,3 +64,5 @@ Official behavior was reverified on 2026-08-12 against the Resend .NET/send, ide
 `PRODUCTION EMAIL PROVIDER IMPLEMENTED — OPERATIONAL VALIDATION BLOCKED`.
 
 No Resend API key, verified sender domain/address, webhook secret, or production public origin was available in this workspace. Deterministic implementation and validation are complete; DNS/provider acceptance and real-mail smoke tests remain an external release gate.
+
+Slice 8 adds the executable operational procedure in `docs/operations/PRODUCTION-RUNBOOK.md`. The App Spec leaves `Email__EmergencyStop=true` until the approved controlled validation begins.

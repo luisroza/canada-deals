@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Application Implementation — Vertical Slice 7 — IMPLEMENTED AND VALIDATED
+Application Implementation — Vertical Slice 8 — DEPLOYMENT PREPARED, OPERATIONAL VALIDATION BLOCKED
 
 ## Completed
 
@@ -29,6 +29,7 @@ Application Implementation — Vertical Slice 7 — IMPLEMENTED AND VALIDATED
 - Vertical Slice 5 Search + Filters
 - Vertical Slice 6 Product History Evidence View
 - Vertical Slice 7 Production Email Delivery Boundary
+- Vertical Slice 8 Production Deployment + Email Operational Validation preparation
 
 ## Approved product direction
 
@@ -42,7 +43,7 @@ Application Implementation — Vertical Slice 7 — IMPLEMENTED AND VALIDATED
 ## Current implementation
 
 - Backend: .NET 10 modular monolith projects under `src/backend/` for Domain, Infrastructure, API, and Worker.
-- Persistence: PostgreSQL/Npgsql through `20260812135446_AddEmailRetrySchedule`; local development uses Docker Compose.
+- Persistence: PostgreSQL/Npgsql through `20260812143802_AddPersistentDataProtectionKeys`; local development uses Docker Compose.
 - API: public discovery/product/history/health/report/handoff, PostgreSQL FTS + `pg_trgm` typo fallback, deterministic policy-safe P0 filtering/sorting/pagination, Identity accounts, current-user Saved Products, and idempotent current-user Target Price Alert list/create/update/disable.
 - Fixtures: Products A-H cover reliable/partial/unavailable/policy-hidden Product history, stale current price with valid history, unsafe cheaper history, discovery states, and alerts without live retailer sources.
 - Frontend: Next.js 16 + React 19 public URL-driven discovery search/filters and `/products/[slug]`, summary-first accessible 30/90-day Product history, account routes, Product Page Save and Target Price controls, and `/saved` alert management; public Product content remains server-rendered and SEO-visible.
@@ -51,8 +52,10 @@ Application Implementation — Vertical Slice 7 — IMPLEMENTED AND VALIDATED
 - Saved Products: composite `(UserId, ProductId)` persistence, current-session ownership, canonical Product identity, user cascade/Product restrict delete behavior, and no influence on Price Truth, Deal Quality, evidence, freshness, affiliate economics, or organic ranking.
 - Target Price Alerts: one canonical Product configuration per user, confirmed-email ACTIVE gate, explicit alert-only consent, CAD target/version lifecycle, fresh/policy-permitted/safely-matched evaluation, and continuous-condition deduplication.
 - Delivery: provider-neutral transactional email with a production Resend HTTP adapter; durable account-confirmation and alert deliveries; exact Development/Test HTML/text capture; delivery-derived idempotency keys; bounded persisted retries; provider acceptance versus webhook-confirmed delivery; signed replay-safe lifecycle webhooks; and bounce/complaint/provider suppression.
+- Deployment preparation: Docker multi-stage images for web/API/worker, non-root runtime users, health endpoints, production security headers, component-scoped secrets, DigitalOcean App Spec with Toronto services/worker/PRE_DEPLOY migration job/managed PostgreSQL binding, and operations scripts. No cloud resource has been provisioned.
+- Data Protection: PostgreSQL-backed shared key ring with explicit application name and PFX encryption required in Production; API restart preserves valid cookies and confirmation tokens.
 - Product history: 30/90-day bounded server projection, daily lowest qualifying safe price, explicit `RELIABLE`/`PARTIAL`/`UNAVAILABLE`, truthful tracking/coverage, no interpolation, and current freshness kept independent.
-- Tests: 64 domain tests, 87 PostgreSQL API integration tests, and 43 frontend tests pass with zero skips against PostgreSQL 17.
+- Tests: 64 domain tests, 91 PostgreSQL API integration tests, and 43 frontend tests pass with zero skips against PostgreSQL 17.
 - Browser validation: 24 Playwright tests pass against real Next.js/API/PostgreSQL/Worker, including all prior regressions plus captured-email registration/confirmation/resend, alert email content, and provider-free deterministic delivery.
 - Worker: Hangfire PostgreSQL storage, health endpoint, and retry-safe Price Alert evaluation; no merchant ingestion.
 
@@ -95,13 +98,18 @@ Human Architecture / Data Integration Checkpoint: approved. Application implemen
 - Release backend build passed with 0 warnings and 0 errors; 64 domain, 87 PostgreSQL integration, 43 frontend, and 24 real full-stack Playwright tests passed with zero skips.
 - The E2E account journey read the exact persisted confirmation email, followed its real Identity token, confirmed, signed in, created an alert, ran Hangfire, and asserted the exact captured HTML/text alert content without API interception or external email.
 - Signed webhook tests covered invalid signatures, provider-event replay, out-of-order delivery, provider acceptance versus delivery, and application suppression. Resend HTTP tests covered stable idempotency keys, provider IDs, and `429 Retry-After`.
+- Slice 8 App Spec passed `doctl apps spec validate --schema-only`; it intentionally retains six deployment placeholders pending credentials, domain, sender, and cluster selection.
+- A separate clean PostgreSQL 17 database applied all eight migrations through `AddPersistentDataProtectionKeys`; a second `--migrate-only` execution was current, `DataProtectionKeys` and `pg_trgm` were present, and all 91 integrations passed without skips.
+- New restart integration coverage confirmed persisted Data Protection keeps an authenticated cookie and Identity confirmation token valid after API host replacement.
+- API, worker, and web production images built successfully. In a Docker network matching the private `api` service name, web `/`, web `/healthz`, and web-routed `/api/v1/deals` returned 200; all runtime containers used non-root accounts.
+- `dotnet list package --vulnerable --include-transitive` and `pnpm audit` found no known vulnerabilities. Docker Scout image scanning remains blocked by its required Docker Hub login.
 
 ## Production-readiness limitations
 
-- `PRODUCTION EMAIL PROVIDER IMPLEMENTED — OPERATIONAL VALIDATION BLOCKED`: no production API key, verified sender domain/address, webhook signing secret, or canonical production origin was available, so DNS/provider acceptance and controlled real-mail smoke tests remain a release gate.
+- `DEPLOYMENT PREPARED, OPERATIONAL VALIDATION BLOCKED`: the source has not been published to `origin/main`; no DigitalOcean credential/project, managed cluster, canonical production domain/DNS ownership, Resend API key, verified sender, webhook secret, or controlled mailbox was available. DNS/provider acceptance, provisioning, and controlled real-mail smoke tests remain a release gate.
 - Password recovery and MFA are not implemented.
 - No merchant-specific production connector or live affiliate relationship is configured.
 
 ## Next vertical slice
 
-Recommended next slice: Vertical Slice 8 — Production Deployment + Email Operational Validation. Provision the approved Canadian runtime/database boundary, configure the verified Resend sender and signed webhook secrets, run controlled real confirmation/alert lifecycle smoke tests, and capture operational evidence without adding password recovery, MFA, merchant connectors, or new Product functionality.
+Recommended next action: complete the external production-input checkpoint — publish the validated source and provide authorized DigitalOcean, canonical-domain, managed-PostgreSQL, Resend sender/webhook, Data Protection PFX, and controlled-mailbox access — then run the documented deployment and operational validation without adding Product scope.
