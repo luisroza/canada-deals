@@ -11,7 +11,7 @@
 | `Brand` | normalized brand identity | normalized name, aliases |
 | `Category` | approved taxonomy and filters | stable slug, parent |
 | `Retailer` | merchant identity and region | merchant key, country, currency |
-| `AffiliateProgram` | network/program relationship | network, merchant, account/program ID, status |
+| `AffiliateProgram` | implemented network/program relationship gate | provider, merchant, provider program/media/link IDs, lifecycle, deeplink permission, approved destination/tracking domains, validation evidence |
 | `RetailerListing` | retailer-specific product offer and current permitted state | retailer; external listing ID; retailer SKU; canonical product ID; original title; product URL; approved affiliate destination reference; seller; marketplace seller flag; condition; variant attributes; pack quantity; bundle contents; region/availability context; online availability; shipping context; external identifiers; source timestamps; freshness; current permitted price state |
 | `PriceObservation` | source observation when permitted | listing + observed-at + source hash, amount, currency, availability |
 | `Deal` | derived public opportunity | listing/product, score inputs, freshness, evidence state |
@@ -22,8 +22,11 @@
 | `ProcessedEmailWebhook` | provider webhook replay boundary | provider + unique event ID, type, message ID, provider/processed timestamps |
 | `EmailSuppression` | minimal application send suppression | normalized destination, bounce/complaint/provider-suppression reason and timestamps |
 | `SavedProduct` | implemented authenticated user intent; never a ranking or price-truth input | composite user + canonical product key, created-at |
-| `AffiliateLink` | approved server-side handoff | listing/program, destination, expiry, disclosure |
-| `ClickEvent` | minimum non-PII redirect telemetry | opaque event, link, placement, timestamp |
+| `AffiliateLink` | implemented approved server-side handoff | listing/program, provider-returned tracking URL, exact destination, validation/revalidation/expiry/failure state |
+| `ClickEvent` | implemented minimum non-PII redirect telemetry | opaque event, link/listing, server-selected placement, timestamp |
+| `RakutenAdvertiserCapability` | provider discovery and operator activation gate | MID, advertiser/partnership state, ships-to, feed/deep-link capabilities, Canada relevance, retailer/policy mapping, explicit affiliate/catalog enablement |
+| `RakutenSourceMapping` | stable provider-to-listing idempotency | MID + source listing key, listing, first/last seen timestamps |
+| `RakutenImportRun` | bounded import/dry-run audit | MID, dry-run/status/timestamps, page/record/write/skip/policy/review counters, safe failure reason |
 | `ImportJob` | fetch/normalize/match execution | connector, cursor, state, retries, counts |
 | `Connector` | provider adapter configuration | network/merchant, version, health, quota |
 | `MerchantPolicy` | rights and retention controls | merchant/source, field flags, max age, reviewer, expiry |
@@ -35,7 +38,7 @@
 
 Each source must have explicit values for:
 
-`AllowPriceStorage`, `AllowPriceHistory`, `AllowImageCaching`, `AllowMetadataCaching`, `PriceMaxAge`, `AllowedComparison`, `RequiredAttribution`, `DisclosureText`, `LinkExpiration`, `RawRetentionDays`, and `DataResidencyNotes`.
+`AllowPriceStorage`, `AllowPriceHistory`, `AllowImageCaching`, `AllowMetadataCaching`, `AllowAffiliateLinks`, `PriceMaxAge`, `AllowedComparison`, `RequiredAttribution`, `DisclosureText`, `LinkExpiration`, `RawRetentionDays`, and `DataResidencyNotes`.
 
 Unknown is a first-class value. Unknown means the connector may not publish or retain the affected field until a reviewer changes the policy record.
 
@@ -77,6 +80,8 @@ Never use a retailer URL alone as proof of product identity. Preserve source ext
 ## Affiliate separation
 
 `AffiliateProgram`, `AffiliateLink`, and `ClickEvent` are separate from `Deal` and its score inputs. A commission value may support business reporting, but it must not be available to the organic ranking calculation. The redirect uses an internal listing ID, an allowlisted destination, and an opaque sub-ID; arbitrary destination query strings are rejected.
+
+Vertical Slice 9 implements provider values `IMPACT`, `CJ`, `RAKUTEN`, reserved `AMAZON_CREATORS`, and `OTHER`; program lifecycle `PENDING_APPROVAL`, `ACTIVE`, `SUSPENDED`, `EXPIRED`, `DISABLED`, and `CONFIGURATION_INCOMPLETE`; and link lifecycle `PENDING`, `ACTIVE`, `INVALID`, and `DISABLED`. ACTIVE requires provider identifiers, current relationship evidence, explicit deep-link permission, and non-empty destination/tracking domain allowlists; Rakuten does not require the Impact/CJ media-property field. Amazon has no adapter and no live merchant mapping exists.
 
 ## Import and idempotency keys
 

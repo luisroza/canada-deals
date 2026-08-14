@@ -53,3 +53,59 @@ public enum ProductCondition
     Used = 2,
     Refurbished = 3
 }
+
+public enum AffiliateProviderType
+{
+    Unknown = 0,
+    Impact = 1,
+    Cj = 2,
+    AmazonCreators = 3,
+    Other = 4,
+    Rakuten = 5
+}
+
+public enum AffiliateProgramStatus
+{
+    PendingApproval = 0,
+    Active = 1,
+    Suspended = 2,
+    Expired = 3,
+    Disabled = 4,
+    ConfigurationIncomplete = 5
+}
+
+public enum AffiliateLinkStatus
+{
+    Pending = 0,
+    Active = 1,
+    Invalid = 2,
+    Disabled = 3
+}
+
+public enum IntegrationAdvertiserStatus
+{
+    Unknown = 0,
+    Active = 1,
+    Inactive = 2
+}
+
+public enum IntegrationPartnershipStatus
+{
+    Unknown = 0,
+    Active = 1,
+    Pending = 2,
+    SelfRemoved = 3,
+    PermanentDecline = 4,
+    PermanentRemove = 5,
+    TemporaryDecline = 6,
+    TemporaryRemove = 7,
+    Extended = 8
+}
+
+public enum IntegrationRunStatus
+{
+    Running = 0,
+    Succeeded = 1,
+    Failed = 2,
+    Blocked = 3
+}

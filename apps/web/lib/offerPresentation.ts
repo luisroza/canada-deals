@@ -6,6 +6,17 @@ export function availabilityLabel(state: RetailerOffer["availabilityState"]) {
   return "Availability unknown";
 }
 
+export function conditionLabel(state: RetailerOffer["conditionState"]) {
+  if (state === "NEW") return "New condition";
+  if (state === "USED") return "Used condition";
+  if (state === "REFURBISHED") return "Refurbished condition";
+  return "Condition unknown";
+}
+
+export function sellerLabel(seller: string | null, retailer: string) {
+  return seller ? `Sold by ${seller}` : `Seller not provided by ${retailer}`;
+}
+
 export function schemaAvailability(offer: Pick<RetailerOffer, "availabilityState" | "freshnessState">) {
   if (offer.freshnessState === "STALE") return undefined;
   if (offer.availabilityState === "AVAILABLE") return "https://schema.org/InStock";

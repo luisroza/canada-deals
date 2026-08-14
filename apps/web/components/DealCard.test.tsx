@@ -14,6 +14,7 @@ const baseDeal = {
   currency: "CAD",
   freshnessState: "RECENT" as const,
   evidenceState: "STRONG" as const,
+  availabilityState: "AVAILABLE" as const,
   evidenceExplanation: "Observed history is available for this permitted fixture source.",
   observedAt: "2026-08-11T12:00:00Z",
   matchState: "Same product confirmed",
@@ -32,6 +33,9 @@ describe("DealCard", () => {
     expect(screen.getByText("$1,099.99")).toBeInTheDocument();
     expect(screen.getByText("Strong evidence")).toBeInTheDocument();
     expect(screen.getByText("Checked recently")).toBeInTheDocument();
+    expect(screen.getByText("Available online")).toBeInTheDocument();
+    expect(screen.getByText("Current observed price")).toBeInTheDocument();
+    expect(screen.getByText(/Observed at/)).toHaveTextContent("Demo North Electronics");
     expect(screen.getByText(/Safe comparison available/)).toBeInTheDocument();
     expect(screen.getByText(/15.4% below supported reference/)).toBeInTheDocument();
   });

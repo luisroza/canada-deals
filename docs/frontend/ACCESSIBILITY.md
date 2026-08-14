@@ -18,7 +18,7 @@ The current slices implement the approved accessibility direction:
 - `/saved` has one page heading, semantic Product headings, textual evidence/freshness/history states, announced loading/errors, and actionable signed-out/empty states.
 - Target Price has a programmatic label and CAD context, decimal/range guidance, explicit consent checkbox, disabled pending state, announced errors/success, keyboard-accessible edit/remove actions, and focus movement to the edit heading.
 - Alert state is conveyed in text (`Active target`, `No active target-price alert`, confirmation requirement), never by color alone; mobile controls stack without horizontal overflow.
-- Discovery controls have explicit labels, a polite result-count status, keyboard-operable active-filter removal/clear links, useful zero-result recovery, and textual supported-reference/savings context.
+- Discovery controls have explicit labels, a polite result-count status, an `aria-expanded` filter disclosure, keyboard-operable active-filter removal/clear links, useful zero-result recovery, and textual supported-reference/savings context.
 - Mobile discovery filters use a labelled `role="dialog"` sheet with focus placed on the filter heading and restored to the Filters trigger when closed; the viewport regression test confirms no horizontal overflow.
 - Product history presents its factual text summary before the chart and never relies on color to communicate `RELIABLE`, `PARTIAL`, or `UNAVAILABLE`.
 - The 30/90-day controls are keyboard-operable links with programmatic `aria-current` selection and restorable URL state.

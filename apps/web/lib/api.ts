@@ -10,6 +10,7 @@ export type DealCard = {
   currency: string;
   freshnessState: "RECENT" | "AGING" | "STALE" | "UNKNOWN";
   evidenceState: "STRONG" | "PARTIAL" | "UNAVAILABLE" | "UNKNOWN";
+  availabilityState: "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN";
   evidenceExplanation: string;
   observedAt: string | null;
   matchState: string;
@@ -33,6 +34,10 @@ export type RetailerOffer = {
   matchState: string;
   historyState: string;
   availabilityState: "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN";
+  seller: string | null;
+  conditionState: "NEW" | "USED" | "REFURBISHED" | "UNKNOWN";
+  regionAvailabilityContext: string | null;
+  shippingContext: string | null;
   observedAt: string | null;
   handoffPath: string | null;
   disclosure: string;

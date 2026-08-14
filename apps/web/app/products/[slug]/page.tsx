@@ -46,7 +46,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   return <div className="product-page">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     <p><Link href="/">← Back to deals</Link></p>
-    <section className="product-hero"><p className="eyebrow">{product.category} · {product.brand}</p><h1>{product.productTitle}</h1><p className="product-meta">Verify the exact variant before comparing. This page makes evidence and unknowns visible.</p><SaveProductButton productId={product.productId} productTitle={product.productTitle} returnTo={`/products/${product.productSlug}`} /><PrimaryOfferPanel offer={product.primaryOffer} /></section>
+    <section className="product-hero"><p className="eyebrow">{product.category} · {product.brand}</p><h1>{product.productTitle}</h1><p className="product-meta">Verify the exact variant before comparing. This page makes evidence and unknowns visible.</p><PrimaryOfferPanel offer={product.primaryOffer} /><div className="retention-actions"><SaveProductButton productId={product.productId} productTitle={product.productTitle} returnTo={`/products/${product.productSlug}`} /><TargetPriceAlertControl productId={product.productId} productTitle={product.productTitle} currentPrice={product.primaryOffer.currentPrice} currency={product.primaryOffer.currency} returnTo={`/products/${product.productSlug}`} /></div></section>
     <div className="product-layout">
       <div>
         <section className="panel" aria-labelledby="evidence-heading"><h2 id="evidence-heading">Price evidence</h2><p>{product.evidenceSummary}</p><p>{product.historySummary}</p></section>
@@ -58,6 +58,5 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
       </div>
       <aside className="panel" aria-labelledby="details-heading"><h2 id="details-heading">Product details</h2><ul className="variant-list">{Object.entries(product.variantAttributes).map(([key, value]) => <li key={key}><strong>{key}:</strong> {value}</li>)}</ul><p className="disclosure">{product.primaryOffer.disclosure}</p><ReportIssueForm listingId={product.primaryOffer.listingId} listingLabel={`${product.primaryOffer.retailer}: ${product.primaryOffer.title}`} /></aside>
     </div>
-    <div className="retention-section"><TargetPriceAlertControl productId={product.productId} productTitle={product.productTitle} currentPrice={product.primaryOffer.currentPrice} currency={product.primaryOffer.currency} returnTo={`/products/${product.productSlug}`} /></div>
   </div>;
 }

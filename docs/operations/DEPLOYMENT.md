@@ -14,7 +14,7 @@ Vertical Slice 8 prepares the approved DigitalOcean App Platform topology in Tor
 
 Public ingress preserves path prefixes: `/api/*`, `/go/*`, and `/health` go directly to `api`; all other public paths go to `web`. Browser traffic remains same-site. Server-side web calls use the private API URL. No service exposes PostgreSQL publicly.
 
-Secrets are component-scoped: `web` receives only `API_BASE_URL`; `api` receives database, email, and Data Protection settings; `worker` receives database and email settings; and `migrate` receives only the database URL and CA. The migration executable exits before registering email, Identity, Hangfire, or Data Protection services.
+Secrets are component-scoped: `web` receives only `API_BASE_URL`; `api` receives database, email, Data Protection, and the non-secret affiliate handoff switch; `worker` receives database/email and—only after activation—affiliate provider secrets; and `migrate` receives only the database URL and CA. The migration executable exits before registering email, Identity, Hangfire, Data Protection, or affiliate providers.
 
 The images use multi-stage Docker builds, listen on port `8080`, and run as non-root users. The API and worker include the Kerberos runtime library required by the Npgsql runtime image.
 
@@ -32,8 +32,15 @@ Do not replace placeholders or run `doctl apps create` until every item below is
 | Resend sender | `Email__FromAddress` | address on a SPF/DKIM-verified domain/subdomain |
 | Resend webhook secret | `Email__WebhookSigningSecret` | secret from the exact production webhook |
 | Data Protection PFX and password | `DataProtection__CertificateBase64`, `DataProtection__CertificatePassword` | secret base64 PKCS#12 with private key; rotate deliberately |
+| Impact activation, optional | worker `Affiliate__Impact__AccountSid`, `Affiliate__Impact__AuthToken` plus approved program/media IDs in PostgreSQL | enable only after Best Buy accepts Canada Deals and controlled validation passes |
+| CJ activation, optional | worker `Affiliate__Cj__PersonalAccessToken` plus approved PID/CID/Link ID in PostgreSQL | enable only after Home Depot relationship is joined and controlled validation passes |
+| Rakuten activation, optional | API/worker secret store `Rakuten__ClientId`, `Rakuten__ClientSecret`, `Rakuten__AccountId` plus approved MID capability/policy mapping in PostgreSQL | rotate disclosed credentials; enable discovery first, then affiliate/catalog independently only after the merchant/data-rights checkpoint |
 
 `Email__EmergencyStop` is intentionally `true` in the template. Leave it true through deploy and HTTP smoke checks. Change it to `false` only immediately before the controlled Resend operational validation, then return it to the intended operational setting after evidence is recorded.
+
+`AffiliateHandoff__Enabled`, both provider `Enabled` values, and `Worker__EnqueueAffiliateLinkRefreshJob` are intentionally `false` in the App Spec. Affiliate credentials are not placeholders in the checked-in spec because no approved relationship exists. Add them only to the worker secret store during the human activation checkpoint described in `AFFILIATE-ACTIVATION.md`; the web component never receives them.
+
+`Rakuten__Enabled` and `Worker__EnqueueRakutenCatalogImportJob` are also intentionally `false`. The checked-in App Spec has no Rakuten credential placeholders so credentials cannot be mistaken for deploy-ready values. Follow `RAKUTEN.md`; the web and migration components never receive Rakuten credentials.
 
 ## Validation commands
 
@@ -54,4 +61,4 @@ Authentication cookies and Identity confirmation tokens are protected with a sha
 
 `DEPLOYMENT PREPARED, OPERATIONAL VALIDATION BLOCKED`.
 
-The App Spec passed local provider schema validation on 2026-08-12. Provisioning and real email validation are blocked by unpublished validated source, missing DigitalOcean credentials, missing production domain/managed database, and missing Resend credentials/sender/webhook.
+The App Spec passed local provider schema validation again on 2026-08-14 with Rakuten disabled. Provisioning and real email validation remain blocked by missing DigitalOcean credentials, production domain/managed database, and Resend credentials/sender/webhook. Rakuten activation is a separate blocked checkpoint and does not change the Slice 8 deployment status.

@@ -1,0 +1,21 @@
+{
+  "_metadata": { "page": { "page": 1, "limit": 100, "total": 2 } },
+  "advertisers": [
+    {
+      "id": 101,
+      "can_partner": false,
+      "name": "Controlled Canada Merchant",
+      "url": "https://merchant.safe.test",
+      "policies": { "international_capabilities": { "ships_to": ["CA", "US"] } },
+      "features": { "product_feed": true, "deep_links": true }
+    },
+    {
+      "id": 202,
+      "can_partner": true,
+      "name": "Inactive Merchant",
+      "url": "https://inactive.safe.test",
+      "policies": { "international_capabilities": { "ships_to": ["US"] } },
+      "features": { "product_feed": false, "deep_links": false }
+    }
+  ]
+}

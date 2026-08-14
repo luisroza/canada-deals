@@ -2,15 +2,19 @@
 
 **Status:** APPROVED STRATEGY - Human Architecture / Data Integration Checkpoint completed
 **Prepared:** 2026-08-11
-**Implementation status:** connector-neutral domain contracts, fixtures, migrations, and tests are authorized. Production merchant connectors, crawlers, and live credentials remain blocked by the production connector gate.
+**Implementation status:** connector-neutral contracts, the provider-neutral affiliate boundary, Impact/CJ adapters, and an opt-in Rakuten Advertisers/Partnerships/Deep Links/Product Search connector are implemented. Rakuten has only controlled fixture validation; live credentials, merchant activation, and merchant-specific data rights remain blocked by their separate gates.
+
+## Rakuten implementation profile
+
+Rakuten follows the source-neutral flow without bypassing it: scoped OAuth with memory-only token reuse; read-only Advertisers/Partnerships correlation; persisted capability snapshot; MID-scoped bounded Product Search; safe XML normalization; dry-run audit; then policy/mapping/matching gates before any listing or price write. Strong exact unique UPC is the only automatic canonical attachment in this slice. Weak or conflicting identifiers go to review, and no canonical Product is created. CAD-only persistence, no image caching, and unknown source fields preserve the approved price-truth boundary.
 
 ## Executive recommendation
 
-Build a **source-neutral ingestion platform** around approved affiliate/network APIs and product feeds. Begin with two launch candidates, **Best Buy Canada and Home Depot Canada**, only if a current affiliate/network relationship provides lawful product data and deep links. Treat **Amazon.ca as a gated candidate** because its Associates/PA API policies impose special rules for price, availability, caching, comparisons, attribution, timestamps, historical data, and mobile use. Keep Walmart Canada as a fallback/Phase 2 candidate through Rakuten if the required advertiser partnership and feed rights are confirmed.
+Build a **source-neutral ingestion platform** around approved affiliate/network APIs and product feeds. Begin with two launch candidates, **Best Buy Canada and Home Depot Canada**, only if a current affiliate/network relationship provides lawful product data and deep links. Treat **Amazon.ca as a gated candidate** because Associates/Creators API policies impose special rules for price, availability, caching, comparisons, attribution, timestamps, historical data, and mobile use. Keep Walmart Canada gated/fallback until the specifically Canadian relationship and feed rights are confirmed.
 
 The connector contract must normalize provider data into canonical entities without leaking provider DTOs into the domain. Each source is controlled by a `MerchantPolicy` record that decides whether price storage, price history, image caching, metadata caching, comparison, attribution, and link expiration are allowed.
 
-The connector-neutral core may be implemented before merchant approval using synthetic fixtures and test adapters. No live retailer content or scraped data may be introduced as a shortcut. A merchant-specific adapter may move from fixture-only to production only after the verified evidence listed in `INTEGRATION-BACKLOG.md` exists in the repository.
+The connector-neutral core may be implemented before merchant approval using synthetic fixtures and test adapters. Slice 9 implements affiliate-link adapters only; this does not satisfy Product-data rights. No live retailer content or scraped data may be introduced as a shortcut. A merchant-specific catalog adapter may move from fixture-only to production only after the verified evidence listed in `INTEGRATION-BACKLOG.md` exists in the repository.
 
 ## Source policy hierarchy
 
@@ -95,7 +99,7 @@ For a field or observation, prefer: official merchant feed/API > affiliate netwo
 
 ## Retention rules proposed
 
-- Amazon raw responses: do not retain by default; store only permitted normalized state, source reference, timestamp, and policy version. Historical price storage is `RESTRICTED/UNKNOWN` until written terms and legal review permit it.
+- Amazon Creators API responses: do not retain by default; store only permitted normalized state, source reference, timestamp, and policy version. Historical price storage is `RESTRICTED/UNKNOWN` until written terms and legal review permit it. Provider-vended links must remain unmodified.
 - Other network/merchant raw feeds: retain encrypted snapshots for 7-30 days only if the contract permits; otherwise retain hashes, counts, and normalized audit facts.
 - Permitted normalized price observations: retain up to 12 months for MVP, or the shorter source limit; extend only after review. Avoid an unlimited archive.
 - Image caching: off by default unless permission is explicit. Prefer current authorized URLs.

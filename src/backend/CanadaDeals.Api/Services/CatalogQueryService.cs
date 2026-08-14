@@ -1,10 +1,12 @@
 using CanadaDeals.Api.Contracts;
 using CanadaDeals.Domain.Accounts;
 using CanadaDeals.Domain.Alerts;
+using CanadaDeals.Domain.Affiliates;
 using CanadaDeals.Domain.Common;
 using CanadaDeals.Domain.PriceTruth;
 using CanadaDeals.Domain.Retailers;
 using CanadaDeals.Domain.Search;
+using CanadaDeals.Infrastructure.Affiliates;
 using CanadaDeals.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using NpgsqlTypes;
@@ -185,6 +187,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                 .Include(x => x.Product).ThenInclude(x => x.Category)
                 .Include(x => x.Retailer)
                 .Include(x => x.MerchantPolicy)
+                .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
                 .Where(x => productIds.Contains(x.ProductId) &&
                             x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                             x.MerchantPolicy.RequiredAttribution != TestOnlyAttribution)
@@ -300,6 +303,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             .AsNoTracking()
             .Include(x => x.Retailer)
             .Include(x => x.MerchantPolicy)
+            .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
             .Where(x => x.ProductId == product.Id &&
                         x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                         x.MerchantPolicy.RequiredAttribution != TestOnlyAttribution)
@@ -418,6 +422,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             .AsNoTracking()
             .Include(x => x.Retailer)
             .Include(x => x.MerchantPolicy)
+            .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
             .Where(x => productIds.Contains(x.ProductId) &&
                         x.CurrentPriceAmount != null &&
                         x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed)
@@ -453,13 +458,13 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         var offer = ToOffer(listing, now);
         return new DealCardResponse(listing.Id, listing.ProductId, listing.Product.Slug, listing.Product.Title, listing.Product.Brand.Name,
             listing.Product.Category.Name, listing.Retailer.Name, listing.CurrentPriceAmount, listing.CurrentPriceCurrency ?? "CAD",
-            offer.FreshnessState, offer.EvidenceState, EvidenceExplanation(offer.EvidenceState), listing.SourceObservedAt,
+            offer.FreshnessState, offer.EvidenceState, offer.AvailabilityState, EvidenceExplanation(offer.EvidenceState), listing.SourceObservedAt,
             PublicMatchState(listing.MatchState), offer.HistoryState, referencePrice,
             DiscoveryRules.SupportedSavings(listing.CurrentPriceAmount!.Value, referencePrice)
                 ? Math.Round((referencePrice!.Value - listing.CurrentPriceAmount.Value) / referencePrice.Value * 100m, 1)
                 : null,
             feed.Any(x => x.ProductId == listing.ProductId && x.Id != listing.Id && ComparisonRules.IsSafeComparison(x)),
-            $"/products/{listing.Product.Slug}", HandoffPath(listing), listing.MerchantPolicy.DisclosureText);
+            $"/products/{listing.Product.Slug}", HandoffPath(listing, now), listing.MerchantPolicy.DisclosureText);
     }
 
     private static RetailerOfferResponse ToOffer(RetailerListing listing, DateTimeOffset now)
@@ -468,8 +473,9 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         var evidence = EvidenceCalculator.Calculate(listing.MerchantPolicy, listing.History, listing.CurrentPriceAmount);
         return new RetailerOfferResponse(listing.Id, listing.Retailer.Name, listing.OriginalTitle, listing.CurrentPriceAmount,
             listing.CurrentPriceCurrency ?? "CAD", freshness.ToString().ToUpperInvariant(), evidence.ToString().ToUpperInvariant(),
-            PublicMatchState(listing.MatchState), listing.History.ToString().ToUpperInvariant(), listing.OnlineAvailability.ToString().ToUpperInvariant(), listing.SourceObservedAt,
-            HandoffPath(listing), listing.MerchantPolicy.DisclosureText, ComparisonRules.IsSafeComparison(listing));
+            PublicMatchState(listing.MatchState), listing.History.ToString().ToUpperInvariant(), listing.OnlineAvailability.ToString().ToUpperInvariant(),
+            listing.Seller, listing.Condition.ToString().ToUpperInvariant(), listing.RegionAvailabilityContext, listing.ShippingContext, listing.SourceObservedAt,
+            HandoffPath(listing, now), listing.MerchantPolicy.DisclosureText, ComparisonRules.IsSafeComparison(listing));
     }
 
     private static string PublicMatchState(MatchState matchState) => matchState switch
@@ -479,8 +485,30 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         _ => "No safe comparison available"
     };
 
-    private static string? HandoffPath(RetailerListing listing) =>
-        string.IsNullOrWhiteSpace(listing.ApprovedAffiliateDestinationReference) ? null : $"/go/{listing.Id}";
+    private static string? HandoffPath(RetailerListing listing, DateTimeOffset now)
+    {
+        if (!listing.MerchantPolicy.CanUseAffiliateLinks || string.IsNullOrWhiteSpace(listing.ApprovedAffiliateDestinationReference)) return null;
+
+        var hasApprovedLink = listing.AffiliateLinks.Any(link =>
+            link.Status == AffiliateLinkStatus.Active &&
+            link.IsUsable(now) &&
+            link.AffiliateProgram.CanGenerateLinks() &&
+            AffiliateUrlPolicy.TryValidateHttps(
+                listing.ApprovedAffiliateDestinationReference,
+                link.AffiliateProgram.DestinationDomains,
+                out var listingDestination) &&
+            AffiliateUrlPolicy.TryValidateHttps(
+                link.DestinationUrl,
+                link.AffiliateProgram.DestinationDomains,
+                out var persistedDestination) &&
+            AffiliateUrlPolicy.DestinationsMatch(listingDestination!, persistedDestination!) &&
+            AffiliateUrlPolicy.TryValidateHttps(
+                link.TrackingUrl,
+                link.AffiliateProgram.TrackingDomains,
+                out _));
+
+        return hasApprovedLink ? $"/go/{listing.Id}" : null;
+    }
 
     private static string EvidenceExplanation(string state) => state switch
     {

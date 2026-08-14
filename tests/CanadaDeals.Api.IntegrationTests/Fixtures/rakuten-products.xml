@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<result>
+  <TotalMatches>2</TotalMatches>
+  <TotalPages>1</TotalPages>
+  <PageNumber>1</PageNumber>
+  <item>
+    <mid>101</mid>
+    <merchantname>Controlled Canada Merchant</merchantname>
+    <linkid>link-1</linkid>
+    <createdon>2026-08-13/12:30:00</createdon>
+    <sku>SKU-101</sku>
+    <productname>Northstar 55-inch QLED TV</productname>
+    <category><primary>Electronics</primary><secondary>Televisions</secondary></category>
+    <price currency="CAD">1199.99</price>
+    <saleprice currency="CAD">1099.99</saleprice>
+    <upccode>000000000001</upccode>
+    <description><short>Controlled short description</short><long>Controlled long description</long></description>
+    <keywords>television qled</keywords>
+    <linkurl>https://merchant.safe.test/products/qled-tv</linkurl>
+    <imageurl>https://images.merchant.safe.test/qled-tv.jpg</imageurl>
+  </item>
+  <item>
+    <mid>101</mid>
+    <merchantname>Controlled Canada Merchant</merchantname>
+    <linkid>link-2</linkid>
+    <sku>SKU-102</sku>
+    <productname>Unknown title-only candidate</productname>
+    <price currency="USD">50.00</price>
+    <saleprice currency="USD">45.00</saleprice>
+    <linkurl>https://merchant.safe.test/products/unknown</linkurl>
+  </item>
+</result>

@@ -1,0 +1,9 @@
+{
+  "AdvertiserId": "fake-advertiser",
+  "ProgramId": "fake-program",
+  "ContractStatus": "Active",
+  "AllowsDeeplinking": true,
+  "DeeplinkDomains": {
+    "DeeplinkDomain": ["bestbuy.ca", "www.bestbuy.ca"]
+  }
+}

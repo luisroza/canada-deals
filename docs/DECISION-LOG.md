@@ -158,3 +158,36 @@ Only record decisions that have actually been approved. Proposed options and res
 - **Blocked status:** `DEPLOYMENT PREPARED, OPERATIONAL VALIDATION BLOCKED` until validated source is published and DigitalOcean, canonical domain, managed PostgreSQL, Resend sender/webhook, Data Protection certificate, and controlled-mailbox access are supplied.
 - **Evidence:** `docs/operations/DEPLOYMENT.md`, `docs/operations/PRODUCTION-RUNBOOK.md`, and `docs/qa/SLICE-8-TEST-REPORT.md`.
 - **Date:** 2026-08-12
+
+### DEC-015 - Affiliate link provider activation boundary
+
+- **Status:** Implemented and deterministically validated in Vertical Slice 9; merchant operation blocked pending publisher approvals and credentials
+- **Decision:** Keep `/go/{listingId}` as the only public retailer handoff and resolve only ACTIVE, persisted, non-expired `AffiliateLink` records associated with an ACTIVE `AffiliateProgram`. Generate/revalidate links outside the shopper path through provider-neutral `IAffiliateLinkProvider` adapters.
+- **Initial providers:** Implement Impact first for a future approved Best Buy Canada relationship and CJ second for a future joined Home Depot Canada relationship. Impact validates active contract, deeplink permission/domains, media property, and returned TrackingURL. CJ validates PAT-authenticated Link Search XML, joined relationship, per-link deep-link permission, exact destination, and provider-returned `clickUrl`.
+- **Security:** Require HTTPS/no-userinfo URLs, program-specific merchant and tracking-domain allowlists, exact persisted destination, non-PII Sub IDs/click events, server-only credentials, and fail-closed unknown/suspended relationships. Temporary provider outages do not break an already valid persisted link.
+- **Commercial neutrality:** Commission, EPC, conversion, and other provider economics are not Product truth, Search, Deal Quality, comparison, history, or Target Price Alert inputs.
+- **Gates:** Best Buy and Home Depot are not live without actual Canada Deals approval, credentials, provider identifiers, media property/deeplink evidence, and a controlled link test. Amazon Creators and Walmart Canada remain gated with no adapter. Affiliate approval does not authorize catalog/price ingestion.
+- **Evidence:** `docs/operations/AFFILIATE-ACTIVATION.md`, `docs/integrations/AFFILIATE-NETWORKS.md`, and `docs/qa/SLICE-9-TEST-REPORT.md`.
+- **Date:** 2026-08-12
+
+### DEC-016 - Rakuten connector activation boundary
+
+- **Status:** Implemented and deterministically validated in Vertical Slice 9; live operation blocked pending secure credentials, merchant approval, and data rights
+- **Decision:** Add Rakuten behind the existing provider-neutral affiliate boundary and source-neutral ingestion model. OAuth uses Client ID + Client Secret as the token-key and the Publisher Account ID as `scope`; access/refresh tokens remain memory-only, are reused until the configured expiry skew, and are protected from concurrent refresh stampedes.
+- **Discovery first:** Partnerships and Advertisers are read before any merchant activation. Correlated capability snapshots record advertiser/partnership state, Canada relevance, Product Feed and deep-link capability, while unknown/inactive states disable live behavior.
+- **Affiliate gate:** Deep links require an ACTIVE advertiser and partnership, explicit operator enablement, Canada relevance, MerchantPolicy permission, and exact destination/tracking host allowlists. Generated links are persisted and validated before `/go` can use them.
+- **Catalog gate:** Product Search is MID-scoped, bounded, XML-safe, and dry-run-first. Live persistence additionally requires explicit catalog enablement and policy permission for metadata and price storage. Only CAD is stored; new canonical Products are never created from weak/title-only matches, image content is not cached, and seller/condition/availability are not fabricated.
+- **Commercial neutrality:** Rakuten offer/commission fields do not affect Search, ranking, evidence, price history, comparison, or Target Price Alert eligibility.
+- **Operational status:** Rakuten remains disabled in default and deployment configuration. No credential pasted into chat was used or stored. Live validation is blocked until the credential is rotated again and the Publisher Account ID, approved partnership, merchant rights, and controlled evidence are supplied securely.
+- **Evidence:** `docs/operations/RAKUTEN.md`, `docs/integrations/AFFILIATE-NETWORKS.md`, and `docs/qa/SLICE-9-TEST-REPORT.md`.
+- **Date:** 2026-08-14
+
+### DEC-017 - Competitive product recommendation boundary
+
+- **Status:** P0 transparency refinement implemented; growth experiments deferred by phase gates
+- **Decision:** Strengthen the approved evidence-to-click experience with a standardized Offer Conditions panel. Discovery cards expose online availability. Product offers expose only source-proven seller, condition, availability, region, shipping, and last-check facts; missing coupon, membership/payment eligibility, and retailer offer-expiry evidence is labelled unverified rather than inferred.
+- **Trust boundary:** Freshness is an observation timestamp, not a retailer guarantee. Affiliate-link expiry is not represented as offer expiry. Community popularity, commission, clicks, or saves do not become Price Truth, evidence, comparison, or organic-ranking inputs.
+- **Deferred experiments:** Saved-search/keyword/brand/category/retailer alerts may proceed only after the canonical Target Price loop is reliable and must default to fresh/strong evidence with frequency controls. Structured confirmations such as price changed, coupon worked, or out of stock require abuse controls and a review queue and may not mutate public truth automatically.
+- **Rejected for MVP:** Open comments, votes, reputation, gamification, forums, open publication of community deals, native push, and sponsored/commission-driven organic ranking.
+- **Evidence:** `docs/product/MVP.md`, `docs/product/PRODUCT-BACKLOG.md`, `docs/product/ROADMAP.md`, and the implemented API/Product Page contracts.
+- **Date:** 2026-08-14

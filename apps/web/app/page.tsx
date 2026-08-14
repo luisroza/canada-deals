@@ -18,6 +18,12 @@ function pageHref(params: DiscoveryParams, page: number) {
   return `/?${query.toString()}`;
 }
 
+function sortHref(params: DiscoveryParams, sort: string) {
+  const query = new URLSearchParams();
+  Object.entries({ ...params, sort, page: undefined }).forEach(([key, value]) => { if (value) query.set(key, value); });
+  return `/?${query.toString()}`;
+}
+
 export async function generateMetadata({ searchParams }: { searchParams: Promise<RawParams> }): Promise<Metadata> {
   const params = normalize(await searchParams);
   const narrowed = Object.values(params).some(Boolean);
@@ -43,8 +49,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<Raw
     <section className="hero"><p className="eyebrow">Canadian price-truth layer</p><h1>Deals with strong evidence.</h1><p className="lede">Find current CAD offers, understand when they were checked, and compare only listings we can safely identify as the same product.</p></section>
     {result && <DiscoveryControls params={params} categories={result.facets.categories} retailers={result.facets.retailers} resultCount={result.count} />}
     <div className="trust-strip" aria-label="What we show"><div className="trust-item"><strong>Current CAD price</strong><span>What the source last observed</span></div><div className="trust-item"><strong>Freshness</strong><span>When the offer was checked</span></div><div className="trust-item"><strong>Evidence</strong><span>What the available history supports</span></div><div className="trust-item"><strong>Safe matching</strong><span>Variants stay out when uncertain</span></div></div>
-    <section aria-labelledby="deal-feed-heading">
+    <section id="deals" aria-labelledby="deal-feed-heading">
       <div className="section-heading"><div><p className="eyebrow">{params.search ? `Results for “${params.search}”` : "Curated discovery feed"}</p><h2 id="deal-feed-heading">{effectiveSort === "relevance" ? "Most relevant" : effectiveSort === "savings" ? "Strongest supported savings" : effectiveSort === "price-asc" ? "Lowest current price" : "Most recently checked"}</h2></div></div>
+      <nav className="feed-modes" aria-label="Deal feed views">
+        {params.search && <Link href={sortHref(params, "relevance")} aria-current={effectiveSort === "relevance" ? "page" : undefined}>Most relevant</Link>}
+        <Link href={sortHref(params, "recent")} aria-current={effectiveSort === "recent" ? "page" : undefined}>Recently checked</Link>
+        <Link href={sortHref(params, "savings")} aria-current={effectiveSort === "savings" ? "page" : undefined}>Supported savings</Link>
+        <Link href={sortHref(params, "price-asc")} aria-current={effectiveSort === "price-asc" ? "page" : undefined}>Lowest current price</Link>
+      </nav>
       {error && <div className="error-state" role="alert">Deals are temporarily unavailable. Check that the API and local PostgreSQL are running.</div>}
       {!error && result?.items.length === 0 && <div className="empty-state"><h3>No products match these controls.</h3><p>Try another product name, model number, or remove one or more filters.</p><Link className="button button-secondary" href="/">Clear search and filters</Link></div>}
       {!error && result && <div className="deal-grid">{result.items.map(deal => <DealCard key={deal.productId} deal={deal} />)}</div>}

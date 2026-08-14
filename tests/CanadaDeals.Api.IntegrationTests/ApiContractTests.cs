@@ -56,6 +56,10 @@ public sealed class ApiContractTests(ApiFixture fixture) : IClassFixture<ApiFixt
 
         Assert.Equal("PARTIAL", json.RootElement.GetProperty("primaryOffer").GetProperty("historyState").GetString());
         Assert.Equal("AVAILABLE", json.RootElement.GetProperty("primaryOffer").GetProperty("availabilityState").GetString());
+        Assert.Equal("NEW", json.RootElement.GetProperty("primaryOffer").GetProperty("conditionState").GetString());
+        Assert.Equal("Canada", json.RootElement.GetProperty("primaryOffer").GetProperty("regionAvailabilityContext").GetString());
+        Assert.True(json.RootElement.GetProperty("primaryOffer").TryGetProperty("seller", out _));
+        Assert.True(json.RootElement.GetProperty("primaryOffer").TryGetProperty("shippingContext", out _));
         Assert.Empty(json.RootElement.GetProperty("safeComparisons").EnumerateArray());
         Assert.NotEmpty(json.RootElement.GetProperty("relatedListingsForReview").EnumerateArray());
         Assert.Equal("Review before comparing", json.RootElement.GetProperty("relatedListingsForReview")[0].GetProperty("matchState").GetString());

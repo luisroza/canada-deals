@@ -12,6 +12,7 @@ public sealed class MerchantPolicy
     public PolicyPermission AllowPriceHistory { get; private set; }
     public PolicyPermission AllowImageCaching { get; private set; }
     public PolicyPermission AllowMetadataCaching { get; private set; }
+    public PolicyPermission AllowAffiliateLinks { get; private set; }
     public int? PriceMaxAgeHours { get; private set; }
     public string AllowedComparison { get; private set; } = "UNKNOWN";
     public string RequiredAttribution { get; private set; } = "UNKNOWN";
@@ -33,7 +34,8 @@ public sealed class MerchantPolicy
         string disclosureText,
         int? rawRetentionDays,
         string dataResidencyNotes,
-        DateTimeOffset verifiedAt)
+        DateTimeOffset verifiedAt,
+        PolicyPermission allowAffiliateLinks = PolicyPermission.Unknown)
     {
         if (string.IsNullOrWhiteSpace(sourceKey)) throw new ArgumentException("Source key is required.", nameof(sourceKey));
 
@@ -45,6 +47,7 @@ public sealed class MerchantPolicy
             AllowPriceHistory = allowPriceHistory,
             AllowImageCaching = allowImageCaching,
             AllowMetadataCaching = allowMetadataCaching,
+            AllowAffiliateLinks = allowAffiliateLinks,
             PriceMaxAgeHours = priceMaxAgeHours,
             AllowedComparison = string.IsNullOrWhiteSpace(allowedComparison) ? "UNKNOWN" : allowedComparison,
             RequiredAttribution = string.IsNullOrWhiteSpace(requiredAttribution) ? "UNKNOWN" : requiredAttribution,
@@ -58,4 +61,11 @@ public sealed class MerchantPolicy
     public bool CanPublishCurrentPrice => AllowPriceStorage == PolicyPermission.Allowed;
     public bool CanStoreHistory => AllowPriceHistory == PolicyPermission.Allowed;
     public bool CanCacheImages => AllowImageCaching == PolicyPermission.Allowed;
+    public bool CanUseAffiliateLinks => AllowAffiliateLinks == PolicyPermission.Allowed;
+
+    public void SetAffiliateLinkPermission(PolicyPermission permission, DateTimeOffset verifiedAt)
+    {
+        AllowAffiliateLinks = permission;
+        VerifiedAt = verifiedAt;
+    }
 }

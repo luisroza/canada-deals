@@ -6,11 +6,13 @@ PostgreSQL is the system of record. EF Core/Npgsql owns the relational model and
 
 - `Brand`, `Category`, `Product`
 - `Retailer`, `RetailerListing`
+- `AffiliateProgram`, `AffiliateLink`, `ClickEvent`
+- `RakutenAdvertiserCapability`, `RakutenSourceMapping`, `RakutenImportRun`
 - `MerchantPolicy`, `PriceObservation`
 - `ListingIssueReport`
 - ASP.NET Core Identity tables, `SavedProduct`, `PriceAlert`, `NotificationDelivery`, `AccountConfirmationDelivery`, `ControlledEmailCapture`, `ProcessedEmailWebhook`, and `EmailSuppression`
 
-Slice 7 migrations `20260812134659_AddProductionEmailDelivery` and `20260812135446_AddEmailRetrySchedule` add provider message/status timestamps, durable confirmation deliveries, exact Development/Test captures, replay-safe webhook events, normalized suppression, and persisted retry scheduling. Slice 8 migration `20260812143802_AddPersistentDataProtectionKeys` adds the ASP.NET Core Data Protection key ring table. Provider message IDs and webhook `(Provider, EventId)` values are unique when present; controlled capture idempotency keys and normalized suppression addresses are unique.
+Slice 7 migrations `20260812134659_AddProductionEmailDelivery` and `20260812135446_AddEmailRetrySchedule` add provider message/status timestamps, durable confirmation deliveries, exact Development/Test captures, replay-safe webhook events, normalized suppression, and persisted retry scheduling. Slice 8 migration `20260812143802_AddPersistentDataProtectionKeys` adds the ASP.NET Core Data Protection key ring table. Slice 9 migration `20260812213653_AddAffiliateLinkProviders` adds provider-neutral program lifecycle, persisted validated/failure link state, and minimum non-PII click telemetry. Migration `20260814173414_AddRakutenConnector` adds the MerchantPolicy affiliate permission and the three Rakuten capability/source/run tables. Provider credentials and tokens are never stored in these tables.
 
 `RetailerListing` stores source identifiers, original title, SKU, canonical product ID, URL, approved handoff reference, seller/marketplace information, condition, JSON structured variant attributes, pack/bundle fields, region/availability/shipping context, timestamps, freshness, current permitted price, matching state, and policy reference.
 
@@ -28,8 +30,16 @@ The migration chain is:
 6. `20260812134659_AddProductionEmailDelivery`
 7. `20260812135446_AddEmailRetrySchedule`
 8. `20260812143802_AddPersistentDataProtectionKeys`
+9. `20260812213653_AddAffiliateLinkProviders`
+10. `20260814173414_AddRakutenConnector`
 
 No earlier migration was modified retroactively.
+
+`RakutenAdvertiserCapabilities` has a unique MID and records provider state separately from explicit operator mapping/enablement. `RakutenSourceMappings` uniquely binds `(AdvertiserMid, SourceListingKey)` and one listing to prevent duplicate ingestion. `RakutenImportRuns` records dry-run/live status and bounded counters without response payloads or secrets. Foreign keys use restrictive behavior so capability/policy/source audit is not silently erased.
+
+The Slice 9 Rakuten validation database applied all ten migrations from empty, ran a second current/no-op migration, and contained the Rakuten tables, affiliate tables, and `pg_trgm`. The 132-test PostgreSQL/provider suite then passed with zero skips.
+
+`AffiliatePrograms` has one provider relationship per `(RetailerId, Provider)` and stores only operational identifiers, current lifecycle, deep-link permission, approved destination/tracking domains, and redacted evidence references. `AffiliateLinks` retains provider-returned tracking URL, exact retailer destination, validation/revalidation/expiry state, and bounded failure reason. `ClickEvents` stores only an opaque ID, link/listing IDs, server-selected placement, and timestamp; it has no email, user ID, full IP, fingerprint, or arbitrary query data. Affiliate tables are separate from Product search, Deal Quality, price truth, and alert eligibility.
 
 `ListingIssueReports` references `RetailerListings` with `RESTRICT` delete behavior so quality/audit signals are not silently cascade-deleted. It stores a typed reason, typed lifecycle status, optional 500-character plain-text note, and creation/update timestamps. The `(Status, CreatedAt)` index supports review of OPEN reports in creation order. Multiple reports per listing are intentionally allowed.
 

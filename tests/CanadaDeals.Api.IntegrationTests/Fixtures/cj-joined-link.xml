@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cj-api>
+  <links total-matched="1" records-returned="1" page-number="1">
+    <link>
+      <advertiser-id>fake-advertiser</advertiser-id>
+      <advertiser-name>Home Depot Canada Test Fixture</advertiser-name>
+      <destination>https://www.homedepot.ca/product/fake-product</destination>
+      <link-id>fake-link</link-id>
+      <allow-deep-linking>true</allow-deep-linking>
+      <relationship-status>joined</relationship-status>
+      <clickUrl>https://www.tkqlhce.com/click-fake-property-fake-link</clickUrl>
+    </link>
+  </links>
+</cj-api>

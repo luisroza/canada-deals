@@ -139,6 +139,15 @@ services:
       - key: AffiliateHandoff__Enabled
         scope: RUN_TIME
         value: "false"
+      - key: Affiliate__Impact__Enabled
+        scope: RUN_TIME
+        value: "false"
+      - key: Affiliate__Cj__Enabled
+        scope: RUN_TIME
+        value: "false"
+      - key: Rakuten__Enabled
+        scope: RUN_TIME
+        value: "false"
     health_check:
       http_path: /health
       initial_delay_seconds: 30
@@ -201,6 +210,21 @@ workers:
       - key: Worker__EnqueueAlertEvaluationJob
         scope: RUN_TIME
         value: "true"
+      - key: Worker__EnqueueAffiliateLinkRefreshJob
+        scope: RUN_TIME
+        value: "false"
+      - key: Affiliate__Impact__Enabled
+        scope: RUN_TIME
+        value: "false"
+      - key: Affiliate__Cj__Enabled
+        scope: RUN_TIME
+        value: "false"
+      - key: Rakuten__Enabled
+        scope: RUN_TIME
+        value: "false"
+      - key: Worker__EnqueueRakutenCatalogImportJob
+        scope: RUN_TIME
+        value: "false"
     liveness_health_check:
       http_path: /health
       port: 8080

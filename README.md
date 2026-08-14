@@ -4,7 +4,7 @@ Canada Deals is a Canadian e-commerce deal-discovery platform intended to help s
 
 ## Current status
 
-The Human Product, Human UX, and Human Architecture / Data Integration Checkpoints are complete. Seven connector-neutral vertical slices are implemented and validated: trusted fixture-backed discovery, persisted stale/wrong listing reports, Save Product behind a minimal ASP.NET Core Identity boundary, Target Price Alert persistence/evaluation with durable deduplication, PostgreSQL Search + Filters, a bounded policy-safe Product History Evidence View, and the Production Email Delivery Boundary. The Resend adapter, confirmation, alert delivery, idempotency/retry, signed webhooks, and suppression are implemented; provider/DNS operational validation, password recovery, and retailer connectors remain gated.
+The Human Product, Human UX, and Human Architecture / Data Integration Checkpoints are complete. Vertical Slice 9 now includes the provider-neutral affiliate boundary plus an opt-in Rakuten Advertising connector for OAuth token reuse/refresh, advertiser/partnership discovery, deep links, Product Search XML, dry-run, and policy-gated catalog persistence. All behavior is deterministically validated with controlled fixtures; no merchant is live, no real Rakuten credential was used, and production activation remains blocked by the merchant approval and data-rights checkpoint.
 
 ## Development workflow
 

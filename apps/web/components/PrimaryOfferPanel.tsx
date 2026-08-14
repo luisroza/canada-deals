@@ -1,5 +1,6 @@
 import type { RetailerOffer } from "../lib/api";
 import { availabilityLabel } from "../lib/offerPresentation";
+import { OfferConditions } from "./OfferConditions";
 import { RetailerAction } from "./RetailerAction";
 import { freshnessTone, StateBadge } from "./StateBadge";
 
@@ -26,6 +27,7 @@ export function PrimaryOfferPanel({ offer }: { offer: RetailerOffer }) {
     </div>
     {stale && <p className="stale-guidance"><strong>This observed price may have changed.</strong> Verify the current price and availability at the retailer before deciding.</p>}
     <RetailerAction offer={offer} stickyOnMobile />
+    <OfferConditions offer={offer} />
     <p className="disclosure">{offer.disclosure}</p>
   </section>;
 }

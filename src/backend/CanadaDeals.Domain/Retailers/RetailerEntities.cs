@@ -1,6 +1,7 @@
 using System.Text.Json;
 using CanadaDeals.Domain.Common;
 using CanadaDeals.Domain.Policies;
+using CanadaDeals.Domain.Affiliates;
 
 namespace CanadaDeals.Domain.Retailers;
 
@@ -51,6 +52,7 @@ public sealed class RetailerListing
     public string? CurrentPriceCurrency { get; private set; }
     public Guid MerchantPolicyId { get; private set; }
     public MerchantPolicy MerchantPolicy { get; private set; } = null!;
+    public ICollection<AffiliateLink> AffiliateLinks { get; private set; } = new List<AffiliateLink>();
 
     public static RetailerListing Create(
         Guid productId,

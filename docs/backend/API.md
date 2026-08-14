@@ -2,11 +2,13 @@
 
 The MVP public contract is designed for same-site routing under `/api/*`. Local development runs the API on `http://localhost:5099` and uses the Next.js rewrite equivalent so the browser still addresses `/api/*` and `/go/*` on the web origin.
 
+Vertical Slice 9 adds no public Rakuten credential, discovery, import, or URL-generation endpoint. Those operations remain server-side Worker/operator commands. Public clients can only observe policy-safe catalog projections and use the existing `/go/{listingId}` boundary when a validated persisted link exists.
+
 ## Implemented endpoints
 
 ### `GET /api/v1/deals`
 
-Returns one fixture-backed canonical Product card per result with identity, brand, category, representative permitted retailer offer, current CAD price, freshness and observation time, evidence state/explanation, human-readable match state, history availability, supported reference price/savings when defensible, details, and a safe-handoff path only when an approved destination exists. Cards without an approved destination return `handoffPath: null` and do not expose a broken CTA.
+Returns one fixture-backed canonical Product card per result with identity, brand, category, representative permitted retailer offer, current CAD price, online availability, freshness and observation time, evidence state/explanation, human-readable match state, history availability, supported reference price/savings when defensible, details, and a safe-handoff path only when an ACTIVE program and usable persisted AffiliateLink exist. Otherwise `handoffPath` is null and no broken CTA is exposed.
 
 Supported query parameters are `search`, comma-separated `category` and `retailer`, `minPrice`, `maxPrice`, `hasReference`, comma-separated `freshness` (`recent`, `aging`, `stale`, `unknown`), `match` (`safe`, `review`, `none`), `availability` (`online`, `unavailable`, `unknown`), `sort` (`relevance`, `recent`, `savings`, `price-asc`), bounded `page`, and bounded `pageSize` (1–48). Filters are OR within one comma-separated dimension and AND across dimensions. Invalid values, unknown category/retailer keys, malformed numeric values, contradictory prices, and invalid page bounds return `400`.
 
@@ -16,7 +18,7 @@ The response includes `count`, effective `sort`, page metadata, `hasNext`, and p
 
 ### `GET /api/v1/products/{slug}`
 
-Returns canonical Product ID and slug, structured variant attributes, primary offer, safe same-product comparisons, possible related listings for review, history summary, and evidence summary. Possible variants never enter `safeComparisons`.
+Returns canonical Product ID and slug, structured variant attributes, primary offer, safe same-product comparisons, possible related listings for review, history summary, and evidence summary. Each offer exposes source-proven seller, condition, online availability, regional context, shipping context, and observation time. Null source facts remain null so the UI can label them unknown; coupon, membership/payment eligibility, and retailer offer expiry are not inferred from an affiliate link or a current-price observation. Possible variants never enter `safeComparisons`.
 
 ### `GET /api/v1/products/{slug}/history?window=30d|90d`
 
@@ -62,7 +64,7 @@ Accepts Resend lifecycle webhooks. It verifies the raw body against `svix-id`, `
 
 ### `GET /go/{listingId}`
 
-The client supplies only the internal listing ID. The server loads the configured listing, validates the approved destination host, logs a minimal fixture handoff event, and redirects. Arbitrary query-string destinations are ignored. Production handoff remains disabled until an approved affiliate program exists.
+The client supplies only the internal listing ID. The server loads the listing, ACTIVE `AffiliateProgram`, and current persisted `AffiliateLink`; validates HTTPS, no userinfo, retailer destination equality/domain, provider tracking domain, program status, and link expiry; persists a minimal opaque `ClickEvent`; and redirects to the provider-returned tracking URL. Arbitrary query-string destinations are ignored. Provider APIs are never called in this request. Missing, suspended, expired, or unapproved relationships return no redirect; invalid URL policy returns `503` without exposing the target. Production handoff stays disabled until the human activation checkpoint is satisfied.
 
 ### `GET /health`
 
@@ -89,4 +91,4 @@ Anonymous reporting stores no name, email, full IP address, or other required PI
 
 ## Deliberately deferred
 
-Password reset, MFA, production admin review, live affiliate link generation, and merchant-specific APIs remain deferred. Production email code is implemented; live provider/DNS validation remains blocked as documented in `docs/backend/EMAIL.md`.
+Password reset, MFA, production admin review, live provider credential validation, and merchant catalog/price APIs remain deferred. Impact/CJ tracking-link adapters are implemented deterministically, but no merchant is marked live. Production email code is implemented; live provider/DNS validation remains blocked as documented in `docs/backend/EMAIL.md`.

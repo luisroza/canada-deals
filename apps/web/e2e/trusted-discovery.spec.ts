@@ -47,11 +47,44 @@ async function authenticatedMutation(page: import("@playwright/test").Page, path
 test("visitor can inspect evidence, freshness, and safe comparison", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Deals with strong evidence." })).toBeVisible();
+  const northstarCard = page.locator(".deal-card", { has: page.getByRole("link", { name: "Northstar 55-inch QLED TV" }) });
+  await expect(northstarCard.getByText("Available online")).toBeVisible();
   await page.getByRole("link", { name: /Northstar 55-inch QLED TV/ }).first().click();
   await expect(page.getByRole("heading", { name: "Price evidence" })).toBeVisible();
   await expect(page.getByText(/history coverage|history unavailable/i).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Safe retailer comparison" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Offer conditions" })).toBeVisible();
+  await expect(page.getByText("Sold by Demo North Electronics").first()).toBeVisible();
+  await expect(page.getByText("Shipping calculated at checkout")).toBeVisible();
+  await expect(page.getByText(/No verified requirement was supplied/)).toBeVisible();
+  await expect(page.getByText(/No verified expiry was supplied/)).toBeVisible();
   await expect(page.locator(".primary-offer").getByRole("link", { name: "Continue to Demo North Electronics" })).toHaveAttribute("href", /\/go\//);
+});
+
+test("affiliate CTA stays centralized on go and resolves a persisted safe tracking link", async ({ page }) => {
+  await page.goto("/products/northstar-55-qled-tv");
+  const cta = page.locator(".primary-offer").getByRole("link", { name: "Continue to Demo North Electronics" });
+  const href = await cta.getAttribute("href");
+  expect(href).toMatch(/^\/go\/[0-9a-f-]+$/i);
+
+  const response = await page.request.get(href!, { maxRedirects: 0 });
+  expect(response.status()).toBe(302);
+  expect(response.headers().location).toMatch(/^https:\/\/demo\.local\//);
+});
+
+test("controlled Rakuten fixture crosses search, product evidence, and persisted handoff", async ({ page }) => {
+  await page.goto("/?search=RKT-FIXTURE-100");
+  await page.getByRole("link", { name: "Rakuten Controlled Fixture Headphones" }).click();
+  await expect(page.getByRole("heading", { name: "Rakuten Controlled Fixture Headphones" })).toBeVisible();
+  await expect(page.getByText("Rakuten Controlled Fixture Retailer").first()).toBeVisible();
+
+  const cta = page.locator(".primary-offer").getByRole("link", { name: "Continue to Rakuten Controlled Fixture Retailer" });
+  const href = await cta.getAttribute("href");
+  expect(href).toMatch(/^\/go\/[0-9a-f-]+$/i);
+
+  const response = await page.request.get(href!, { maxRedirects: 0 });
+  expect(response.status()).toBe(302);
+  expect(response.headers().location).toBe("https://click.linksynergy.test/deep?id=fixture-only");
 });
 
 test("visitor sees a possible variant outside safe comparison", async ({ page }) => {
@@ -146,6 +179,8 @@ test("homepage remains usable at a representative mobile viewport", async ({ pag
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "Deals with strong evidence." })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Mobile primary navigation" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Mobile primary navigation" }).getByRole("link")).toHaveCount(5);
   await expect(page.getByRole("main")).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(page.locator(":focus")).toBeVisible();
@@ -157,6 +192,17 @@ test("homepage remains usable at a representative mobile viewport", async ({ pag
   expect(searchTop).toBeLessThan(trustTop);
   expect(firstDealTop).toBeLessThan(1000);
   await expect(page.getByText(/Alert product [0-9a-f]{32}/i)).not.toBeVisible();
+});
+
+test("global search offers model and category suggestions on every page", async ({ page }) => {
+  await page.goto("/products/northstar-quiet-headphones");
+  const search = page.getByRole("combobox", { name: "Search products, models, or categories" });
+  await search.fill("NS55QLED-2026");
+  await expect(page.getByRole("listbox", { name: "Search suggestions" })).toBeVisible();
+  await expect(page.getByRole("option", { name: /Northstar 55-inch QLED TV/ })).toBeVisible();
+  await search.press("ArrowDown");
+  await search.press("Enter");
+  await expect(page).toHaveURL(/\/products\/northstar-55-qled-tv/);
 });
 
 test("exact model search uses relevance and opens the canonical product", async ({ page }) => {
@@ -171,6 +217,9 @@ test("exact model search uses relevance and opens the canonical product", async 
 
 test("combined discovery filters remain visible in the URL and exclude unsafe variants", async ({ page }) => {
   await page.goto("/");
+  await expect(page.locator("#filter-panel")).not.toBeVisible();
+  await page.getByRole("button", { name: "Filters" }).click();
+  await expect(page.getByRole("region", { name: "Filter deals", exact: true })).toBeVisible();
   await page.getByLabel("Category").selectOption("home-improvement-tools");
   await page.getByLabel("Minimum price").fill("100");
   await page.getByLabel("Maximum price").fill("200");

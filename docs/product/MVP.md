@@ -18,8 +18,8 @@ Validate that Canadian planned-purchase shoppers will use an evidence-rich deal 
 | Category deal feed | Shoppers need a focused starting point | Validates the core discovery loop | A visitor can browse current offers with category and freshness context |
 | Search | Shoppers often begin with a planned product | Captures high-intent demand | Search returns relevant products and does not require an account |
 | Filters | Broad feeds create noise | Makes the wedge usable | Retailer, category, price, discount, freshness, and online availability can be narrowed |
-| Deal card | Users need a fast comparison surface | Core UI for click testing | Card shows product, CAD price, retailer, evidence state, timestamp, and CTA |
-| Product page | A deal feed alone cannot explain value | Supports trust and conversion | Page shows offer context, safe comparisons, history when available, disclosure, and report action |
+| Deal card | Users need a fast comparison surface | Core UI for click testing | Card shows product, CAD price, retailer, online availability, evidence state, timestamp, and CTA |
+| Product page | A deal feed alone cannot explain value | Supports trust and conversion | Page shows offer context, safe comparisons, history when available, seller/condition/availability/shipping/region facts, explicit unknown coupon/eligibility/expiry boundaries, disclosure, and report action |
 | Freshness and confidence | Stale or weak data destroys trust | Differentiation depends on it | Each offer has a visible last-checked/freshness state and identity-confidence rule |
 | Safe same-product comparison | Users otherwise open several retailer sites | Main cross-retailer value | Comparisons appear only when identity/variant confidence passes a defined threshold |
 | Save product/deal | Planned shoppers need a lightweight return path | Low-cost retention test | User can save without a complex onboarding flow |

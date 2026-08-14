@@ -1,0 +1,16 @@
+{
+  "metadata": { "page": 1, "limit": 100, "total": 2 },
+  "partnerships": [
+    {
+      "advertiser": { "id": 101, "name": "Controlled Canada Merchant", "status": "active" },
+      "status": "active",
+      "status_update_datetime": "2026-08-13T12:00:00Z",
+      "approve_datetime": "2026-08-12T12:00:00Z"
+    },
+    {
+      "advertiser": { "id": 202, "name": "Inactive Merchant", "status": "inactive" },
+      "status": "pending",
+      "status_update_datetime": "2026-08-13T13:00:00Z"
+    }
+  ]
+}

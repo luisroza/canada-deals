@@ -1,0 +1,13 @@
+{
+  "_metadata": { "api_name_version": "links-deep-links-v1.0.0" },
+  "advertiser": {
+    "id": 101,
+    "name": "Controlled Canada Merchant",
+    "url": "https://merchant.safe.test",
+    "deep_link": {
+      "deep_link_url": "https://click.linksynergy.test/deeplink?id=controlled",
+      "u1": "listing_controlled",
+      "url": "https://merchant.safe.test/products/qled-tv"
+    }
+  }
+}

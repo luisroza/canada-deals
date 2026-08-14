@@ -27,7 +27,7 @@
 
 - Better product/variant matching and evidence explanations.
 - Add retailers only when quality thresholds pass.
-- Brand, retailer, and category alerts.
+- Saved-search, keyword, brand, retailer, and category alert experiment with frequency controls and a strong/fresh-evidence default.
 - Low-noise weekly digest.
 - Narrow French-language validation for one category or region.
 - Buying guides linked to live, non-thin offers.
@@ -42,7 +42,7 @@
 - High-quality category, retailer, brand, and product SEO pages.
 - Editorial collections and seasonal campaigns.
 - Browser-extension research and limited prototype.
-- Verified community signals, such as user reports or comments, only with moderation capacity.
+- Structured community confirmations such as price changed, coupon worked, or out of stock, only with abuse controls and a review queue; comments remain deferred until moderation capacity exists.
 - More regional and French coverage.
 - Optional merchant sponsorship with strict labels and ranking separation.
 

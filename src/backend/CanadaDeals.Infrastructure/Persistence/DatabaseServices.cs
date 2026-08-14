@@ -1,5 +1,7 @@
 using CanadaDeals.Domain.Common;
+using CanadaDeals.Domain.Affiliates;
 using CanadaDeals.Domain.Catalog;
+using CanadaDeals.Domain.Integrations;
 using CanadaDeals.Domain.Policies;
 using CanadaDeals.Domain.Retailers;
 using Microsoft.EntityFrameworkCore;
@@ -76,7 +78,17 @@ public static class DatabaseServices
     {
         await using var scope = services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<DealsDbContext>();
-        await context.Database.MigrateAsync(cancellationToken);
+        await context.Database.OpenConnectionAsync(cancellationToken);
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync("SELECT pg_advisory_lock(1120260810)", cancellationToken);
+            await context.Database.MigrateAsync(cancellationToken);
+        }
+        finally
+        {
+            await context.Database.ExecuteSqlRawAsync("SELECT pg_advisory_unlock(1120260810)", cancellationToken);
+            await context.Database.CloseConnectionAsync();
+        }
         if (seedDemoData)
         {
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
@@ -93,7 +105,15 @@ public static class DemoDataSeeder
     {
         if (await db.Products.AnyAsync(cancellationToken))
         {
+            var demoPolicy = await db.MerchantPolicies.SingleOrDefaultAsync(policy => policy.SourceKey == "demo-fixture", cancellationToken);
+            if (demoPolicy is not null && !demoPolicy.CanUseAffiliateLinks)
+            {
+                demoPolicy.SetAffiliateLinkPermission(PolicyPermission.Allowed, DateTimeOffset.UtcNow);
+                await db.SaveChangesAsync(cancellationToken);
+            }
             await EnsureSlice6HistoryFixturesAsync(db, DateTimeOffset.UtcNow, cancellationToken);
+            await EnsureAffiliateFixturesAsync(db, DateTimeOffset.UtcNow, cancellationToken);
+            await EnsureRakutenE2eFixtureAsync(db, DateTimeOffset.UtcNow, cancellationToken);
             return;
         }
 
@@ -110,7 +130,8 @@ public static class DemoDataSeeder
             "Demo fixture data - no live retailer relationship.",
             7,
             "Local synthetic data only",
-            now);
+            now,
+            PolicyPermission.Allowed);
         var unknownPolicy = MerchantPolicy.Create(
             "unknown-fixture-policy",
             PolicyPermission.Unknown,
@@ -195,6 +216,143 @@ public static class DemoDataSeeder
         db.AddRange(observations);
         await db.SaveChangesAsync(cancellationToken);
         await EnsureSlice6HistoryFixturesAsync(db, now, cancellationToken);
+        await EnsureAffiliateFixturesAsync(db, now, cancellationToken);
+        await EnsureRakutenE2eFixtureAsync(db, now, cancellationToken);
+    }
+
+    private static async Task EnsureAffiliateFixturesAsync(DealsDbContext db, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var retailers = await db.Retailers
+            .Where(retailer => retailer.Key == "demo-north-electronics" || retailer.Key == "demo-home-tool")
+            .ToListAsync(cancellationToken);
+        var retailerIdsWithFixtureProgram = await db.AffiliatePrograms
+            .Where(program => program.Provider == AffiliateProviderType.Other && retailers.Select(retailer => retailer.Id).Contains(program.RetailerId))
+            .Select(program => program.RetailerId)
+            .ToListAsync(cancellationToken);
+        foreach (var retailer in retailers)
+        {
+            if (retailerIdsWithFixtureProgram.Contains(retailer.Id)) continue;
+
+            var program = AffiliateProgram.Create(
+                retailer.Id, AffiliateProviderType.Other, AffiliateProgramStatus.Active, now,
+                providerProgramId: $"fixture-{retailer.Key}", mediaPropertyId: "fixture-web",
+                allowsDeepLinking: true, destinationDomains: ["demo.local"], trackingDomains: ["demo.local"],
+                relationshipEvidenceReference: "FIXTURE_ONLY", relationshipValidatedAt: now);
+            db.AffiliatePrograms.Add(program);
+
+            var listings = await db.RetailerListings
+                .Where(listing => listing.RetailerId == retailer.Id && listing.ApprovedAffiliateDestinationReference != null)
+                .ToListAsync(cancellationToken);
+            foreach (var listing in listings)
+            {
+                db.AffiliateLinks.Add(AffiliateLink.CreateActive(
+                    listing.Id, program.Id, AffiliateProviderType.Other,
+                    listing.ApprovedAffiliateDestinationReference!, listing.ApprovedAffiliateDestinationReference!,
+                    now, now.AddYears(1), now.AddYears(2), "fixture-link"));
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task EnsureRakutenE2eFixtureAsync(DealsDbContext db, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        const string productSlug = "rakuten-controlled-fixture-headphones";
+        const string retailerKey = "rakuten-controlled-fixture-retailer";
+        const string listingKey = "RAKUTEN-FIXTURE-LINK-1";
+        const string advertiserMid = "900000001";
+
+        if (await db.Products.AnyAsync(product => product.Slug == productSlug, cancellationToken)) return;
+
+        var policy = await db.MerchantPolicies.SingleAsync(item => item.SourceKey == "demo-fixture", cancellationToken);
+        var category = await db.Categories.SingleAsync(item => item.Slug == "electronics", cancellationToken);
+        var brand = await db.Brands.SingleAsync(item => item.Slug == "northstar-demo", cancellationToken);
+        var retailer = Retailer.Create(retailerKey, "Rakuten Controlled Fixture Retailer");
+        var product = Product.Create(
+            productSlug,
+            "Rakuten Controlled Fixture Headphones",
+            brand,
+            category,
+            "RKT-FIXTURE-100",
+            "RKT-FIXTURE-100",
+            "990000000009",
+            new Dictionary<string, string> { ["fixtureSource"] = "rakuten-controlled" });
+
+        db.AddRange(retailer, product);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var destinationUrl = "https://merchant.safe.test/products/rakuten-controlled-fixture-headphones";
+        var listing = RetailerListing.Create(
+            product.Id,
+            retailer.Id,
+            listingKey,
+            product.Title,
+            destinationUrl,
+            policy.Id,
+            MatchState.Confirmed,
+            now.AddMinutes(-10),
+            now.AddMinutes(-10),
+            199.99m,
+            "CAD",
+            FreshnessState.Recent,
+            EvidenceState.Strong,
+            HistoryAvailability.Unavailable,
+            product.VariantAttributes,
+            new Dictionary<string, string> { ["upc"] = "990000000009" },
+            retailerSku: "RKT-FIXTURE-100",
+            approvedAffiliateDestinationReference: destinationUrl,
+            seller: null,
+            isMarketplaceSeller: null,
+            condition: ProductCondition.Unknown,
+            regionAvailabilityContext: "Canada",
+            onlineAvailability: OnlineAvailabilityState.Unknown);
+        db.RetailerListings.Add(listing);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var capability = RakutenAdvertiserCapability.Create(
+            advertiserMid,
+            "Rakuten Controlled Fixture Advertiser",
+            "https://merchant.safe.test",
+            IntegrationAdvertiserStatus.Active,
+            IntegrationPartnershipStatus.Active,
+            ["CA"],
+            productFeedAvailable: true,
+            deepLinksAvailable: true,
+            checkedAt: now,
+            partnershipApprovedAt: now,
+            partnershipStatusUpdatedAt: now);
+        capability.ConfigureOperatorMapping(retailer.Id, policy.Id, canadaRelevant: true, affiliateEnabled: true, catalogEnabled: true, now);
+
+        var program = AffiliateProgram.Create(
+            retailer.Id,
+            AffiliateProviderType.Rakuten,
+            AffiliateProgramStatus.Active,
+            now,
+            providerProgramId: advertiserMid,
+            allowsDeepLinking: true,
+            destinationDomains: ["merchant.safe.test"],
+            trackingDomains: ["click.linksynergy.test"],
+            relationshipEvidenceReference: "FIXTURE_ONLY_RAKUTEN_CONTROLLED_CONTRACT",
+            relationshipValidatedAt: now);
+
+        db.AddRange(
+            capability,
+            program,
+            RakutenSourceMapping.Create(advertiserMid, listingKey, listing.Id, now),
+            PriceObservation.Create(listing.Id, 199.99m, "CAD", now.AddMinutes(-10), now.AddMinutes(-10), true, "rakuten-fixture-current"));
+        await db.SaveChangesAsync(cancellationToken);
+
+        db.AffiliateLinks.Add(AffiliateLink.CreateActive(
+            listing.Id,
+            program.Id,
+            AffiliateProviderType.Rakuten,
+            "https://click.linksynergy.test/deep?id=fixture-only",
+            destinationUrl,
+            now,
+            now.AddYears(1),
+            now.AddYears(2),
+            "FIXTURE_ONLY"));
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private static async Task EnsureSlice6HistoryFixturesAsync(DealsDbContext db, DateTimeOffset now, CancellationToken cancellationToken)
