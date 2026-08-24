@@ -68,8 +68,10 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.Slug).IsUnique();
+            entity.HasIndex(x => new { x.IsEnabled, x.Name });
             entity.Property(x => x.Name).HasMaxLength(120).IsRequired();
             entity.Property(x => x.Slug).HasMaxLength(140).IsRequired();
+            entity.Property(x => x.IsEnabled).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<Category>(entity =>
@@ -172,6 +174,7 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
             entity.HasIndex(x => x.ProductId);
             entity.HasIndex(x => x.SourceObservedAt);
             entity.HasIndex(x => x.CurrentPriceAmount);
+            entity.HasIndex(x => new { x.IsEnabled, x.OfferValidUntil });
             entity.HasIndex(x => new { x.OnlineAvailability, x.MatchState });
             entity.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Retailer).WithMany().HasForeignKey(x => x.RetailerId).OnDelete(DeleteBehavior.Restrict);

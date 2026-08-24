@@ -7,6 +7,27 @@ public sealed record AdminSessionResponse(bool IsAuthenticated, bool IsAdmin, st
 
 public sealed record AdminReferenceOption(Guid Id, string Key, string Label, bool IsEnabled = true);
 
+public sealed record AdminBrandManagementResponse(
+    Guid Id,
+    string Name,
+    string Slug,
+    bool IsEnabled,
+    int ProductCount,
+    int PublishedOfferCount);
+
+public sealed record AdminProductReference(
+    Guid Id,
+    string Slug,
+    string Title,
+    Guid BrandId,
+    string Brand,
+    Guid CategoryId,
+    string Category,
+    string? ModelNumber,
+    string? ManufacturerPartNumber,
+    string? Gtin,
+    IReadOnlyDictionary<string, string> VariantAttributes);
+
 public sealed record AdminCategoryManagementResponse(
     Guid Id,
     string Name,
@@ -75,6 +96,7 @@ public sealed record AdminOfferResponse(
     IReadOnlyDictionary<string, string> ExternalIdentifiers,
     DateTimeOffset? ObservedAt,
     DateTimeOffset? FetchedAt,
+    DateTimeOffset? OfferValidUntil,
     decimal? CurrentPrice,
     string Currency,
     string MatchState,
@@ -166,6 +188,8 @@ public sealed record AdminDashboardResponse(
     IReadOnlyList<AdminReferenceOption> Brands,
     IReadOnlyList<AdminReferenceOption> Categories,
     IReadOnlyList<AdminReferenceOption> Retailers,
+    IReadOnlyList<AdminProductReference> Products,
+    IReadOnlyList<AdminBrandManagementResponse> ManagedBrands,
     IReadOnlyList<AdminCategoryManagementResponse> ManagedCategories,
     IReadOnlyList<AdminRetailerManagementResponse> ManagedRetailers,
     IReadOnlyList<AdminPolicyOption> Policies,
@@ -175,6 +199,15 @@ public sealed record AdminDashboardResponse(
     IReadOnlyList<AdminBannerResponse> Banners,
     IReadOnlyList<AdminReportResponse> Reports,
     IReadOnlyList<AdminAuditResponse> RecentAudit);
+
+public sealed record CreateAdminBrandRequest(
+    [Required, MaxLength(120)] string Name,
+    [Required, MaxLength(140)] string Slug);
+
+public sealed record UpdateAdminBrandRequest(
+    [Required, MaxLength(120)] string Name,
+    bool IsEnabled,
+    [MaxLength(300)] string? ChangeReason);
 
 public sealed record CreateAdminCategoryRequest(
     [Required, MaxLength(120)] string Name,
@@ -195,6 +228,7 @@ public sealed record UpdateAdminRetailerRequest(
     [MaxLength(300)] string? ChangeReason);
 
 public sealed record UpsertAdminOfferRequest(
+    Guid? ProductId,
     [Required, MaxLength(140)] string Slug,
     [Required, MaxLength(240)] string ProductTitle,
     Guid BrandId,
@@ -222,6 +256,7 @@ public sealed record UpsertAdminOfferRequest(
     [Range(typeof(decimal), "0.01", "1000000")] decimal CurrentPrice,
     DateTimeOffset ObservedAt,
     DateTimeOffset FetchedAt,
+    DateTimeOffset? OfferValidUntil,
     [Required, MaxLength(40)] string MatchState,
     bool IsEnabled,
     [MaxLength(300)] string? ChangeReason);
@@ -237,7 +272,6 @@ public sealed record UpsertAdminBannerRequest(
     DateTimeOffset? EffectiveAt,
     DateTimeOffset? ExpiresAt,
     [Range(0, 10000)] int BannerOrder,
-    bool IsEnabled,
     [MaxLength(300)] string? ChangeReason);
 
 public sealed record UpdateAdminBannerSelectionRequest(

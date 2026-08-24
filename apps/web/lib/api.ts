@@ -146,11 +146,14 @@ export type SavedProduct = {
   productImage: ProductImageData | null;
 };
 
-const configuredApiBase = process.env.API_BASE_URL;
-if (process.env.NODE_ENV === "production" && !configuredApiBase) {
-  throw new Error("API_BASE_URL is required in production.");
+export function resolveApiBase(configuredApiBase: string | undefined, environment: string | undefined, browserRuntime: boolean) {
+  if (environment === "production" && !configuredApiBase && !browserRuntime) {
+    throw new Error("API_BASE_URL is required in production.");
+  }
+  return configuredApiBase ?? (browserRuntime ? "" : "http://localhost:5099");
 }
-const apiBase = configuredApiBase ?? "http://localhost:5099";
+
+const apiBase = resolveApiBase(process.env.API_BASE_URL, process.env.NODE_ENV, typeof window !== "undefined");
 
 export function publicHandoffPath(path: string) {
   return path;

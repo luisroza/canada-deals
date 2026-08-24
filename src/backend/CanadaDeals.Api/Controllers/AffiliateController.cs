@@ -21,13 +21,14 @@ public sealed class AffiliateController(DealsDbContext db, IConfiguration config
             .SingleOrDefaultAsync(candidate => candidate.Key == retailerKey && candidate.IsEnabled, cancellationToken);
         if (retailer is null) return NotFound();
 
+        var now = clock.GetUtcNow();
         var policyAllowsAffiliate = await db.RetailerListings.AsNoTracking()
-            .AnyAsync(listing => listing.IsEnabled && listing.RetailerId == retailer.Id &&
+            .AnyAsync(listing => listing.IsEnabled && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
+                                 listing.Product.Brand.IsEnabled && listing.Product.Category.IsEnabled && listing.RetailerId == retailer.Id &&
                                  listing.MerchantPolicy.AllowAffiliateLinks == PolicyPermission.Allowed,
                 cancellationToken);
         if (!policyAllowsAffiliate) return NotFound();
 
-        var now = clock.GetUtcNow();
         var destination = await db.StoreAffiliateDestinations
             .Include(candidate => candidate.AffiliateProgram)
             .Where(candidate => candidate.RetailerId == retailer.Id && candidate.Status == AffiliateLinkStatus.Active)
@@ -79,14 +80,15 @@ public sealed class AffiliateController(DealsDbContext db, IConfiguration config
     {
         if (!configuration.GetValue<bool>("AffiliateHandoff:Enabled")) return NotFound();
 
+        var now = clock.GetUtcNow();
         var listing = await db.RetailerListings
             .Include(x => x.MerchantPolicy)
             .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
-            .SingleOrDefaultAsync(x => x.IsEnabled && x.Retailer.IsEnabled && x.Product.Category.IsEnabled && x.Id == listingId, cancellationToken);
+            .SingleOrDefaultAsync(x => x.IsEnabled && (x.OfferValidUntil == null || x.OfferValidUntil > now) &&
+                x.Retailer.IsEnabled && x.Product.Brand.IsEnabled && x.Product.Category.IsEnabled && x.Id == listingId, cancellationToken);
 
         if (listing is null || !listing.MerchantPolicy.CanUseAffiliateLinks ||
             string.IsNullOrWhiteSpace(listing.ApprovedAffiliateDestinationReference)) return NotFound();
-        var now = clock.GetUtcNow();
         var link = listing.AffiliateLinks
             .Where(candidate => candidate.Status == AffiliateLinkStatus.Active && candidate.IsUsable(now) &&
                                 candidate.AffiliateProgram.Status == AffiliateProgramStatus.Active)

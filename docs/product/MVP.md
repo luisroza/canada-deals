@@ -26,7 +26,7 @@ Validate that Canadian shoppers can find relevant promotions quickly, trust the 
 | Wishlist | Shoppers need a lightweight return path | Low-cost retention test | A signed-in user can save from Deal Cards or Product Pages, see a synchronized count, organize the list locally, and remove products without alerts or target prices |
 | Affiliate/outbound measurement | Business viability needs qualified traffic | Must be measurable from day one | Retailer handoff is trackable and affiliate disclosure is visible |
 | Stale/incorrect report | Automated data will be imperfect | Creates a correction loop | User can report a stale price or wrong product |
-| Owner operations | Offers, banners, and reports require a safe correction path | Keeps public data manageable without a large CMS | One role-protected owner can draft/publish/deactivate offers, select the homepage carousel, upload bounded reviewed raster artwork, manage rights-gated banners, resolve reports, and inspect audit; public users cannot discover or access these operations |
+| Owner operations | Catalog, offers, banners, and reports require a safe correction path | Keeps public data manageable without a large CMS | One role-protected owner can manage brands/categories/stores, create a Product or attach a store offer to an existing Product, apply optional offer validity, draft/publish/deactivate offers, select the homepage carousel, upload bounded reviewed raster artwork, manage rights-gated banners, resolve reports, and inspect audit; public users cannot discover or access these operations |
 
 ## Priority bands
 
@@ -70,7 +70,8 @@ Wishlist persistence and usability only: card-level save, synchronized count, re
 - Product price-history charts, historical-low claims, and target-price alerts are not exposed.
 - Store banners never invent a direct retailer destination. Until a persisted provider-approved store-level affiliate destination exists, they open the store-filtered GreatDeals feed. Approved store destinations use `/go/store/{retailerKey}`; product CTAs continue through `/go/{listingId}`.
 - The owner controls carousel membership through one explicit active selection and controls sequence through Carousel position. A store without an active configured profile never appears implicitly. The public rail remains one row, shows at most four banners at desktop width, and progressively exposes fewer banners per viewport on smaller screens without limiting the total enabled set.
-- Owner administration can create and manage Category and Store records. New records begin inactive; slug/store key are immutable; deactivation is audited and reversible; no linked Product, offer, Wishlist, banner, affiliate, or history data is deleted. Inactive categories and stores fail closed across public discovery and handoff.
+- Owner administration can create and manage Brand, Category, and Store records. New records begin inactive; brand/category slugs and store keys are immutable; deactivation is audited and reversible; no linked Product, offer, Wishlist, banner, affiliate, or history data is deleted. Inactive brands, categories, and stores fail closed across public discovery and handoff.
+- A second retailer offer for the same confirmed item attaches to the existing canonical Product. Product slugs remain immutable, and an optional source-provided validity time automatically hides an expired offer from discovery and handoff.
 
 ## Success criteria
 

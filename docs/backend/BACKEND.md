@@ -11,6 +11,7 @@ Implemented modules for this slice:
 
 - Catalog: Product, Brand, Category.
 - Retailers/Listings: Retailer and the expanded RetailerListing contract.
+- Owner administration: inactive-by-default Brand/Category/Store lifecycle, canonical Product reuse for additional offers, immutable Product slugs, optional offer validity, reviewed assets, reversible publication, and audit.
 - PriceTruth: permitted current price, evidence state, history availability, and freshness.
 - Matching: deterministic-first match states and safe comparison filtering.
 - Affiliate boundary: provider-neutral `IAffiliateLinkProvider`, Impact and CJ HTTP adapters, persisted `AffiliateProgram`/`AffiliateLink`/`ClickEvent`, refresh service/job, and fail-closed `/go/{listingId}`. Public clicks never call provider APIs and React never receives provider URLs or credentials.
@@ -28,7 +29,7 @@ The production cookie is `Secure`, `HttpOnly`, `SameSite=Lax`, host-only, and ha
 
 Alert mutations use a user-partitioned fixed-window limit of 30 per minute. An alert cannot be ACTIVE unless the account email is confirmed. Evaluation considers only available, policy-permitted, safely matched, fresh current observations for the canonical Product; history, Deal Quality, saves/popularity, and affiliate commission are not inputs. One configuration is stored per `(UserId, ProductId)`. A changed/reactivated target increments `TargetVersion`; a below-target cycle is notified once until the price rises above target or the target changes.
 
-Production registration creates an unconfirmed account, sends a durable confirmation message through the configured provider boundary, and does not sign in until Identity confirms the token. Development/Test can either auto-confirm or persist exact `DEVELOPMENT_CAPTURED` email evidence. Production records provider acceptance separately from webhook-confirmed delivery. Provider/DNS operational validation is still blocked; password recovery, MFA, full admin workflows, live affiliate credentials, and merchant catalog/price connectors remain unimplemented.
+Production registration creates an unconfirmed account, sends a durable confirmation message through the configured provider boundary, and does not sign in until Identity confirms the token. Development/Test can either auto-confirm or persist exact `DEVELOPMENT_CAPTURED` email evidence. Production records provider acceptance separately from webhook-confirmed delivery. Provider/DNS operational validation is still blocked; password recovery, MFA, live affiliate credentials, and merchant catalog/price connectors remain unimplemented.
 
 Affiliate activation is optional. Disabled Impact/CJ providers require no credentials and do not prevent startup. Enabling a provider validates its server-only credentials at startup. A refresh first validates the local ACTIVE relationship record and merchant destination, then asks the provider to verify current relationship/deep-link capability and return an allowlisted tracking URL. Relationship/deep-link failures suspend the program; authentication/configuration/destination failures mark it incomplete; rate limits and temporary outages retain an existing valid link. Commission and EPC are neither persisted in the Product model nor available to ranking, evidence, comparison, or alert evaluation.
 

@@ -10,11 +10,34 @@ public sealed class Brand
     public Guid Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public string Slug { get; private set; } = string.Empty;
+    public bool IsEnabled { get; private set; } = true;
 
-    public static Brand Create(string name, string slug) => new()
+    public static Brand Create(string name, string slug, bool enabled = true)
     {
-        Id = Guid.NewGuid(), Name = name, Slug = slug
-    };
+        ValidateName(name);
+        ValidateSlug(slug);
+        return new Brand { Id = Guid.NewGuid(), Name = name.Trim(), Slug = slug.Trim(), IsEnabled = enabled };
+    }
+
+    public void UpdateAdministrativeName(string name)
+    {
+        ValidateName(name);
+        Name = name.Trim();
+    }
+
+    public void SetEnabled(bool enabled) => IsEnabled = enabled;
+
+    private static void ValidateName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 120)
+            throw new ArgumentException("A brand name of at most 120 characters is required.", nameof(name));
+    }
+
+    private static void ValidateSlug(string slug)
+    {
+        if (string.IsNullOrWhiteSpace(slug) || slug.Trim().Length > 140)
+            throw new ArgumentException("A brand slug of at most 140 characters is required.", nameof(slug));
+    }
 }
 
 public sealed class Category
@@ -105,7 +128,6 @@ public sealed class Product
         JsonSerializer.Deserialize<Dictionary<string, string>>(VariantAttributesJson) ?? new Dictionary<string, string>();
 
     public void UpdateAdministrativeIdentity(
-        string slug,
         string title,
         Brand brand,
         Category category,
@@ -114,8 +136,7 @@ public sealed class Product
         string? gtin,
         IReadOnlyDictionary<string, string>? variantAttributes)
     {
-        var replacement = Create(slug, title, brand, category, modelNumber, manufacturerPartNumber, gtin, variantAttributes);
-        Slug = replacement.Slug;
+        var replacement = Create(Slug, title, brand, category, modelNumber, manufacturerPartNumber, gtin, variantAttributes);
         Title = replacement.Title;
         Brand = brand;
         BrandId = brand.Id;

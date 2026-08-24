@@ -6,6 +6,7 @@ using CanadaDeals.Api.Security;
 using CanadaDeals.Infrastructure.Identity;
 using CanadaDeals.Infrastructure.Persistence;
 using CanadaDeals.Domain.Reporting;
+using CanadaDeals.Domain.Retailers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -85,13 +86,14 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
     {
         await using var scope = fixture.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<DealsDbContext>();
-        var brandId = await db.Brands.OrderBy(item => item.Name).Select(item => item.Id).FirstAsync();
-        var categoryId = await db.Categories.OrderBy(item => item.Name).Select(item => item.Id).FirstAsync();
+        var brandId = await db.Brands.Where(item => item.IsEnabled).OrderBy(item => item.Name).Select(item => item.Id).FirstAsync();
+        var categoryId = await db.Categories.Where(item => item.IsEnabled).OrderBy(item => item.Name).Select(item => item.Id).FirstAsync();
         var retailerId = await db.Retailers.Where(item => item.IsEnabled).OrderBy(item => item.Name).Select(item => item.Id).FirstAsync();
         var policyId = await db.MerchantPolicies.Where(item => item.SourceKey == "demo-fixture").Select(item => item.Id).SingleAsync();
         var now = DateTimeOffset.UtcNow;
         return new
         {
+            productId = (Guid?)null,
             slug,
             productTitle = "Admin Controlled Offer",
             brandId,
@@ -119,6 +121,7 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
             currentPrice = 99.99m,
             observedAt = now,
             fetchedAt = now,
+            offerValidUntil = (DateTimeOffset?)null,
             matchState = "CONFIRMED",
             isEnabled = enabled,
             changeReason = "Integration test"
@@ -207,6 +210,103 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
     }
 
     [RequiresPostgresFact]
+    public async Task Owner_can_manage_brands_and_deactivation_closes_public_discovery()
+    {
+        var client = await CreateAuthenticatedAsync(admin: true);
+        var slug = $"managed-brand-{Guid.NewGuid():N}";
+        using var created = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/brands", new { name = "Managed Brand", slug });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var createdJson = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var brandId = createdJson.RootElement.GetProperty("brandId").GetGuid();
+
+        using var activated = await MutateAsync(client, HttpMethod.Put, $"/api/v1/admin/brands/{brandId}", new { name = "Managed Brand Canada", isEnabled = true, changeReason = "Identity reviewed" });
+        Assert.Equal(HttpStatusCode.NoContent, activated.StatusCode);
+
+        var productSlug = $"managed-brand-product-{Guid.NewGuid():N}";
+        var offer = JsonSerializer.SerializeToNode(await OfferInputAsync(productSlug, enabled: true))!.AsObject();
+        offer["brandId"] = brandId;
+        using var offerCreated = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", offer);
+        Assert.Equal(HttpStatusCode.Created, offerCreated.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/v1/products/{productSlug}")).StatusCode);
+
+        using var deactivated = await MutateAsync(client, HttpMethod.Put, $"/api/v1/admin/brands/{brandId}", new { name = "Managed Brand Canada", isEnabled = false, changeReason = "Brand hidden pending review" });
+        Assert.Equal(HttpStatusCode.NoContent, deactivated.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/v1/products/{productSlug}")).StatusCode);
+
+        await using var verification = fixture.Services.CreateAsyncScope();
+        var db = verification.ServiceProvider.GetRequiredService<DealsDbContext>();
+        Assert.True(await db.Products.AnyAsync(product => product.BrandId == brandId));
+        Assert.True(await db.AdminAuditEvents.AnyAsync(item => item.EntityId == brandId && item.Action == "DEACTIVATE"));
+    }
+
+    [RequiresPostgresFact]
+    public async Task Owner_can_add_a_second_retailer_offer_to_an_existing_product_without_duplicating_it()
+    {
+        var client = await CreateAuthenticatedAsync(admin: true);
+        var slug = $"multi-offer-{Guid.NewGuid():N}";
+        using var first = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", await OfferInputAsync(slug, enabled: true));
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        using var firstJson = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
+        var productId = firstJson.RootElement.GetProperty("productId").GetGuid();
+
+        Guid secondRetailerId;
+        await using (var scope = fixture.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DealsDbContext>();
+            var retailer = Retailer.Create($"second-{Guid.NewGuid():N}", "Second Controlled Store");
+            db.Retailers.Add(retailer);
+            await db.SaveChangesAsync();
+            secondRetailerId = retailer.Id;
+        }
+
+        var secondInput = JsonSerializer.SerializeToNode(await OfferInputAsync(slug, enabled: true))!.AsObject();
+        secondInput["productId"] = productId;
+        secondInput["retailerId"] = secondRetailerId;
+        secondInput["externalListingId"] = $"SECOND-{Guid.NewGuid():N}";
+        secondInput["productUrl"] = "https://demo.local/second-controlled-offer";
+        secondInput["currentPrice"] = 89.99m;
+        using var second = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", secondInput);
+        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+
+        await using (var verification = fixture.Services.CreateAsyncScope())
+        {
+            var db = verification.ServiceProvider.GetRequiredService<DealsDbContext>();
+            Assert.Equal(1, await db.Products.CountAsync(item => item.Id == productId));
+            Assert.Equal(2, await db.RetailerListings.CountAsync(item => item.ProductId == productId));
+        }
+        using var publicProduct = await client.GetAsync($"/api/v1/products/{slug}");
+        Assert.Equal(HttpStatusCode.OK, publicProduct.StatusCode);
+        using var productJson = JsonDocument.Parse(await publicProduct.Content.ReadAsStringAsync());
+        Assert.Single(productJson.RootElement.GetProperty("safeComparisons").EnumerateArray());
+    }
+
+    [RequiresPostgresFact]
+    public async Task Product_slug_is_immutable_and_expired_offers_are_automatically_hidden()
+    {
+        var client = await CreateAuthenticatedAsync(admin: true);
+        var slug = $"immutable-product-{Guid.NewGuid():N}";
+        var input = await OfferInputAsync(slug, enabled: true);
+        using var created = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", input);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var createdJson = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var listingId = createdJson.RootElement.GetProperty("listingId").GetGuid();
+
+        var renamed = JsonSerializer.SerializeToNode(input)!.AsObject();
+        renamed["slug"] = $"renamed-{Guid.NewGuid():N}";
+        using var rejected = await MutateAsync(client, HttpMethod.Put, $"/api/v1/admin/offers/{listingId}", renamed);
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/v1/products/{slug}")).StatusCode);
+
+        await using (var scope = fixture.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DealsDbContext>();
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"RetailerListings\" SET \"OfferValidUntil\" = {DateTimeOffset.UtcNow.AddMinutes(-1)} WHERE \"Id\" = {listingId}");
+        }
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/v1/products/{slug}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/go/{listingId}")).StatusCode);
+    }
+
+    [RequiresPostgresFact]
     public async Task Owner_can_manage_stores_and_deactivation_closes_public_discovery()
     {
         var client = await CreateAuthenticatedAsync(admin: true);
@@ -246,7 +346,7 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
 
         await using var scope = fixture.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<DealsDbContext>();
-        var retailerId = await db.Retailers.OrderBy(item => item.Name).Select(item => item.Id).FirstAsync();
+        var retailerId = await db.StoreBannerProfiles.Where(item => item.IsEnabled).OrderBy(item => item.BannerOrder).Select(item => item.RetailerId).FirstAsync();
         var banner = new
         {
             title = "Controlled banner",

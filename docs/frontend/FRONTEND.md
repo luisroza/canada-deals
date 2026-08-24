@@ -4,10 +4,12 @@ Vertical Slice 7 adds `/account/confirm-email` with accessible confirming, confi
 
 The frontend is a Next.js 16 + React 19 + TypeScript application in `apps/web`.
 
+The owner workspace at `/admin_panel` now separates Offers, Brands, Categories, Stores, Banners, Reports, and Audit. Offer entry explicitly distinguishes a new Product from another store offer for an existing Product, keeps essentials open, moves specialist metadata into advanced disclosures, preserves immutable slugs, and exposes an optional automatic validity cutoff. Banner content editing shows selection status but carousel membership is changed only from the list-level selection workflow.
+
 Implemented routes:
 
 - `/` - search-first “Deals with strong evidence” fixture feed.
-- `/products/[slug]` - public server-rendered Product Page with evidence, freshness, bounded Product history, comparisons, reporting, Save, and a client-layered Target Price Alert control.
+- `/products/[slug]` - public server-rendered Product Page with evidence, freshness, bounded Product history, comparisons, reporting, Save, and a route-specific unavailable state when the Product cannot be found.
 - `/account/sign-in` and `/account/register` - minimal account forms with safe internal `returnTo` context.
 - `/saved` - private client-layered saved Product list with alert target/status, target-management link, alert removal, empty/signed-out/error states, and Unsave.
 
@@ -23,7 +25,9 @@ Development/Test shows the honest delivery boundary. Production email delivery r
 
 The history request streams inside a React `Suspense` boundary after the primary Product response. Its contained loading state retains current price/freshness and selected range, so history latency does not block primary Product content. The SVG renders only actual daily points. Larger evidence gaps use dashed segments, while the summary explicitly rejects continuous-monitoring inference. A disclosure table provides every date, lowest observed price, and observation count without hover. `UNAVAILABLE` renders explanation and no chart; a technical request failure renders `History temporarily unavailable` while current Product content remains usable. On mobile the Product identity/current evidence remain above history, grid children can shrink, and the responsive SVG does not create horizontal page overflow.
 
-The API is read through `API_BASE_URL`. In production same-site deployment this becomes the `/api` route boundary; in local development it points to `http://localhost:5099`.
+Server-rendered API reads use `API_BASE_URL`; Production server startup still fails closed when it is missing. Browser code uses the same-site `/api` and `/go` boundaries without requiring this server-only variable, so importing shared API contracts or handoff helpers cannot fail during client hydration. In local development, server reads point to `http://localhost:5099`.
+
+When a Product slug cannot be resolved, the route keeps the HTTP 404 response and `noindex,nofollow` metadata for truthful indexing while replacing the generic framework error with a branded recovery state. The page explains that the Product may have moved or been removed and offers an accessible Product search, current-deals navigation, and Wishlist access.
 
 The homepage keeps search, category, retailer, price range, supported-reference, freshness, match confidence, availability, sort, and page in the URL. General discovery defaults to recently checked; searches default to relevance unless the shopper explicitly selects another sort. Active filters are removable chips, clear-filter actions preserve the current search and sort, pagination preserves controls, and narrowed/search result pages use `noindex,follow` to avoid thin SEO surfaces. Product navigation relies on browser history, so Back restores the same discovery state.
 

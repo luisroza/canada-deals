@@ -222,6 +222,7 @@ public sealed class RetailerListing
     public Guid MerchantPolicyId { get; private set; }
     public MerchantPolicy MerchantPolicy { get; private set; } = null!;
     public bool IsEnabled { get; private set; } = true;
+    public DateTimeOffset? OfferValidUntil { get; private set; }
     public ICollection<AffiliateLink> AffiliateLinks { get; private set; } = new List<AffiliateLink>();
 
     public static RetailerListing Create(
@@ -250,7 +251,8 @@ public sealed class RetailerListing
         string? bundleContents = null,
         string? regionAvailabilityContext = "Canada",
         OnlineAvailabilityState onlineAvailability = OnlineAvailabilityState.Available,
-        string? shippingContext = null) => new()
+        string? shippingContext = null,
+        DateTimeOffset? offerValidUntil = null) => new()
     {
         Id = Guid.NewGuid(), ProductId = productId, RetailerId = retailerId,
         ExternalListingId = externalListingId, OriginalTitle = originalTitle, ProductUrl = productUrl,
@@ -262,7 +264,8 @@ public sealed class RetailerListing
         RetailerSku = retailerSku, ApprovedAffiliateDestinationReference = approvedAffiliateDestinationReference,
         Seller = seller, IsMarketplaceSeller = isMarketplaceSeller, Condition = condition,
         PackQuantity = packQuantity, BundleContents = bundleContents, RegionAvailabilityContext = regionAvailabilityContext,
-        OnlineAvailability = onlineAvailability, ShippingContext = shippingContext, IsEnabled = true
+        OnlineAvailability = onlineAvailability, ShippingContext = shippingContext, IsEnabled = true,
+        OfferValidUntil = offerValidUntil
     };
 
     public IReadOnlyDictionary<string, string> VariantAttributes => Deserialize(VariantAttributesJson);
@@ -298,7 +301,8 @@ public sealed class RetailerListing
         string? regionAvailabilityContext,
         string? shippingContext,
         bool enabled,
-        DateTimeOffset fetchedAt)
+        DateTimeOffset fetchedAt,
+        DateTimeOffset? offerValidUntil)
     {
         if (string.IsNullOrWhiteSpace(originalTitle) || originalTitle.Length > 300) throw new ArgumentException("A listing title of at most 300 characters is required.", nameof(originalTitle));
         if (string.IsNullOrWhiteSpace(productUrl) || productUrl.Length > 1000) throw new ArgumentException("A product URL of at most 1000 characters is required.", nameof(productUrl));
@@ -319,12 +323,15 @@ public sealed class RetailerListing
         OnlineAvailability = onlineAvailability;
         RegionAvailabilityContext = Normalize(regionAvailabilityContext);
         ShippingContext = Normalize(shippingContext);
+        OfferValidUntil = offerValidUntil;
         IsEnabled = enabled;
         Freshness = FreshnessState.Recent;
         RecordCurrentPrice(currentPriceAmount, "CAD", observedAt, fetchedAt);
     }
 
     public void SetEnabled(bool enabled) => IsEnabled = enabled;
+
+    public bool IsPublishedAt(DateTimeOffset now) => IsEnabled && (!OfferValidUntil.HasValue || OfferValidUntil > now);
 
     public void SetAdministrativeMatchState(MatchState matchState)
     {

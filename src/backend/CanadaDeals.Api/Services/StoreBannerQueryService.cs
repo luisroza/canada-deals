@@ -17,7 +17,8 @@ public sealed class StoreBannerQueryService(DealsDbContext db, TimeProvider cloc
         var now = clock.GetUtcNow();
         var retailers = await db.Retailers.AsNoTracking()
             .Where(retailer => retailer.IsEnabled && db.RetailerListings.Any(listing =>
-                listing.IsEnabled && listing.RetailerId == retailer.Id &&
+                listing.IsEnabled && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
+                listing.Product.Brand.IsEnabled && listing.Product.Category.IsEnabled && listing.RetailerId == retailer.Id &&
                 listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                 listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
             .OrderBy(retailer => retailer.Name)
@@ -29,7 +30,8 @@ public sealed class StoreBannerQueryService(DealsDbContext db, TimeProvider cloc
             .Where(profile => retailerIds.Contains(profile.RetailerId))
             .ToDictionaryAsync(profile => profile.RetailerId, cancellationToken);
         var affiliateAllowed = await db.RetailerListings.AsNoTracking()
-            .Where(listing => listing.IsEnabled && retailerIds.Contains(listing.RetailerId) &&
+            .Where(listing => listing.IsEnabled && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
+                              listing.Product.Brand.IsEnabled && listing.Product.Category.IsEnabled && retailerIds.Contains(listing.RetailerId) &&
                               listing.MerchantPolicy.AllowAffiliateLinks == PolicyPermission.Allowed)
             .Select(listing => listing.RetailerId)
             .Distinct()

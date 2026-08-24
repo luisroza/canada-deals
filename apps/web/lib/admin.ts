@@ -1,6 +1,11 @@
 export type AdminReferenceOption = { id: string; key: string; label: string; isEnabled: boolean };
+export type AdminBrand = { id: string; name: string; slug: string; isEnabled: boolean; productCount: number; publishedOfferCount: number };
 export type AdminCategory = { id: string; name: string; slug: string; isEnabled: boolean; productCount: number; publishedOfferCount: number };
 export type AdminRetailer = { id: string; name: string; key: string; countryCode: string; isEnabled: boolean; listingCount: number; publishedOfferCount: number; hasBannerProfile: boolean; isBannerActive: boolean; affiliateProgramCount: number };
+export type AdminProductReference = {
+  id: string; slug: string; title: string; brandId: string; brand: string; categoryId: string; category: string;
+  modelNumber: string | null; manufacturerPartNumber: string | null; gtin: string | null; variantAttributes: Record<string, string>;
+};
 export type AdminPolicyOption = { id: string; sourceKey: string; priceStorage: string; priceHistory: string; affiliateLinks: string; requiredAttribution: string };
 export type AdminOffer = {
   listingId: string; productId: string; slug: string; productTitle: string; brandId: string; brand: string; categoryId: string; category: string;
@@ -8,7 +13,7 @@ export type AdminOffer = {
   retailerId: string; retailer: string; merchantPolicyId: string; merchantPolicy: string; externalListingId: string; retailerSku: string | null;
   originalTitle: string; productUrl: string; approvedAffiliateDestinationReference: string | null; seller: string | null; isMarketplaceSeller: boolean | null;
   conditionState: string; packQuantity: number | null; bundleContents: string | null; regionAvailabilityContext: string | null; availabilityState: string;
-  shippingContext: string | null; externalIdentifiers: Record<string, string>; observedAt: string | null; fetchedAt: string | null; currentPrice: number | null;
+  shippingContext: string | null; externalIdentifiers: Record<string, string>; observedAt: string | null; fetchedAt: string | null; offerValidUntil: string | null; currentPrice: number | null;
   currency: string; matchState: string; evidenceState: string; historyState: string; isEnabled: boolean; isPubliclyEligible: boolean; readinessSummary: string; previewPath: string;
 };
 export type AdminBanner = {
@@ -27,23 +32,24 @@ export type AdminAudit = { id: string; action: string; entityType: string; entit
 export type AdminReport = { reportId: string; listingId: string; retailer: string; listingTitle: string; reason: string; customerNote: string | null; status: string; createdAt: string; updatedAt: string };
 export type AdminDashboard = {
   counts: { publishedOffers: number; draftOffers: number; enabledBanners: number; blockedOrExpiredBanners: number; openReports: number };
-  brands: AdminReferenceOption[]; categories: AdminReferenceOption[]; retailers: AdminReferenceOption[]; policies: AdminPolicyOption[];
-  managedCategories: AdminCategory[]; managedRetailers: AdminRetailer[];
+  brands: AdminReferenceOption[]; categories: AdminReferenceOption[]; retailers: AdminReferenceOption[]; products: AdminProductReference[]; policies: AdminPolicyOption[];
+  managedBrands: AdminBrand[]; managedCategories: AdminCategory[]; managedRetailers: AdminRetailer[];
   offers: AdminOffer[]; productImages: AdminProductImage[]; bannerAssets: AdminBannerAsset[]; banners: AdminBanner[]; reports: AdminReport[]; recentAudit: AdminAudit[];
 };
 
 export type AdminOfferInput = {
+  productId: string | null;
   slug: string; productTitle: string; brandId: string; categoryId: string; modelNumber: string | null; manufacturerPartNumber: string | null; gtin: string | null;
   variantAttributes: Record<string, string>; retailerId: string; merchantPolicyId: string; externalListingId: string; retailerSku: string | null;
   originalTitle: string; productUrl: string; approvedAffiliateDestinationReference: string | null; seller: string | null; isMarketplaceSeller: boolean | null;
   conditionState: string; packQuantity: number | null; bundleContents: string | null; regionAvailabilityContext: string | null; availabilityState: string;
-  shippingContext: string | null; externalIdentifiers: Record<string, string>; currentPrice: number; observedAt: string; fetchedAt: string; matchState: string;
+  shippingContext: string | null; externalIdentifiers: Record<string, string>; currentPrice: number; observedAt: string; fetchedAt: string; offerValidUntil: string | null; matchState: string;
   isEnabled: boolean; changeReason: string | null;
 };
 
 export type AdminBannerInput = {
   title: string; subtitle: string; assetPath: string | null; assetSource: string; assetProvider: string | null; assetEvidenceReference: string | null;
-  allowedPlacement: string | null; effectiveAt: string | null; expiresAt: string | null; bannerOrder: number; isEnabled: boolean; changeReason: string | null;
+  allowedPlacement: string | null; effectiveAt: string | null; expiresAt: string | null; bannerOrder: number; changeReason: string | null;
 };
 
 export class AdminApiError extends Error {
@@ -82,6 +88,8 @@ export async function getAdminDashboard() {
 
 export function createAdminOffer(input: AdminOfferInput) { return mutation("/api/v1/admin/offers", "POST", input); }
 export function updateAdminOffer(listingId: string, input: AdminOfferInput) { return mutation(`/api/v1/admin/offers/${encodeURIComponent(listingId)}`, "PUT", input); }
+export function createAdminBrand(name: string, slug: string) { return mutation("/api/v1/admin/brands", "POST", { name, slug }); }
+export function updateAdminBrand(brandId: string, name: string, isEnabled: boolean, changeReason: string | null) { return mutation(`/api/v1/admin/brands/${encodeURIComponent(brandId)}`, "PUT", { name, isEnabled, changeReason }); }
 export function createAdminCategory(name: string, slug: string) { return mutation("/api/v1/admin/categories", "POST", { name, slug }); }
 export function updateAdminCategory(categoryId: string, name: string, isEnabled: boolean, changeReason: string | null) { return mutation(`/api/v1/admin/categories/${encodeURIComponent(categoryId)}`, "PUT", { name, isEnabled, changeReason }); }
 export function createAdminRetailer(name: string, key: string) { return mutation("/api/v1/admin/retailers", "POST", { name, key }); }

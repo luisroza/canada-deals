@@ -7,12 +7,14 @@ import {
   AdminApiError,
   activateAdminProductImage,
   archiveAdminProductImage,
+  createAdminBrand,
   createAdminCategory,
   createAdminOffer,
   createAdminRetailer,
   getAdminDashboard,
   updateAdminBannerSelection,
   updateAdminBanner,
+  updateAdminBrand,
   updateAdminCategory,
   updateAdminOffer,
   updateAdminReport,
@@ -21,6 +23,7 @@ import {
   uploadAdminProductImage,
   type AdminBanner,
   type AdminBannerInput,
+  type AdminBrand,
   type AdminDashboard,
   type AdminCategory,
   type AdminOffer,
@@ -29,9 +32,9 @@ import {
 } from "../lib/admin";
 
 type AccessState = "loading" | "authorized" | "signed-out" | "forbidden" | "unavailable";
-type Section = "overview" | "offers" | "categories" | "stores" | "banners" | "reports" | "audit";
-type OfferForm = Omit<AdminOfferInput, "currentPrice" | "packQuantity" | "observedAt" | "fetchedAt" | "variantAttributes" | "externalIdentifiers"> & {
-  currentPrice: string; packQuantity: string; observedAt: string; fetchedAt: string; variantAttributes: string; externalIdentifiers: string;
+type Section = "overview" | "offers" | "brands" | "categories" | "stores" | "banners" | "reports" | "audit";
+type OfferForm = Omit<AdminOfferInput, "currentPrice" | "packQuantity" | "observedAt" | "fetchedAt" | "offerValidUntil" | "variantAttributes" | "externalIdentifiers"> & {
+  currentPrice: string; packQuantity: string; observedAt: string; fetchedAt: string; offerValidUntil: string; variantAttributes: string; externalIdentifiers: string;
 };
 
 const builtInAssets = [
@@ -57,7 +60,7 @@ function jsonText(value: Record<string, string>) { return JSON.stringify(value, 
 
 function offerToForm(offer: AdminOffer): OfferForm {
   return {
-    slug: offer.slug, productTitle: offer.productTitle, brandId: offer.brandId, categoryId: offer.categoryId,
+    productId: offer.productId, slug: offer.slug, productTitle: offer.productTitle, brandId: offer.brandId, categoryId: offer.categoryId,
     modelNumber: offer.modelNumber, manufacturerPartNumber: offer.manufacturerPartNumber, gtin: offer.gtin,
     variantAttributes: jsonText(offer.variantAttributes), retailerId: offer.retailerId, merchantPolicyId: offer.merchantPolicyId,
     externalListingId: offer.externalListingId, retailerSku: offer.retailerSku, originalTitle: offer.originalTitle,
@@ -67,6 +70,7 @@ function offerToForm(offer: AdminOffer): OfferForm {
     regionAvailabilityContext: offer.regionAvailabilityContext, availabilityState: offer.availabilityState,
     shippingContext: offer.shippingContext, externalIdentifiers: jsonText(offer.externalIdentifiers),
     currentPrice: offer.currentPrice?.toFixed(2) ?? "", observedAt: localDateTime(offer.observedAt), fetchedAt: localDateTime(offer.fetchedAt),
+    offerValidUntil: offer.offerValidUntil ? localDateTime(offer.offerValidUntil) : "",
     matchState: offer.matchState, isEnabled: offer.isEnabled, changeReason: null,
   };
 }
@@ -74,13 +78,13 @@ function offerToForm(offer: AdminOffer): OfferForm {
 function emptyOffer(dashboard: AdminDashboard): OfferForm {
   const now = localDateTime();
   return {
-    slug: "", productTitle: "", brandId: dashboard.brands[0]?.id ?? "", categoryId: dashboard.categories.find(item => item.isEnabled)?.id ?? "",
+    productId: null, slug: "", productTitle: "", brandId: dashboard.brands.find(item => item.isEnabled)?.id ?? "", categoryId: dashboard.categories.find(item => item.isEnabled)?.id ?? "",
     modelNumber: null, manufacturerPartNumber: null, gtin: null, variantAttributes: "{}",
     retailerId: dashboard.retailers.find(item => item.isEnabled)?.id ?? "", merchantPolicyId: dashboard.policies[0]?.id ?? "",
     externalListingId: "", retailerSku: null, originalTitle: "", productUrl: "", approvedAffiliateDestinationReference: null,
     seller: null, isMarketplaceSeller: false, conditionState: "NEW", packQuantity: "1", bundleContents: null,
     regionAvailabilityContext: "Canada", availabilityState: "AVAILABLE", shippingContext: null, externalIdentifiers: "{}",
-    currentPrice: "", observedAt: now, fetchedAt: now, matchState: "CONFIRMED", isEnabled: false, changeReason: null,
+    currentPrice: "", observedAt: now, fetchedAt: now, offerValidUntil: "", matchState: "CONFIRMED", isEnabled: false, changeReason: null,
   };
 }
 
@@ -89,7 +93,7 @@ function bannerInput(banner: AdminBanner): AdminBannerInput {
     title: banner.title, subtitle: banner.subtitle, assetPath: banner.assetPath ?? builtInAssets[0].path, assetSource: banner.assetSource,
     assetProvider: banner.assetProvider, assetEvidenceReference: banner.assetEvidenceReference, allowedPlacement: banner.allowedPlacement ?? "store_banner",
     effectiveAt: banner.effectiveAt ? localDateTime(banner.effectiveAt) : null, expiresAt: banner.expiresAt ? localDateTime(banner.expiresAt) : null,
-    bannerOrder: banner.bannerOrder === 2147483647 ? 100 : banner.bannerOrder, isEnabled: banner.isEnabled, changeReason: null,
+    bannerOrder: banner.bannerOrder === 2147483647 ? 100 : banner.bannerOrder, changeReason: null,
   };
 }
 
@@ -131,7 +135,7 @@ export function AdminPanel() {
       </header>
       <div className="admin-layout">
         <nav className="admin-nav" aria-label="Administration">
-          {(["overview", "offers", "categories", "stores", "banners", "reports", "audit"] as Section[]).map(item => (
+          {(["overview", "offers", "brands", "categories", "stores", "banners", "reports", "audit"] as Section[]).map(item => (
             <button key={item} type="button" aria-current={section === item ? "page" : undefined} onClick={() => { setSection(item); setMessage(null); setError(null); }}>
               {item[0].toUpperCase() + item.slice(1)}
             </button>
@@ -142,6 +146,7 @@ export function AdminPanel() {
           {error && <p className="field-error admin-error" role="alert">{error}</p>}
           {section === "overview" && <Overview dashboard={dashboard} navigate={setSection} />}
           {section === "offers" && <Offers dashboard={dashboard} refresh={load} notify={setMessage} reportError={setError} />}
+          {section === "brands" && <Brands dashboard={dashboard} refresh={load} notify={setMessage} reportError={setError} />}
           {section === "categories" && <Categories dashboard={dashboard} refresh={load} notify={setMessage} reportError={setError} />}
           {section === "stores" && <Stores dashboard={dashboard} refresh={load} notify={setMessage} reportError={setError} />}
           {section === "banners" && <Banners dashboard={dashboard} refresh={load} notify={setMessage} reportError={setError} />}
@@ -217,6 +222,37 @@ function Overview({ dashboard, navigate }: { dashboard: AdminDashboard; navigate
 }
 
 type EntityFilter = "all" | "active" | "inactive" | "public" | "empty";
+
+function Brands({ dashboard, refresh, notify, reportError }: { dashboard: AdminDashboard; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
+  const [selected, setSelected] = useState<AdminBrand | "new" | null>(null);
+  const [name, setName] = useState(""); const [slug, setSlug] = useState(""); const [enabled, setEnabled] = useState(false); const [reason, setReason] = useState("");
+  const [search, setSearch] = useState(""); const [filter, setFilter] = useState<EntityFilter>("all"); const [pending, setPending] = useState(false);
+  const visible = dashboard.managedBrands.filter(brand => {
+    const matchesSearch = `${brand.name} ${brand.slug}`.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = filter === "all" || (filter === "active" && brand.isEnabled) || (filter === "inactive" && !brand.isEnabled) ||
+      (filter === "public" && brand.publishedOfferCount > 0) || (filter === "empty" && brand.productCount === 0);
+    return matchesSearch && matchesFilter;
+  });
+  const activeCount = dashboard.managedBrands.filter(brand => brand.isEnabled).length;
+
+  function open(value: AdminBrand | "new") { setSelected(value); setName(value === "new" ? "" : value.name); setSlug(value === "new" ? "" : value.slug); setEnabled(value === "new" ? false : value.isEnabled); setReason(""); notify(null); reportError(null); }
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (selected !== "new" && selected?.isEnabled && !enabled && !reason.trim()) { reportError("Add a reason before deactivating this brand."); return; }
+    setPending(true); notify(null); reportError(null);
+    try { if (selected === "new") await createAdminBrand(name.trim(), slug); else if (selected) await updateAdminBrand(selected.id, name.trim(), enabled, clean(reason)); await refresh(); setSelected(null); notify(selected === "new" ? "Brand created inactive. Review it before using it on new Products." : "Brand updated and audited."); }
+    catch (caught) { reportError(caught instanceof Error ? caught.message : "Brand could not be saved."); } finally { setPending(false); }
+  }
+
+  if (selected) {
+    const existing = selected !== "new" ? selected : null;
+    return <form className="admin-editor" onSubmit={save} noValidate><div className="admin-heading"><div><p className="eyebrow">{existing ? "Edit brand" : "New brand"}</p><h1>{name || "Untitled brand"}</h1><p>Brands support Product identity, search, and safe comparison. Existing Products remain intact when a brand is inactive.</p></div><div className="admin-heading-actions"><button className="button button-secondary" type="button" onClick={() => setSelected(null)}>Cancel</button><button className="button button-primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Save brand"}</button></div></div>
+      <div className="admin-editor-grid"><section className="admin-card admin-entity-form"><h2>Brand details</h2><label>Brand name<input required maxLength={120} value={name} onChange={event => { setName(event.target.value); if (!existing) setSlug(slugify(event.target.value)); }} /></label><label>Brand slug<input required maxLength={140} pattern="[a-z0-9-]+" readOnly={Boolean(existing)} value={slug} onChange={event => setSlug(slugify(event.target.value))} /><span className="field-help">{existing ? "Immutable after creation to preserve catalog identity." : "Lowercase letters, numbers, and hyphens."}</span></label>{existing && <div className="admin-readonly"><strong>Current impact</strong><span>{existing.productCount} products</span><span>{existing.publishedOfferCount} public offers</span><span>Product and Wishlist records are preserved</span></div>}</section>
+        <aside className="admin-publication-card"><h2>Catalog status</h2><label className="admin-toggle"><input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} /><span>Available for public Products</span></label>{existing && existing.isEnabled && !enabled && <div className="admin-impact-warning" role="note"><strong>Before deactivating</strong><p>This hides associated offers from public discovery without deleting Products, offers, or Wishlists.</p></div>}<label>Change reason<textarea rows={4} maxLength={300} value={reason} onChange={event => setReason(event.target.value)} placeholder="Required when deactivating" /></label>{!existing && <p className="field-help">New brands always begin inactive.</p>}</aside></div></form>;
+  }
+
+  return <><div className="admin-heading"><div><p className="eyebrow">Catalog identity</p><h1>Brands</h1><p><strong>{activeCount} active</strong> · {dashboard.managedBrands.length - activeCount} inactive. Manage Product brands without editing database records directly.</p></div><button className="button button-primary" type="button" onClick={() => open("new")}>Add brand</button></div><EntityToolbar search={search} setSearch={setSearch} filter={filter} setFilter={setFilter} placeholder="Name or brand slug" includeEmpty />
+    <div className="admin-entity-grid">{visible.map(brand => <article className="admin-entity-card" key={brand.id}><div><span className={`status-chip ${brand.isEnabled ? "status-ready" : ""}`}>{brand.isEnabled ? "Active" : "Inactive"}</span><code>{brand.slug}</code></div><h2>{brand.name}</h2><dl><div><dt>Products</dt><dd>{brand.productCount}</dd></div><div><dt>Public offers</dt><dd>{brand.publishedOfferCount}</dd></div></dl><button className="button button-secondary" type="button" onClick={() => open(brand)}>Edit brand</button></article>)}</div>{visible.length === 0 && <p className="admin-card admin-empty">No brands match these controls.</p>}</>;
+}
 
 function Categories({ dashboard, refresh, notify, reportError }: { dashboard: AdminDashboard; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
   const [selected, setSelected] = useState<AdminCategory | "new" | null>(null);
@@ -320,6 +356,7 @@ function Offers({ dashboard, refresh, notify, reportError }: { dashboard: AdminD
         retailerSku: clean(form.retailerSku ?? ""), approvedAffiliateDestinationReference: clean(form.approvedAffiliateDestinationReference ?? ""), seller: clean(form.seller ?? ""),
         packQuantity: form.packQuantity ? Number(form.packQuantity) : null, bundleContents: clean(form.bundleContents ?? ""), regionAvailabilityContext: clean(form.regionAvailabilityContext ?? ""),
         shippingContext: clean(form.shippingContext ?? ""), currentPrice: Number(form.currentPrice), observedAt: new Date(form.observedAt).toISOString(), fetchedAt: new Date(form.fetchedAt).toISOString(),
+        offerValidUntil: form.offerValidUntil ? new Date(form.offerValidUntil).toISOString() : null,
         variantAttributes: variants, externalIdentifiers: identifiers, changeReason: clean(form.changeReason ?? ""),
       };
       if (selected === "new") await createAdminOffer(input); else if (selected) await updateAdminOffer(selected.listingId, input);
@@ -343,49 +380,71 @@ function Offers({ dashboard, refresh, notify, reportError }: { dashboard: AdminD
 
 function OfferEditor({ dashboard, selected, form, field, save, cancel, pending, refresh, notify, reportError }: { dashboard: AdminDashboard; selected: AdminOffer | "new" | null; form: OfferForm; field: <K extends keyof OfferForm>(key: K, value: OfferForm[K]) => void; save: (event: FormEvent<HTMLFormElement>) => Promise<void>; cancel: () => void; pending: boolean; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
   const existing = selected !== "new" && selected !== null;
+  const reusingProduct = selected === "new" && form.productId !== null;
+
+  function useProduct(productId: string | null) {
+    if (!productId) {
+      field("productId", null); field("slug", ""); field("productTitle", "");
+      field("brandId", dashboard.brands.find(item => item.isEnabled)?.id ?? "");
+      field("categoryId", dashboard.categories.find(item => item.isEnabled)?.id ?? "");
+      field("modelNumber", null); field("manufacturerPartNumber", null); field("gtin", null); field("variantAttributes", "{}");
+      return;
+    }
+    const product = dashboard.products.find(item => item.id === productId);
+    if (!product) return;
+    field("productId", product.id); field("slug", product.slug); field("productTitle", product.title); field("brandId", product.brandId);
+    field("categoryId", product.categoryId); field("modelNumber", product.modelNumber); field("manufacturerPartNumber", product.manufacturerPartNumber);
+    field("gtin", product.gtin); field("variantAttributes", jsonText(product.variantAttributes));
+    if (!form.originalTitle) field("originalTitle", product.title);
+  }
+
   return <form className="admin-editor" onSubmit={save} noValidate>
     <div className="admin-heading"><div><p className="eyebrow">{existing ? "Edit offer" : "New offer"}</p><h1>{form.productTitle || "Untitled offer"}</h1><p>{existing ? selected.readinessSummary : "New offers start as drafts."}</p></div><div className="admin-heading-actions">{existing && <Link className="button button-secondary" href={selected.previewPath} target="_blank">Public preview</Link>}<button className="button button-secondary" type="button" onClick={cancel}>Cancel</button><button className="button button-primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Save offer"}</button></div></div>
     <div className="admin-editor-grid"><div className="admin-form-stack">
-      <details open><summary>Product identity</summary><div className="admin-form-grid">
-        <label className="span-2">Product title<input required maxLength={240} value={form.productTitle} onChange={e => field("productTitle", e.target.value)} /></label>
-        <label>Slug<input required pattern="[a-z0-9-]+" value={form.slug} onChange={e => field("slug", e.target.value.toLowerCase())} /></label>
-        <label>Brand<select value={form.brandId} onChange={e => field("brandId", e.target.value)}>{dashboard.brands.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-        <label>Category<select value={form.categoryId} onChange={e => field("categoryId", e.target.value)}>{dashboard.categories.filter(item => item.isEnabled || item.id === form.categoryId).map(item => <option key={item.id} value={item.id}>{item.label}{item.isEnabled ? "" : " (inactive)"}</option>)}</select></label>
-        <label>Model number<input value={form.modelNumber ?? ""} onChange={e => field("modelNumber", e.target.value)} /></label>
-        <label>MPN<input value={form.manufacturerPartNumber ?? ""} onChange={e => field("manufacturerPartNumber", e.target.value)} /></label>
-        <label>GTIN<input value={form.gtin ?? ""} onChange={e => field("gtin", e.target.value)} /></label>
-        <label className="span-2">Variant attributes (JSON)<textarea rows={5} value={form.variantAttributes} onChange={e => field("variantAttributes", e.target.value)} /></label>
+      {selected === "new" && <section className="admin-card"><h2>Choose the Product</h2><div className="admin-choice-grid" role="radiogroup" aria-label="Product creation mode"><label><input type="radio" name="product-mode" checked={!reusingProduct} onChange={() => useProduct(null)} /><span><strong>Create a new Product</strong><small>Use when this Product does not exist in the catalog.</small></span></label><label><input type="radio" name="product-mode" checked={reusingProduct} onChange={() => useProduct(dashboard.products[0]?.id ?? null)} /><span><strong>Add an offer to an existing Product</strong><small>Use for another store listing of the same confirmed Product.</small></span></label></div>{reusingProduct && <label className="admin-product-picker">Existing Product<select value={form.productId ?? ""} onChange={event => useProduct(event.target.value)}>{dashboard.products.map(product => <option key={product.id} value={product.id}>{product.title} · {product.brand}{product.modelNumber ? ` · ${product.modelNumber}` : ""}</option>)}</select></label>}</section>}
+      <details open><summary>Product essentials</summary><div className="admin-form-grid">
+        <label className="span-2">Product title<input required maxLength={240} readOnly={reusingProduct} value={form.productTitle} onChange={e => { field("productTitle", e.target.value); if (!existing && !form.productId) field("slug", slugify(e.target.value)); }} /></label>
+        <label>Slug<input required pattern="[a-z0-9-]+" readOnly={existing || reusingProduct} value={form.slug} onChange={e => field("slug", slugify(e.target.value))} /><span className="field-help">{existing || reusingProduct ? "Immutable for existing Products so saved and shared links keep working." : "Generated from the title; lowercase letters, numbers, and hyphens."}</span></label>
+        <label>Brand<select disabled={reusingProduct} value={form.brandId} onChange={e => field("brandId", e.target.value)}>{dashboard.brands.filter(item => item.isEnabled || item.id === form.brandId).map(item => <option key={item.id} value={item.id}>{item.label}{item.isEnabled ? "" : " (inactive)"}</option>)}</select></label>
+        <label>Category<select disabled={reusingProduct} value={form.categoryId} onChange={e => field("categoryId", e.target.value)}>{dashboard.categories.filter(item => item.isEnabled || item.id === form.categoryId).map(item => <option key={item.id} value={item.id}>{item.label}{item.isEnabled ? "" : " (inactive)"}</option>)}</select></label>
+        <label>Model number<input readOnly={reusingProduct} value={form.modelNumber ?? ""} onChange={e => field("modelNumber", e.target.value)} /></label>
       </div></details>
-      {selected && selected !== "new" ? <ProductImageEditor productId={selected.productId} dashboard={dashboard} refresh={refresh} notify={notify} reportError={reportError} /> : <section className="admin-card admin-image-empty"><h2>Product image</h2><p>Save the new offer first, then reopen it to upload a reviewed product image.</p></section>}
-      <details open><summary>Retailer listing</summary><div className="admin-form-grid">
-        <label>Retailer<select disabled={existing} value={form.retailerId} onChange={e => field("retailerId", e.target.value)}>{dashboard.retailers.filter(item => item.isEnabled).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-        <label>Merchant policy<select disabled={existing} value={form.merchantPolicyId} onChange={e => field("merchantPolicyId", e.target.value)}>{dashboard.policies.map(item => <option key={item.id} value={item.id}>{item.sourceKey} · price {item.priceStorage}</option>)}</select></label>
-        <label>External listing ID<input required disabled={existing} value={form.externalListingId} onChange={e => field("externalListingId", e.target.value)} /></label>
-        <label>Retailer SKU<input value={form.retailerSku ?? ""} onChange={e => field("retailerSku", e.target.value)} /></label>
-        <label className="span-2">Original retailer title<input required value={form.originalTitle} onChange={e => field("originalTitle", e.target.value)} /></label>
-        <label className="span-2">Product URL<input required type="url" placeholder="https://" value={form.productUrl} onChange={e => field("productUrl", e.target.value)} /></label>
-        <label className="span-2">Approved destination reference<input type="url" placeholder="Optional; policy must permit affiliate links" value={form.approvedAffiliateDestinationReference ?? ""} onChange={e => field("approvedAffiliateDestinationReference", e.target.value)} /></label>
-        <label>Seller<input value={form.seller ?? ""} onChange={e => field("seller", e.target.value)} /></label>
-        <label>Condition<select value={form.conditionState} onChange={e => field("conditionState", e.target.value)}><option>NEW</option><option>REFURBISHED</option><option>USED</option><option>UNKNOWN</option></select></label>
-        <label>Marketplace seller<select value={form.isMarketplaceSeller === null ? "unknown" : String(form.isMarketplaceSeller)} onChange={e => field("isMarketplaceSeller", e.target.value === "unknown" ? null : e.target.value === "true")}><option value="false">No</option><option value="true">Yes</option><option value="unknown">Unknown</option></select></label>
-        <label>Pack quantity<input type="number" min="1" max="1000" value={form.packQuantity} onChange={e => field("packQuantity", e.target.value)} /></label>
-        <label className="span-2">Bundle contents<textarea rows={3} value={form.bundleContents ?? ""} onChange={e => field("bundleContents", e.target.value)} /></label>
-        <label className="span-2">External identifiers (JSON)<textarea rows={5} value={form.externalIdentifiers} onChange={e => field("externalIdentifiers", e.target.value)} /></label>
-      </div></details>
-      <details open><summary>Current offer facts</summary><div className="admin-form-grid">
+      {form.productId ? <ProductImageEditor productId={form.productId} dashboard={dashboard} refresh={refresh} notify={notify} reportError={reportError} /> : <section className="admin-card admin-image-empty"><h2>Product image</h2><p>Save the new Product first, then reopen it to upload a reviewed image. Existing Products can reuse their current image immediately.</p></section>}
+      <details open><summary>Offer essentials</summary><div className="admin-form-grid">
+        <label>Store<select disabled={existing} value={form.retailerId} onChange={e => field("retailerId", e.target.value)}>{dashboard.retailers.filter(item => item.isEnabled || item.id === form.retailerId).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
         <label>Current price (CAD)<input required type="number" min="0.01" max="1000000" step="0.01" value={form.currentPrice} onChange={e => field("currentPrice", e.target.value)} /></label>
+        <label className="span-2">Retailer Product page<input required type="url" placeholder="https://" value={form.productUrl} onChange={e => field("productUrl", e.target.value)} /></label>
         <label>Availability<select value={form.availabilityState} onChange={e => field("availabilityState", e.target.value)}><option>AVAILABLE</option><option>UNAVAILABLE</option><option>UNKNOWN</option></select></label>
         <label>Observed at<input required type="datetime-local" value={form.observedAt} onChange={e => field("observedAt", e.target.value)} /></label>
-        <label>Fetched at<input required type="datetime-local" value={form.fetchedAt} onChange={e => field("fetchedAt", e.target.value)} /></label>
+        <label>Offer valid until (optional)<input type="datetime-local" value={form.offerValidUntil} onChange={e => field("offerValidUntil", e.target.value)} /><span className="field-help">When supplied by the retailer, the offer is automatically hidden after this time.</span></label>
+        <label>External listing ID<input required disabled={existing} value={form.externalListingId} onChange={e => field("externalListingId", e.target.value)} /></label>
+      </div></details>
+      <details><summary>Advanced Product identity and matching</summary><div className="admin-form-grid">
+        <label>MPN<input readOnly={reusingProduct} value={form.manufacturerPartNumber ?? ""} onChange={e => field("manufacturerPartNumber", e.target.value)} /></label>
+        <label>GTIN<input readOnly={reusingProduct} value={form.gtin ?? ""} onChange={e => field("gtin", e.target.value)} /></label>
+        <label className="span-2">Variant attributes (JSON)<textarea readOnly={reusingProduct} rows={5} value={form.variantAttributes} onChange={e => field("variantAttributes", e.target.value)} /></label>
+        <label>Condition<select value={form.conditionState} onChange={e => field("conditionState", e.target.value)}><option>NEW</option><option>REFURBISHED</option><option>USED</option><option>UNKNOWN</option></select></label>
+        <label>Pack quantity<input type="number" min="1" max="1000" value={form.packQuantity} onChange={e => field("packQuantity", e.target.value)} /></label>
+        <label className="span-2">Bundle contents<textarea rows={3} value={form.bundleContents ?? ""} onChange={e => field("bundleContents", e.target.value)} /></label>
+      </div></details>
+      <details><summary>Advanced source and retailer details</summary><div className="admin-form-grid">
+        <label>Merchant policy<select disabled={existing} value={form.merchantPolicyId} onChange={e => field("merchantPolicyId", e.target.value)}>{dashboard.policies.map(item => <option key={item.id} value={item.id}>{item.sourceKey} · current price {item.priceStorage}</option>)}</select></label>
+        <label>Retailer SKU<input value={form.retailerSku ?? ""} onChange={e => field("retailerSku", e.target.value)} /></label>
+        <label className="span-2">Original retailer title<input required value={form.originalTitle} onChange={e => field("originalTitle", e.target.value)} /></label>
+        <label className="span-2">Approved retailer landing page<input type="url" placeholder="Optional HTTPS Product page approved for link generation" value={form.approvedAffiliateDestinationReference ?? ""} onChange={e => field("approvedAffiliateDestinationReference", e.target.value)} /><span className="field-help">Use the original retailer Product page. Do not paste a provider tracking URL; the backend generates the final handoff.</span></label>
+        <label>Seller<input value={form.seller ?? ""} onChange={e => field("seller", e.target.value)} /></label>
+        <label>Marketplace seller<select value={form.isMarketplaceSeller === null ? "unknown" : String(form.isMarketplaceSeller)} onChange={e => field("isMarketplaceSeller", e.target.value === "unknown" ? null : e.target.value === "true")}><option value="false">No</option><option value="true">Yes</option><option value="unknown">Unknown</option></select></label>
         <label>Region<input value={form.regionAvailabilityContext ?? ""} onChange={e => field("regionAvailabilityContext", e.target.value)} /></label>
         <label>Shipping context<input value={form.shippingContext ?? ""} onChange={e => field("shippingContext", e.target.value)} /></label>
+        <label>Fetched at<input required type="datetime-local" value={form.fetchedAt} onChange={e => field("fetchedAt", e.target.value)} /></label>
+        <label className="span-2">External identifiers (JSON)<textarea rows={5} value={form.externalIdentifiers} onChange={e => field("externalIdentifiers", e.target.value)} /></label>
       </div></details>
     </div><aside className="admin-publication-card">
       <h2>Publication</h2><label className="admin-toggle"><input type="checkbox" checked={form.isEnabled} onChange={e => field("isEnabled", e.target.checked)} /><span>Enable public discovery</span></label>
-      <p>Saving disabled creates a reversible draft. Enabling still requires an eligible Merchant Policy.</p>
+      <p>Saving disabled creates a reversible draft. Enabling still requires an active brand, category, store, a valid time window, and an eligible Merchant Policy.</p>
       <label>Match decision<select value={form.matchState} onChange={e => field("matchState", e.target.value)}><option value="CONFIRMED">Same product confirmed</option><option value="POSSIBLEMATCHREVIEW">Review before comparing</option><option value="MANUALREVIEW">Manual review</option><option value="NOMATCH">No safe match</option></select></label>
       <label>Change reason<textarea rows={4} value={form.changeReason ?? ""} onChange={e => field("changeReason", e.target.value)} placeholder="Required when deactivating or changing match state" /></label>
-      <div className="admin-readonly"><strong>Derived, not editable</strong><span>Freshness from timestamps</span><span>Evidence from policy</span><span>Affiliate handoff from approved active link</span><span>Reference price from permitted observations</span></div>
+      <div className="admin-readonly"><strong>Derived, not editable</strong><span>Freshness from timestamps</span><span>Evidence from policy</span><span>Retailer handoff from approved active link</span><span>Reference price from permitted observations</span><span>Expired offers leave public discovery automatically</span></div>
     </aside></div>
   </form>;
 }
@@ -519,9 +578,9 @@ function Banners({ dashboard, refresh, notify, reportError }: { dashboard: Admin
       </div></section>
       <section className="admin-card"><h2>Carousel placement</h2><div className="admin-form-grid admin-card-form-grid">
         <label>Carousel position<input type="number" min="0" max="10000" value={form.bannerOrder} onChange={e => field("bannerOrder", Number(e.target.value))} /></label>
-        <label className="span-2">Change reason<textarea rows={3} maxLength={300} value={form.changeReason ?? ""} onChange={e => field("changeReason", e.target.value)} placeholder="Required when deactivating" /></label>
+        <label className="span-2">Change reason<textarea rows={3} maxLength={300} value={form.changeReason ?? ""} onChange={e => field("changeReason", e.target.value)} placeholder="Optional note for this content or position change" /></label>
       </div></section>
-    </div><aside className="admin-publication-card admin-banner-preview-panel"><div className="admin-preview-heading"><div><p className="eyebrow">Homepage placement</p><h2>Public preview</h2></div><span className={`status-chip ${form.isEnabled ? "status-ready" : ""}`}>{form.isEnabled ? "Active" : "Inactive"}</span></div><label className="admin-toggle"><input type="checkbox" checked={form.isEnabled} onChange={e => field("isEnabled", e.target.checked)} aria-describedby="banner-publication-help" /><span>Active in homepage carousel</span></label><p id="banner-publication-help" className="field-help">The banner is public only when the retailer and at least one offer are also eligible.</p><div className="admin-banner-preview admin-banner-preview-public" style={{ backgroundImage: `linear-gradient(90deg,rgba(4,31,22,.94),rgba(4,31,22,.38)),url(${form.assetPath})` }}><small>{selected.isInPublicCarousel ? "Browse by store" : "Preview only"}</small><strong>{form.title}</strong><span>{form.subtitle}</span><b>See store deals →</b></div><div className="admin-preview-meta"><span>Carousel position <strong>{form.bannerOrder}</strong></span><span>Artwork <strong>{selected.publicArtworkState.toLowerCase()}</strong></span></div><div className="admin-readonly"><strong>Current public state</strong><span>Visibility: {selected.visibilityState}</span><span>Rights: {selected.rightsState}</span><span>Brand policy: {selected.brandAssetPolicy}</span><span>{selected.publicEligibilityReason}</span></div></aside></div></form>;
+    </div><aside className="admin-publication-card admin-banner-preview-panel"><div className="admin-preview-heading"><div><p className="eyebrow">Homepage placement</p><h2>Public preview</h2></div><span className={`status-chip ${selected.isEnabled ? "status-ready" : ""}`}>{selected.isEnabled ? "Selected" : "Not selected"}</span></div><p className="field-help">Carousel membership is controlled only from the Store banners selection screen. This editor changes content, artwork, rights, and sequence.</p><div className="admin-banner-preview admin-banner-preview-public" style={{ backgroundImage: `linear-gradient(90deg,rgba(4,31,22,.94),rgba(4,31,22,.38)),url(${form.assetPath})` }}><small>{selected.isInPublicCarousel ? "Browse by store" : "Preview only"}</small><strong>{form.title}</strong><span>{form.subtitle}</span><b>See store deals →</b></div><div className="admin-preview-meta"><span>Carousel position <strong>{form.bannerOrder}</strong></span><span>Artwork <strong>{selected.publicArtworkState.toLowerCase()}</strong></span></div><div className="admin-readonly"><strong>Current public state</strong><span>Visibility: {selected.visibilityState}</span><span>Rights: {selected.rightsState}</span><span>Brand policy: {selected.brandAssetPolicy}</span><span>{selected.publicEligibilityReason}</span></div></aside></div></form>;
 
   const publicCount = dashboard.banners.filter(banner => banner.isInPublicCarousel).length;
   const needsAttention = dashboard.banners.filter(banner => banner.isEnabled && (!banner.isInPublicCarousel || banner.publicArtworkState === "FALLBACK")).length;

@@ -1,5 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getDeals } from "./api";
+import { getDeals, resolveApiBase } from "./api";
+
+describe("resolveApiBase", () => {
+  it("requires an explicit API origin for a production server", () => {
+    expect(() => resolveApiBase(undefined, "production", false)).toThrow("API_BASE_URL is required in production.");
+  });
+
+  it("uses same-origin routes in a production browser bundle", () => {
+    expect(resolveApiBase(undefined, "production", true)).toBe("");
+  });
+
+  it("preserves an explicitly configured server API origin", () => {
+    expect(resolveApiBase("http://api:8080", "production", false)).toBe("http://api:8080");
+  });
+});
 
 describe("getDeals", () => {
   afterEach(() => vi.restoreAllMocks());

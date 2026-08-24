@@ -114,6 +114,15 @@ test("visitor sees a possible variant outside safe comparison", async ({ page })
   await expect(page.getByText("No other confirmed retailer offer.")).toBeVisible();
 });
 
+test("missing product presents a useful recovery state instead of a generic 404 page", async ({ page }) => {
+  const response = await page.goto("/products/product-not-in-catalog");
+  expect(response?.status()).toBe(404);
+  await expect(page.getByRole("heading", { level: 1, name: "We couldn’t find this product" })).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Search for another product" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Browse current deals" })).toHaveAttribute("href", "/#deals");
+  await expect(page.getByText("404", { exact: true })).not.toBeVisible();
+});
+
 test("price tracker and target-price controls are absent and legacy routes fail closed", async ({ page }) => {
   await page.goto("/products/northstar-55-qled-tv?history=90d");
   await expect(page.getByRole("heading", { name: "Price history" })).not.toBeVisible();

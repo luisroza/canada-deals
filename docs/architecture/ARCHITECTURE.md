@@ -82,7 +82,7 @@ The backend remains one bounded application with explicit modules:
 - **Ingestion:** connector lifecycle, fetch, normalization, idempotency, retry, quarantine, policy enforcement.
 - **Matching:** deterministic identifiers, candidate matches, manual review, merge/split audit.
 - **Affiliate Handoff:** approved link generation/revalidation, safe redirect, disclosure metadata, click telemetry.
-- **Administration:** owner-only reversible Category/Store lifecycle, editorial offers and banners, source policy, connector health, moderation of match decisions, import retry, and audit trail. Category/store deactivation is evaluated by public queries and handoffs rather than cascading destructive updates.
+- **Administration:** owner-only reversible Brand/Category/Store lifecycle, canonical Product reuse, editorial offers and banners, source policy, connector health, moderation of match decisions, import retry, and audit trail. Brand/category/store deactivation and optional offer expiry are evaluated by public queries and handoffs rather than cascading destructive updates or requiring an expiry job.
 
 The Next.js application should mirror these user-facing capabilities but should not duplicate domain rules. The API remains authoritative for product identity, price state, eligibility, alerts, disclosures, and redirect safety.
 
