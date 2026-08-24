@@ -90,7 +90,7 @@ test("discovery-only store banner stays inside the store-filtered catalog", asyn
 test("controlled Rakuten fixture crosses search, product evidence, and persisted handoff", async ({ page }) => {
   await page.goto("/?search=RKT-FIXTURE-100");
   await page.getByRole("link", { name: "Rakuten Controlled Fixture Headphones", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Rakuten Controlled Fixture Headphones" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Rakuten Controlled Fixture Headphones" })).toBeVisible();
   await expect(page.locator(".primary-offer").getByText("Rakuten Controlled Fixture Retailer", { exact: true })).toBeVisible();
 
   const cta = page.locator(".primary-offer").getByRole("link", { name: "Continue to Rakuten Controlled Fixture Retailer" });

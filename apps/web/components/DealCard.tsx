@@ -3,6 +3,7 @@ import type { DealCard as DealCardModel } from "../lib/api";
 import { availabilityLabel } from "../lib/offerPresentation";
 import { freshnessTone, StateBadge } from "./StateBadge";
 import { WishlistCardButton } from "./WishlistCardButton";
+import { ProductVisual } from "./ProductVisual";
 
 function formatPrice(price: number | null, currency: string) {
   if (price === null) return "Price unavailable";
@@ -20,8 +21,7 @@ export function DealCard({ deal, returnTo = deal.detailsPath }: { deal: DealCard
     <article className="deal-card">
       <div className="deal-card-retailer"><span className="retailer-avatar" aria-hidden="true">{deal.retailer.slice(0, 1)}</span><strong>{deal.retailer}</strong><span className="deal-card-date">{deal.observedAt ? new Date(deal.observedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : "Date unavailable"}</span><WishlistCardButton productId={deal.productId} productTitle={deal.productTitle} returnTo={returnTo} /></div>
       <Link className="deal-card-visual" href={deal.detailsPath} aria-label={`View ${deal.productTitle}`}>
-        <span className="product-visual-mark" aria-hidden="true">{deal.category.slice(0, 2).toUpperCase()}</span>
-        <span className="product-visual-copy">{deal.category}<small>Image shown when retailer rights permit</small></span>
+        <ProductVisual image={deal.productImage} title={deal.productTitle} category={deal.category} />
         {deal.supportedSavingsPercent !== null && <strong className="discount-badge">-{Math.round(deal.supportedSavingsPercent)}%</strong>}
       </Link>
       <div className="deal-card-body">

@@ -18,13 +18,18 @@ export type AdminBanner = {
   isInPublicCarousel: boolean; publicPosition: number | null; publicArtworkState: string; publicEligibilityReason: string;
 };
 export type AdminBannerAsset = { id: string; fileName: string; contentType: string; sizeBytes: number; assetPath: string; createdAt: string };
+export type AdminProductImage = {
+  id: string; productId: string; productTitle: string; fileName: string; contentType: string; sizeBytes: number; width: number; height: number;
+  previewPath: string; publicPath: string; origin: string; state: string; rightsEvidenceReference: string; allowedPlacements: string;
+  effectiveAt: string | null; expiresAt: string | null; lastValidatedAt: string; createdAt: string; isPubliclyVisible: boolean;
+};
 export type AdminAudit = { id: string; action: string; entityType: string; entityId: string; summary: string; createdAt: string };
 export type AdminReport = { reportId: string; listingId: string; retailer: string; listingTitle: string; reason: string; customerNote: string | null; status: string; createdAt: string; updatedAt: string };
 export type AdminDashboard = {
   counts: { publishedOffers: number; draftOffers: number; enabledBanners: number; blockedOrExpiredBanners: number; openReports: number };
   brands: AdminReferenceOption[]; categories: AdminReferenceOption[]; retailers: AdminReferenceOption[]; policies: AdminPolicyOption[];
   managedCategories: AdminCategory[]; managedRetailers: AdminRetailer[];
-  offers: AdminOffer[]; bannerAssets: AdminBannerAsset[]; banners: AdminBanner[]; reports: AdminReport[]; recentAudit: AdminAudit[];
+  offers: AdminOffer[]; productImages: AdminProductImage[]; bannerAssets: AdminBannerAsset[]; banners: AdminBanner[]; reports: AdminReport[]; recentAudit: AdminAudit[];
 };
 
 export type AdminOfferInput = {
@@ -97,5 +102,25 @@ export async function uploadAdminBannerAsset(file: File) {
   });
   if (!response.ok) throw await parseError(response);
   return response.json() as Promise<AdminBannerAsset>;
+}
+export async function uploadAdminProductImage(productId: string, input: { file: File; rightsEvidenceReference: string; allowedPlacements: string; effectiveAt: string | null; expiresAt: string | null; activate: boolean }) {
+  const body = new FormData();
+  body.append("file", input.file);
+  body.append("rightsEvidenceReference", input.rightsEvidenceReference);
+  body.append("allowedPlacements", input.allowedPlacements);
+  if (input.effectiveAt) body.append("effectiveAt", new Date(input.effectiveAt).toISOString());
+  if (input.expiresAt) body.append("expiresAt", new Date(input.expiresAt).toISOString());
+  body.append("activate", String(input.activate));
+  const response = await fetch(`/api/v1/admin/products/${encodeURIComponent(productId)}/images`, {
+    method: "POST", cache: "no-store", credentials: "same-origin", headers: { "X-CSRF-TOKEN": await token() }, body,
+  });
+  if (!response.ok) throw await parseError(response);
+  return response.json() as Promise<AdminProductImage>;
+}
+export function activateAdminProductImage(imageId: string, changeReason: string) {
+  return mutation(`/api/v1/admin/product-images/${encodeURIComponent(imageId)}/activate`, "POST", { changeReason });
+}
+export function archiveAdminProductImage(imageId: string, changeReason: string) {
+  return mutation(`/api/v1/admin/product-images/${encodeURIComponent(imageId)}/archive`, "POST", { changeReason });
 }
 export function updateAdminReport(reportId: string, status: string, resolutionNote: string) { return mutation(`/api/v1/admin/reports/${encodeURIComponent(reportId)}/status`, "PUT", { status, resolutionNote }); }

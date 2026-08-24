@@ -73,6 +73,7 @@ public sealed class Product
     public string SearchDocument { get; private set; } = string.Empty;
     public string? NormalizedModelNumber { get; private set; }
     public string? NormalizedManufacturerPartNumber { get; private set; }
+    public ICollection<ProductImage> Images { get; private set; } = new List<ProductImage>();
 
     public static Product Create(
         string slug,

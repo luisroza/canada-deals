@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { freshnessTone, StateBadge } from "./StateBadge";
 import { useWishlist } from "./WishlistContext";
+import { ProductVisual } from "./ProductVisual";
 
 function formatPrice(price: number | null, currency: string) {
   return price === null ? "Current price unavailable" : new Intl.NumberFormat("en-CA", { style: "currency", currency }).format(price);
@@ -71,6 +72,7 @@ export function SavedProductsView() {
           <p className="wishlist-result-count" role="status" aria-live="polite">{visibleItems.length} of {wishlist.items.length} saved {wishlist.items.length === 1 ? "product" : "products"}</p>
           {visibleItems.length === 0 ? <section className="notice"><h2>No saved products match.</h2><p>Try another product, category, or store.</p><button className="button button-primary" type="button" onClick={clearFilters}>Clear Wishlist filters</button></section> : <div className="saved-grid">
           {visibleItems.map((item) => <article className="deal-card saved-product-card" key={item.productId}>
+              <Link className="saved-product-visual" href={item.detailsPath}><ProductVisual image={item.productImage} title={item.productTitle} category={item.category} /></Link>
               <p className="eyebrow">{item.category} · {item.brand}</p>
               <h2><Link href={item.detailsPath}>{item.productTitle}</Link></h2>
               <p className="price">{formatPrice(item.currentPrice, item.currency)}</p>

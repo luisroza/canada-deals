@@ -3,6 +3,7 @@ using System;
 using CanadaDeals.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace CanadaDeals.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(DealsDbContext))]
-    partial class DealsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260824162651_AddProductImagePublishing")]
+    partial class AddProductImagePublishing
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -678,18 +681,13 @@ namespace CanadaDeals.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MerchantPolicyId");
+                    b.HasIndex("ContentHash");
 
-                    b.HasIndex("ProductId")
-                        .IsUnique()
-                        .HasFilter("\"State\" = 1");
+                    b.HasIndex("MerchantPolicyId");
 
                     b.HasIndex("SourceListingId");
 
                     b.HasIndex("UploadedByUserId");
-
-                    b.HasIndex("ProductId", "ContentHash")
-                        .IsUnique();
 
                     b.HasIndex("ProductId", "State", "CreatedAt");
 

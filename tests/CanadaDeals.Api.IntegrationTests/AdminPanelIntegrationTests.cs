@@ -44,6 +44,20 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
         return await client.SendAsync(request);
     }
 
+    private static async Task<HttpResponseMessage> UploadProductImageAsync(HttpClient client, Guid productId, byte[] bytes, bool activate)
+    {
+        using var body = new MultipartFormDataContent();
+        var file = new ByteArrayContent(bytes);
+        file.Headers.ContentType = MediaTypeHeaderValue.Parse("image/png");
+        body.Add(file, "file", "reviewed-product.png");
+        body.Add(new StringContent("Owner-created integration test image"), "rightsEvidenceReference");
+        body.Add(new StringContent("DEAL_CARD,PRODUCT_PAGE,WISHLIST"), "allowedPlacements");
+        body.Add(new StringContent(activate.ToString()), "activate");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/admin/products/{productId}/images") { Content = body };
+        request.Headers.Add("X-CSRF-TOKEN", await TokenAsync(client));
+        return await client.SendAsync(request);
+    }
+
     private async Task<HttpClient> CreateAuthenticatedAsync(bool admin)
     {
         var email = $"admin-panel-{Guid.NewGuid():N}@example.test";
@@ -279,6 +293,55 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
 
         using var rejected = await UploadAsync(client, [1, 2, 3, 4], "image/png", "not-really.png");
         Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+    }
+
+    [RequiresPostgresFact]
+    public async Task Product_images_are_admin_reviewed_and_publication_fails_closed()
+    {
+        var client = await CreateAuthenticatedAsync(admin: true);
+        var slug = $"product-image-{Guid.NewGuid():N}";
+        using var offer = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", await OfferInputAsync(slug, enabled: true));
+        Assert.Equal(HttpStatusCode.Created, offer.StatusCode);
+        using var offerJson = JsonDocument.Parse(await offer.Content.ReadAsStringAsync());
+        var productId = offerJson.RootElement.GetProperty("productId").GetGuid();
+        var png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+
+        using var uploaded = await UploadProductImageAsync(client, productId, png, activate: false);
+        Assert.Equal(HttpStatusCode.Created, uploaded.StatusCode);
+        using var uploadedJson = JsonDocument.Parse(await uploaded.Content.ReadAsStringAsync());
+        var imageId = uploadedJson.RootElement.GetProperty("id").GetGuid();
+        var publicPath = uploadedJson.RootElement.GetProperty("publicPath").GetString()!;
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(publicPath)).StatusCode);
+
+        using var before = JsonDocument.Parse(await (await client.GetAsync($"/api/v1/products/{slug}")).Content.ReadAsStringAsync());
+        Assert.Equal(JsonValueKind.Null, before.RootElement.GetProperty("productImage").ValueKind);
+
+        using var activated = await MutateAsync(client, HttpMethod.Post, $"/api/v1/admin/product-images/{imageId}/activate", new { changeReason = "Reviewed for all public product placements" });
+        Assert.Equal(HttpStatusCode.NoContent, activated.StatusCode);
+        using var publicImage = await client.GetAsync(publicPath);
+        Assert.Equal(HttpStatusCode.OK, publicImage.StatusCode);
+        Assert.Equal("image/png", publicImage.Content.Headers.ContentType?.MediaType);
+        Assert.NotNull(publicImage.Headers.ETag);
+        Assert.True(publicImage.Headers.CacheControl?.Public);
+        Assert.True(publicImage.Headers.CacheControl?.MustRevalidate);
+        Assert.Equal(TimeSpan.Zero, publicImage.Headers.CacheControl?.MaxAge);
+        using var conditionalRequest = new HttpRequestMessage(HttpMethod.Get, publicPath);
+        conditionalRequest.Headers.IfNoneMatch.Add(publicImage.Headers.ETag!);
+        using var notModified = await client.SendAsync(conditionalRequest);
+        Assert.Equal(HttpStatusCode.NotModified, notModified.StatusCode);
+
+        using var after = JsonDocument.Parse(await (await client.GetAsync($"/api/v1/products/{slug}")).Content.ReadAsStringAsync());
+        Assert.Equal(publicPath, after.RootElement.GetProperty("productImage").GetProperty("url").GetString());
+
+        using var archived = await MutateAsync(client, HttpMethod.Post, $"/api/v1/admin/product-images/{imageId}/archive", new { changeReason = "Asset withdrawn" });
+        Assert.Equal(HttpStatusCode.NoContent, archived.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(publicPath)).StatusCode);
+
+        await using var cleanup = fixture.Services.CreateAsyncScope();
+        var db = cleanup.ServiceProvider.GetRequiredService<DealsDbContext>();
+        var listing = await db.RetailerListings.SingleAsync(item => item.ProductId == productId);
+        listing.SetEnabled(false);
+        await db.SaveChangesAsync();
     }
 
     [RequiresPostgresFact]

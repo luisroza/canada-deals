@@ -3,6 +3,7 @@ using CanadaDeals.Domain.Accounts;
 using CanadaDeals.Domain.Alerts;
 using CanadaDeals.Domain.Affiliates;
 using CanadaDeals.Domain.Common;
+using CanadaDeals.Domain.Catalog;
 using CanadaDeals.Domain.PriceTruth;
 using CanadaDeals.Domain.Retailers;
 using CanadaDeals.Domain.Search;
@@ -193,9 +194,10 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                             x.MerchantPolicy.RequiredAttribution != TestOnlyAttribution)
                 .ToListAsync(cancellationToken);
         var selected = listings.ToDictionary(x => x.Id);
+        var productImages = await PublicImagesAsync(productIds, now, "DEAL_CARD", cancellationToken);
         var items = rows
             .Where(row => selected.ContainsKey(row.ListingId))
-            .Select(row => ToCard(selected[row.ListingId], now, listings, row.ReferencePrice))
+            .Select(row => ToCard(selected[row.ListingId], now, listings, row.ReferencePrice, productImages.GetValueOrDefault(row.ProductId)))
             .ToList();
 
         var categories = await db.Categories.AsNoTracking().OrderBy(x => x.Name)
@@ -327,8 +329,9 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             _ => "There is not enough verified evidence for a stronger claim."
         };
 
+        var productImage = (await PublicImagesAsync([product.Id], now, "PRODUCT_PAGE", cancellationToken)).GetValueOrDefault(product.Id);
         return new ProductDetailResponse(product.Id, product.Slug, product.Title, product.Brand.Name, product.Category.Name,
-            product.VariantAttributes, primary, safe, related, history, evidence);
+            product.VariantAttributes, primary, safe, related, history, evidence, productImage);
     }
 
     public async Task<ProductHistoryResponse?> GetProductHistoryAsync(
@@ -427,6 +430,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             .ToListAsync(cancellationToken);
 
         var now = clock.GetUtcNow();
+        var productImages = await PublicImagesAsync(productIds, now, "WISHLIST", cancellationToken);
         return saves.Select(saved =>
         {
             var listing = listings.FirstOrDefault(x => x.ProductId == saved.ProductId && ComparisonRules.IsSafeComparison(x))
@@ -446,11 +450,12 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                 offer?.HistoryState ?? "UNAVAILABLE",
                 offer?.Retailer,
                 saved.CreatedAt,
-                $"/products/{saved.Product.Slug}");
+                $"/products/{saved.Product.Slug}",
+                productImages.GetValueOrDefault(saved.ProductId));
         }).ToList();
     }
 
-    private DealCardResponse ToCard(RetailerListing listing, DateTimeOffset now, IReadOnlyList<RetailerListing> feed, decimal? referencePrice)
+    private DealCardResponse ToCard(RetailerListing listing, DateTimeOffset now, IReadOnlyList<RetailerListing> feed, decimal? referencePrice, ProductImageResponse? productImage)
     {
         var offer = ToOffer(listing, now);
         return new DealCardResponse(listing.Id, listing.ProductId, listing.Product.Slug, listing.Product.Title, listing.Product.Brand.Name,
@@ -461,7 +466,28 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                 ? Math.Round((referencePrice!.Value - listing.CurrentPriceAmount.Value) / referencePrice.Value * 100m, 1)
                 : null,
             feed.Any(x => x.ProductId == listing.ProductId && x.Id != listing.Id && ComparisonRules.IsSafeComparison(x)),
-            $"/products/{listing.Product.Slug}", HandoffPath(listing, now), listing.MerchantPolicy.DisclosureText);
+            $"/products/{listing.Product.Slug}", HandoffPath(listing, now), listing.MerchantPolicy.DisclosureText, productImage);
+    }
+
+    private async Task<IReadOnlyDictionary<Guid, ProductImageResponse>> PublicImagesAsync(
+        IReadOnlyCollection<Guid> productIds,
+        DateTimeOffset now,
+        string placement,
+        CancellationToken cancellationToken)
+    {
+        if (productIds.Count == 0) return new Dictionary<Guid, ProductImageResponse>();
+        var rows = await db.ProductImages.AsNoTracking()
+            .Where(image => productIds.Contains(image.ProductId) && image.State == ProductImageState.Active &&
+                (image.EffectiveAt == null || image.EffectiveAt <= now) && (image.ExpiresAt == null || image.ExpiresAt > now) &&
+                image.AllowedPlacements.Contains(placement))
+            .OrderByDescending(image => image.CreatedAt)
+            .Select(image => new { image.ProductId, image.Id, image.Width, image.Height })
+            .ToListAsync(cancellationToken);
+        return rows.GroupBy(image => image.ProductId).ToDictionary(group => group.Key, group =>
+        {
+            var image = group.First();
+            return new ProductImageResponse($"{ProductImage.PublicPathPrefix}{image.Id:D}", image.Width, image.Height);
+        });
     }
 
     private static RetailerOfferResponse ToOffer(RetailerListing listing, DateTimeOffset now)

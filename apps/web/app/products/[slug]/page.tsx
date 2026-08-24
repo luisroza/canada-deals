@@ -5,6 +5,7 @@ import { OfferCard } from "../../../components/OfferCard";
 import { PrimaryOfferPanel } from "../../../components/PrimaryOfferPanel";
 import { ReportIssueForm } from "../../../components/ReportIssueForm";
 import { SaveProductButton } from "../../../components/SaveProductButton";
+import { ProductVisual } from "../../../components/ProductVisual";
 import { getProduct } from "../../../lib/api";
 import { schemaAvailability } from "../../../lib/offerPresentation";
 import { absoluteUrl } from "../../../lib/seo";
@@ -30,12 +31,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   const canonical = absoluteUrl(`/products/${product.productSlug}`);
   const availability = schemaAvailability(product.primaryOffer);
-  const jsonLd = { "@context": "https://schema.org", "@type": "Product", name: product.productTitle, brand: product.brand, category: product.category, url: canonical, offers: product.primaryOffer.currentPrice ? { "@type": "Offer", priceCurrency: product.primaryOffer.currency, price: product.primaryOffer.currentPrice, url: canonical, ...(availability ? { availability } : {}) } : undefined };
+  const jsonLd = { "@context": "https://schema.org", "@type": "Product", name: product.productTitle, brand: product.brand, category: product.category, url: canonical, image: product.productImage ? absoluteUrl(product.productImage.url) : undefined, offers: product.primaryOffer.currentPrice ? { "@type": "Offer", priceCurrency: product.primaryOffer.currency, price: product.primaryOffer.currentPrice, url: canonical, ...(availability ? { availability } : {}) } : undefined };
 
   return <div className="product-page">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     <p><Link href="/">← Back to deals</Link></p>
-    <section className="product-hero"><p className="eyebrow">{product.category} · {product.brand}</p><h1>{product.productTitle}</h1><p className="product-meta">Verify the exact product and current offer before buying.</p><PrimaryOfferPanel offer={product.primaryOffer} /><div className="retention-actions wishlist-only"><SaveProductButton productId={product.productId} productTitle={product.productTitle} returnTo={`/products/${product.productSlug}`} /></div></section>
+    <section className="product-hero"><div className="product-detail-visual"><ProductVisual image={product.productImage} title={product.productTitle} category={product.category} className="product-detail-image" /></div><div><p className="eyebrow">{product.category} · {product.brand}</p><h1>{product.productTitle}</h1><p className="product-meta">Verify the exact product and current offer before buying.</p><PrimaryOfferPanel offer={product.primaryOffer} /><div className="retention-actions wishlist-only"><SaveProductButton productId={product.productId} productTitle={product.productTitle} returnTo={`/products/${product.productSlug}`} /></div></div></section>
     <div className="product-layout">
       <div>
         <section className="panel" aria-labelledby="evidence-heading"><h2 id="evidence-heading">Offer confidence</h2><p>{product.evidenceSummary}</p><p>Price tracking and target-price alerts are not part of the current product. Use the visible check time and verify the final price at the retailer.</p></section>

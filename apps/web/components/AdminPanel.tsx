@@ -5,6 +5,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { signIn, signOut } from "../lib/account";
 import {
   AdminApiError,
+  activateAdminProductImage,
+  archiveAdminProductImage,
   createAdminCategory,
   createAdminOffer,
   createAdminRetailer,
@@ -16,6 +18,7 @@ import {
   updateAdminReport,
   updateAdminRetailer,
   uploadAdminBannerAsset,
+  uploadAdminProductImage,
   type AdminBanner,
   type AdminBannerInput,
   type AdminDashboard,
@@ -325,7 +328,7 @@ function Offers({ dashboard, refresh, notify, reportError }: { dashboard: AdminD
     finally { setPending(false); }
   }
 
-  if (form) return <OfferEditor dashboard={dashboard} selected={selected} form={form} field={field} save={save} cancel={() => { setSelected(null); setForm(null); }} pending={pending} />;
+  if (form) return <OfferEditor dashboard={dashboard} selected={selected} form={form} field={field} save={save} cancel={() => { setSelected(null); setForm(null); }} pending={pending} refresh={refresh} notify={notify} reportError={reportError} />;
 
   return <>
     <div className="admin-heading"><div><p className="eyebrow">Catalog operations</p><h1>Offers</h1><p>Create drafts, review readiness, publish, or reversibly deactivate.</p></div><button className="button button-primary" type="button" onClick={() => open("new")}>Add offer</button></div>
@@ -338,7 +341,7 @@ function Offers({ dashboard, refresh, notify, reportError }: { dashboard: AdminD
   </>;
 }
 
-function OfferEditor({ dashboard, selected, form, field, save, cancel, pending }: { dashboard: AdminDashboard; selected: AdminOffer | "new" | null; form: OfferForm; field: <K extends keyof OfferForm>(key: K, value: OfferForm[K]) => void; save: (event: FormEvent<HTMLFormElement>) => Promise<void>; cancel: () => void; pending: boolean }) {
+function OfferEditor({ dashboard, selected, form, field, save, cancel, pending, refresh, notify, reportError }: { dashboard: AdminDashboard; selected: AdminOffer | "new" | null; form: OfferForm; field: <K extends keyof OfferForm>(key: K, value: OfferForm[K]) => void; save: (event: FormEvent<HTMLFormElement>) => Promise<void>; cancel: () => void; pending: boolean; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
   const existing = selected !== "new" && selected !== null;
   return <form className="admin-editor" onSubmit={save} noValidate>
     <div className="admin-heading"><div><p className="eyebrow">{existing ? "Edit offer" : "New offer"}</p><h1>{form.productTitle || "Untitled offer"}</h1><p>{existing ? selected.readinessSummary : "New offers start as drafts."}</p></div><div className="admin-heading-actions">{existing && <Link className="button button-secondary" href={selected.previewPath} target="_blank">Public preview</Link>}<button className="button button-secondary" type="button" onClick={cancel}>Cancel</button><button className="button button-primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Save offer"}</button></div></div>
@@ -353,6 +356,7 @@ function OfferEditor({ dashboard, selected, form, field, save, cancel, pending }
         <label>GTIN<input value={form.gtin ?? ""} onChange={e => field("gtin", e.target.value)} /></label>
         <label className="span-2">Variant attributes (JSON)<textarea rows={5} value={form.variantAttributes} onChange={e => field("variantAttributes", e.target.value)} /></label>
       </div></details>
+      {selected && selected !== "new" ? <ProductImageEditor productId={selected.productId} dashboard={dashboard} refresh={refresh} notify={notify} reportError={reportError} /> : <section className="admin-card admin-image-empty"><h2>Product image</h2><p>Save the new offer first, then reopen it to upload a reviewed product image.</p></section>}
       <details open><summary>Retailer listing</summary><div className="admin-form-grid">
         <label>Retailer<select disabled={existing} value={form.retailerId} onChange={e => field("retailerId", e.target.value)}>{dashboard.retailers.filter(item => item.isEnabled).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
         <label>Merchant policy<select disabled={existing} value={form.merchantPolicyId} onChange={e => field("merchantPolicyId", e.target.value)}>{dashboard.policies.map(item => <option key={item.id} value={item.id}>{item.sourceKey} · price {item.priceStorage}</option>)}</select></label>
@@ -384,6 +388,47 @@ function OfferEditor({ dashboard, selected, form, field, save, cancel, pending }
       <div className="admin-readonly"><strong>Derived, not editable</strong><span>Freshness from timestamps</span><span>Evidence from policy</span><span>Affiliate handoff from approved active link</span><span>Reference price from permitted observations</span></div>
     </aside></div>
   </form>;
+}
+
+function ProductImageEditor({ productId, dashboard, refresh, notify, reportError }: { productId: string; dashboard: AdminDashboard; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
+  const images = dashboard.productImages.filter(image => image.productId === productId);
+  const current = images.find(image => image.isPubliclyVisible) ?? images[0];
+  const [file, setFile] = useState<File | null>(null);
+  const [evidence, setEvidence] = useState("Owner-created or licensed asset reviewed by the account owner");
+  const [effectiveAt, setEffectiveAt] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [activate, setActivate] = useState(true);
+  const [reason, setReason] = useState("Editorial product image review");
+  const [pending, setPending] = useState(false);
+
+  async function upload() {
+    if (!file) { reportError("Choose a PNG, JPEG, or WebP product image."); return; }
+    if (!evidence.trim()) { reportError("Add a rights evidence reference before uploading."); return; }
+    setPending(true); notify(null); reportError(null);
+    try {
+      await uploadAdminProductImage(productId, { file, rightsEvidenceReference: evidence.trim(), allowedPlacements: "DEAL_CARD,PRODUCT_PAGE,WISHLIST", effectiveAt: clean(effectiveAt), expiresAt: clean(expiresAt), activate });
+      await refresh(); setFile(null); notify(activate ? "Product image uploaded and activated." : "Product image uploaded for review.");
+    } catch (caught) { reportError(caught instanceof Error ? caught.message : "Product image could not be uploaded."); }
+    finally { setPending(false); }
+  }
+
+  async function changeState(action: "activate" | "archive", imageId: string) {
+    if (!reason.trim()) { reportError("Add a change reason first."); return; }
+    setPending(true); notify(null); reportError(null);
+    try { if (action === "activate") await activateAdminProductImage(imageId, reason.trim()); else await archiveAdminProductImage(imageId, reason.trim()); await refresh(); notify(action === "activate" ? "Product image activated." : "Product image archived. The previous asset remains in the audit history."); }
+    catch (caught) { reportError(caught instanceof Error ? caught.message : "Product image state could not be changed."); }
+    finally { setPending(false); }
+  }
+
+  return <details open className="admin-product-image"><summary>Product image</summary><div className="admin-product-image-layout">
+    <div className="admin-image-preview">{current ? <><img src={current.previewPath} alt={`Preview for ${current.productTitle}`} /><div><span className={`status-chip ${current.isPubliclyVisible ? "status-ready" : ""}`}>{current.isPubliclyVisible ? "Public" : current.state}</span><strong>{current.fileName}</strong><small>{current.width} × {current.height} · {Math.ceil(current.sizeBytes / 1024)} KB · {current.allowedPlacements}</small></div></> : <p>No reviewed image is associated with this product.</p>}</div>
+    <div className="admin-image-controls"><div className="admin-upload"><label>Reviewed product asset <span>PNG, JPEG, or WebP · 1 MB · max 2400 × 2400</span></label><div><input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => setFile(event.target.files?.[0] ?? null)} /><button className="button button-secondary" type="button" disabled={pending || !file} onClick={() => void upload()}>{pending ? "Working…" : "Upload"}</button></div></div>
+      <label>Rights evidence reference<textarea rows={3} maxLength={1000} value={evidence} onChange={event => setEvidence(event.target.value)} /></label>
+      <div className="admin-form-grid"><label>Effective at (optional)<input type="datetime-local" value={effectiveAt} onChange={event => setEffectiveAt(event.target.value)} /></label><label>Expires at (optional)<input type="datetime-local" value={expiresAt} onChange={event => setExpiresAt(event.target.value)} /></label></div>
+      <label className="admin-toggle"><input type="checkbox" checked={activate} onChange={event => setActivate(event.target.checked)} /><span>Activate after upload</span></label>
+      {images.length > 0 && <><label>State change reason<input maxLength={300} value={reason} onChange={event => setReason(event.target.value)} /></label><div className="admin-image-history">{images.map(image => <article key={image.id}><div><strong>{image.fileName}</strong><small>{image.state} · reviewed {new Date(image.lastValidatedAt).toLocaleDateString("en-CA")}</small></div><div>{image.state !== "ACTIVE" && <button className="button button-secondary" type="button" disabled={pending} onClick={() => void changeState("activate", image.id)}>Activate</button>}{image.state !== "ARCHIVED" && <button className="button button-text" type="button" disabled={pending} onClick={() => void changeState("archive", image.id)}>Archive</button>}</div></article>)}</div></>}
+    </div>
+  </div></details>;
 }
 
 function Banners({ dashboard, refresh, notify, reportError }: { dashboard: AdminDashboard; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {

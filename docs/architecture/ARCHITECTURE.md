@@ -101,7 +101,9 @@ The Next.js application should mirror these user-facing capabilities but should 
 | Email | Resend transactional email | simple API and low-volume free tier; alerts are P1 not a core marketplace | deliverability, residency, or volume requirements change |
 | Hosting | DigitalOcean App Platform, Toronto; managed PostgreSQL, Toronto | small-team operations, low starting cost, Canadian region availability | workload or compliance requires Azure controls or multi-region design |
 | Edge | Cloudflare Free baseline | DNS, TLS, CDN and DDoS baseline at zero cost | WAF/SLA/advanced edge controls become necessary |
-| Assets | built-in first-party SVGs plus a bounded PostgreSQL-backed reviewed banner library; optional Spaces for future scale | durable low-volume owner uploads without ephemeral container writes or new MVP infrastructure | asset volume/traffic justifies object storage/CDN or permitted retailer feeds require it |
+| Assets | built-in first-party SVGs plus bounded PostgreSQL-backed reviewed banner and Product Image libraries; optional Spaces for future scale | durable low-volume owner uploads without ephemeral container writes or new MVP infrastructure; same-origin delivery simplifies CSP and rights revocation | asset volume/traffic justifies object storage/CDN or permitted retailer feeds require it |
+
+Product imagery is an independent Product-owned entity, not a retailer listing URL. The first implementation accepts only owner-reviewed internal bytes with signature/dimension/size validation, SHA-256 identity, placement and validity gates, and audited reversible state. Public reads select only the newest active eligible image and serve it through an opaque same-origin endpoint with ETag and `nosniff`; unknown, pending, expired, blocked, and archived records fail closed. Optional source-listing and merchant-policy references reserve the future connector boundary, but no connector may populate or publish those images until merchant-specific display and caching rights are verified.
 
 ## Option scoring
 

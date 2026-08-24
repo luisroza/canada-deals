@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { register, resendConfirmation, safeReturnPath, signIn } from "../lib/account";
 
@@ -12,8 +12,11 @@ export function AccountForm({ mode, returnTo }: { mode: "register" | "sign-in"; 
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const destination = safeReturnPath(returnTo);
   const isRegister = mode === "register";
+
+  useEffect(() => { setHydrated(true); }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,13 +60,13 @@ export function AccountForm({ mode, returnTo }: { mode: "register" | "sign-in"; 
       <p className="lede">{isRegister ? "Create the minimum account needed to keep saved products." : "Sign in to access your saved products."}</p>
       <form onSubmit={submit} noValidate>
         <label htmlFor="account-email">Email</label>
-        <input id="account-email" name="email" type="email" autoComplete="email" required maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} />
+        <input id="account-email" name="email" type="email" autoComplete="email" required maxLength={254} value={email} disabled={!hydrated} onChange={(event) => setEmail(event.target.value)} />
         <label htmlFor="account-password">Password</label>
-        <input id="account-password" name="password" type="password" autoComplete={isRegister ? "new-password" : "current-password"} required minLength={isRegister ? 10 : undefined} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby={isRegister ? "password-hint" : undefined} />
+        <input id="account-password" name="password" type="password" autoComplete={isRegister ? "new-password" : "current-password"} required minLength={isRegister ? 10 : undefined} maxLength={128} value={password} disabled={!hydrated} onChange={(event) => setPassword(event.target.value)} aria-describedby={isRegister ? "password-hint" : undefined} />
         {isRegister && <p id="password-hint" className="field-hint">At least 10 characters with upper case, lower case, and a number.</p>}
         {error && <p className="field-error" role="alert">{error}</p>}
         {message && <p className="notice" role="status">{message}</p>}
-        <button className="button button-primary" type="submit" disabled={pending}>{pending ? "Please wait…" : isRegister ? "Create account" : "Sign in"}</button>
+        <button className="button button-primary" type="submit" disabled={!hydrated || pending}>{pending ? "Please wait…" : isRegister ? "Create account" : "Sign in"}</button>
       </form>
       {isRegister && message && <button className="button button-secondary" type="button" onClick={resend} disabled={pending}>Resend confirmation email</button>}
       <p className="account-alternate">{isRegister ? "Already have an account?" : "Need an account?"} <Link href={alternatePath}>{isRegister ? "Sign in" : "Create one"}</Link></p>

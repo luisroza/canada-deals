@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/saved" }));
 const savedProduct = {
   productId: "product-1", productSlug: "fixture-tv", productTitle: "Fixture television", brand: "Fixture Brand",
   category: "Electronics", currentPrice: 499.99, currency: "CAD", freshnessState: "RECENT", evidenceState: "STRONG",
-  historyState: "RELIABLE", retailer: "Fixture Retailer", savedAt: "2026-08-11T19:30:00Z", detailsPath: "/products/fixture-tv",
+  historyState: "RELIABLE", retailer: "Fixture Retailer", savedAt: "2026-08-11T19:30:00Z", detailsPath: "/products/fixture-tv", productImage: null,
 };
 const secondSavedProduct = {
   ...savedProduct,

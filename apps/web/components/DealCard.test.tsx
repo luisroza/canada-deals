@@ -28,6 +28,7 @@ const baseDeal = {
   detailsPath: "/products/northstar-55-qled-tv",
   handoffPath: "/go/a",
   disclosure: "Demo fixture data.",
+  productImage: { url: "/api/v1/product-images/image-a", width: 800, height: 800 },
 };
 
 describe("DealCard", () => {
@@ -43,6 +44,7 @@ describe("DealCard", () => {
     expect(screen.getByText("Available online")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Get deal" })).toHaveAttribute("href", "/go/a");
     expect(screen.getByRole("link", { name: "View details" })).toHaveAttribute("href", baseDeal.detailsPath);
+    expect(screen.getByRole("img", { name: baseDeal.productTitle })).toHaveAttribute("src", baseDeal.productImage.url);
   });
 
   it("renders stale evidence and a missing affiliate destination honestly", () => {

@@ -250,3 +250,13 @@ Only record decisions that have actually been approved. Proposed options and res
 - **Safety:** Deactivation requires a reason and is audited. Backend-derived impact counts cover the complete database. Store activation never grants merchant data, artwork, connector, or affiliate rights; existing policy and provider gates remain independently fail closed.
 - **UX:** Use separate responsive card lists with search/status filters, textual states, 44px actions, one-column mobile reflow, immutable identifier guidance, and an explicit impact warning in each editor.
 - **Date:** 2026-08-24
+
+### DEC-024 - Product-owned reviewed imagery with fail-closed publication
+
+- **Status:** Approved by explicit owner instruction; implemented and locally validated
+- **Decision:** Model Product imagery independently from Retailer Listings and affiliate destinations. The MVP stores low-volume owner-reviewed PNG/JPEG/WebP bytes in PostgreSQL and allows one newest active image per Product and placement. Deal cards, Product pages, and Wishlist cards use a fixed square contained presentation and a neutral fallback.
+- **Administration:** Product image intake is owner-only, CSRF-protected, bounded to 1 MB and 2400 x 2400, signature/dimension checked, SHA-256 identified, and accompanied by rights evidence, allowed placements, optional effective/expiry dates, actor, state, and audit. Replacement archives the prior active record; removal is a reversible archive, not deletion.
+- **Delivery:** Same-origin opaque image IDs return only active, current, placement-eligible records with ETag, bounded public caching, and `nosniff`. Pending, expired, blocked, archived, unknown, and missing images fail closed without suppressing the offer itself.
+- **Connector gate:** Rakuten and other connector image URLs remain unpersisted and unpublished. Optional source-listing and merchant-policy references do not grant rights; merchant-specific display and cache permissions must be verified before a later connector implementation.
+- **Scale boundary:** PostgreSQL byte storage is accepted only for the bounded owner-managed MVP. Move the unchanged domain/audit metadata and binary payload to Canadian object storage/CDN when traffic or asset volume justifies it.
+- **Date:** 2026-08-24

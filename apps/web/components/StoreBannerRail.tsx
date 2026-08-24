@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type TouchEvent } from "react";
 import type { StoreBannerData } from "../lib/api";
 import { StoreBanner } from "./StoreBanner";
 
@@ -12,6 +12,10 @@ type CarouselMeasurements = {
   gap: number;
   itemCount: number;
 };
+
+function isMobileCarousel() {
+  return window.matchMedia?.("(max-width: 760px)").matches ?? window.innerWidth <= 760;
+}
 
 export function calculateStoreCarousel(measurements: CarouselMeasurements) {
   const { clientWidth, scrollWidth, scrollLeft, itemWidth, gap, itemCount } = measurements;
@@ -38,11 +42,24 @@ export function StoreBannerRail({ banners }: { banners: StoreBannerData[] }) {
   const visibleBanners = banners
     .filter((banner) => banner.affiliateStatus !== "DISABLED");
   const railRef = useRef<HTMLDivElement>(null);
+  const touchStartXRef = useRef<number | null>(null);
+  const [mobileIndex, setMobileIndex] = useState(0);
   const [carousel, setCarousel] = useState({ page: 1, pages: 1, canPrevious: false, canNext: false });
 
   const updateCarousel = useCallback(() => {
     const rail = railRef.current;
     if (!rail) return;
+    if (isMobileCarousel()) {
+      rail.scrollLeft = 0;
+      const page = Math.min(Math.max(1, mobileIndex + 1), Math.max(1, visibleBanners.length));
+      setCarousel({
+        page,
+        pages: Math.max(1, visibleBanners.length),
+        canPrevious: page > 1,
+        canNext: page < visibleBanners.length,
+      });
+      return;
+    }
     const firstBanner = rail.firstElementChild as HTMLElement | null;
     const gap = Number.parseFloat(window.getComputedStyle(rail).columnGap) || 0;
     const itemWidth = firstBanner?.getBoundingClientRect().width ?? rail.clientWidth;
@@ -54,7 +71,11 @@ export function StoreBannerRail({ banners }: { banners: StoreBannerData[] }) {
       gap,
       itemCount: rail.children.length,
     }));
-  }, []);
+  }, [mobileIndex, visibleBanners.length]);
+
+  useEffect(() => {
+    setMobileIndex((current) => Math.min(current, Math.max(0, visibleBanners.length - 1)));
+  }, [visibleBanners.length]);
 
   useEffect(() => {
     const rail = railRef.current;
@@ -74,6 +95,10 @@ export function StoreBannerRail({ banners }: { banners: StoreBannerData[] }) {
   function move(direction: -1 | 1) {
     const rail = railRef.current;
     if (!rail) return;
+    if (isMobileCarousel()) {
+      setMobileIndex((current) => Math.min(visibleBanners.length - 1, Math.max(0, current + direction)));
+      return;
+    }
     const firstBanner = rail.firstElementChild as HTMLElement | null;
     const gap = Number.parseFloat(window.getComputedStyle(rail).columnGap) || 0;
     const metrics = calculateStoreCarousel({
@@ -88,6 +113,21 @@ export function StoreBannerRail({ banners }: { banners: StoreBannerData[] }) {
     const targetLeft = Math.min(metrics.maximumScroll, (targetPage - 1) * metrics.step * metrics.itemsPerPage);
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     rail.scrollTo({ left: targetLeft, behavior: reduceMotion ? "auto" : "smooth" });
+  }
+
+  function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
+    touchStartXRef.current = event.changedTouches[0]?.clientX ?? null;
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    const startX = touchStartXRef.current;
+    touchStartXRef.current = null;
+    if (startX === null || !isMobileCarousel()) return;
+    const endX = event.changedTouches[0]?.clientX;
+    if (endX === undefined) return;
+    const distance = endX - startX;
+    if (Math.abs(distance) < 44) return;
+    move(distance < 0 ? 1 : -1);
   }
 
   if (visibleBanners.length === 0) return null;
@@ -105,8 +145,16 @@ export function StoreBannerRail({ banners }: { banners: StoreBannerData[] }) {
           <button type="button" onClick={() => move(1)} disabled={!carousel.canNext} aria-label="Next store banners">→</button>
         </div>
       </div>
-      <div className="store-banner-rail" ref={railRef} aria-label="Store banners">
-        {visibleBanners.map((banner) => <StoreBanner banner={banner} key={banner.retailerKey} />)}
+      <div
+        className="store-banner-rail"
+        ref={railRef}
+        aria-label="Store banners"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {visibleBanners.map((banner, index) => (
+          <StoreBanner banner={banner} mobileActive={index === mobileIndex} key={banner.retailerKey} />
+        ))}
       </div>
     </section>
   );

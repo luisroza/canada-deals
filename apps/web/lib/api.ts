@@ -21,7 +21,10 @@ export type DealCard = {
   detailsPath: string;
   handoffPath: string | null;
   disclosure: string;
+  productImage: ProductImageData | null;
 };
+
+export type ProductImageData = { url: string; width: number; height: number };
 
 export type RetailerOffer = {
   listingId: string;
@@ -56,6 +59,7 @@ export type ProductDetail = {
   relatedListingsForReview: RetailerOffer[];
   historySummary: string;
   evidenceSummary: string;
+  productImage: ProductImageData | null;
 };
 
 export type ProductHistoryPoint = {
@@ -139,6 +143,7 @@ export type SavedProduct = {
   retailer: string | null;
   savedAt: string;
   detailsPath: string;
+  productImage: ProductImageData | null;
 };
 
 const configuredApiBase = process.env.API_BASE_URL;

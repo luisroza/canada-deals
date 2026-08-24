@@ -24,8 +24,11 @@ export function ReportIssueForm({ listingId, listingLabel }: ReportIssueFormProp
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstReasonRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setHydrated(true); }, []);
 
   useEffect(() => {
     if (open && !confirmation) firstReasonRef.current?.focus();
@@ -78,6 +81,7 @@ export function ReportIssueForm({ listingId, listingLabel }: ReportIssueFormProp
         ref={triggerRef}
         className="button button-secondary"
         type="button"
+        disabled={!hydrated}
         aria-expanded={open}
         aria-controls="listing-report-form"
         onClick={() => {

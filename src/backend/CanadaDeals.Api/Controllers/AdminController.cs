@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.RegularExpressions;
 using CanadaDeals.Api.Contracts;
 using CanadaDeals.Api.Security;
+using CanadaDeals.Api.Services;
 using CanadaDeals.Domain.Administration;
 using CanadaDeals.Domain.Catalog;
 using CanadaDeals.Domain.Common;
@@ -76,6 +77,25 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
         var bannerAssets = bannerAssetRows.Select(asset => new AdminBannerAssetResponse(
             asset.Id, asset.FileName, asset.ContentType, asset.SizeBytes,
             $"{StoreBannerAsset.PublicPathPrefix}{asset.Id:D}", asset.CreatedAt)).ToList();
+        var productImageRows = await db.ProductImages.AsNoTracking()
+            .OrderByDescending(image => image.CreatedAt)
+            .Take(200)
+            .Select(image => new
+            {
+                image.Id, image.ProductId, ProductTitle = image.Product.Title, image.FileName, image.ContentType,
+                SizeBytes = image.Content.Length, image.Width, image.Height, image.Origin, image.State,
+                image.RightsEvidenceReference, image.AllowedPlacements, image.EffectiveAt, image.ExpiresAt,
+                image.LastValidatedAt, image.CreatedAt
+            })
+            .ToListAsync(cancellationToken);
+        var productImages = productImageRows.Select(image => new AdminProductImageResponse(
+            image.Id, image.ProductId, image.ProductTitle, image.FileName, image.ContentType, image.SizeBytes,
+            image.Width, image.Height, $"/api/v1/admin/product-images/{image.Id:D}/content", $"{ProductImage.PublicPathPrefix}{image.Id:D}",
+            image.Origin.ToString().ToUpperInvariant(), image.State.ToString().ToUpperInvariant(),
+            image.RightsEvidenceReference, image.AllowedPlacements, image.EffectiveAt, image.ExpiresAt,
+            image.LastValidatedAt, image.CreatedAt,
+            image.State == ProductImageState.Active && (image.EffectiveAt is null || image.EffectiveAt <= now) &&
+            (image.ExpiresAt is null || image.ExpiresAt > now))).ToList();
         var reports = await db.ListingIssueReports.AsNoTracking()
             .Include(report => report.RetailerListing).ThenInclude(listing => listing.Retailer)
             .OrderBy(report => report.Status)
@@ -122,6 +142,7 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
                 policy.Id, policy.SourceKey, policy.AllowPriceStorage.ToString().ToUpper(), policy.AllowPriceHistory.ToString().ToUpper(),
                 policy.AllowAffiliateLinks.ToString().ToUpper(), policy.RequiredAttribution)).ToListAsync(cancellationToken),
             offerResponses,
+            productImages,
             bannerAssets,
             bannerResponses,
             reports.Select(report => new AdminReportResponse(
@@ -497,6 +518,121 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
         return Created(asset.PublicPath, response);
     }
 
+    [HttpPost("products/{productId:guid}/images")]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(ProductImage.MaxBytes + 65536)]
+    [RequestFormLimits(MultipartBodyLengthLimit = ProductImage.MaxBytes + 65536)]
+    public async Task<ActionResult<AdminProductImageResponse>> UploadProductImage(
+        Guid productId,
+        [FromForm] UploadAdminProductImageRequest request,
+        CancellationToken cancellationToken)
+    {
+        var product = await db.Products.SingleOrDefaultAsync(item => item.Id == productId, cancellationToken);
+        if (product is null) return NotFound();
+        if (request.File is null || request.File.Length is <= 0 or > ProductImage.MaxBytes)
+        {
+            ModelState.AddModelError(nameof(request.File), "Choose a PNG, JPEG, or WebP image no larger than 1 MB.");
+            return ValidationProblem(ModelState);
+        }
+
+        var fileName = Path.GetFileName(request.File.FileName).Trim();
+        await using var stream = new MemoryStream((int)request.File.Length);
+        await request.File.CopyToAsync(stream, cancellationToken);
+        var bytes = stream.ToArray();
+        if (!ProductImageFileInspector.TryInspect(request.File.ContentType, bytes, out var inspection) || inspection is null)
+        {
+            ModelState.AddModelError(nameof(request.File), "The file signature and dimensions must identify a valid PNG, JPEG, or WebP image.");
+            return ValidationProblem(ModelState);
+        }
+        if (inspection.Width > ProductImage.MaxDimension || inspection.Height > ProductImage.MaxDimension)
+        {
+            ModelState.AddModelError(nameof(request.File), $"Use an image no larger than {ProductImage.MaxDimension} by {ProductImage.MaxDimension} pixels.");
+            return ValidationProblem(ModelState);
+        }
+        if (await db.ProductImages.AnyAsync(image => image.ProductId == productId && image.ContentHash == inspection.Sha256, cancellationToken))
+            return Conflict(new ProblemDetails { Title = "Image already exists", Detail = "This exact image is already registered for the product." });
+
+        ProductImage image;
+        try
+        {
+            image = ProductImage.CreateOwnerReviewed(
+                productId, fileName, inspection.ContentType, bytes, inspection.Width, inspection.Height, inspection.Sha256,
+                request.RightsEvidenceReference, request.AllowedPlacements, request.EffectiveAt, request.ExpiresAt,
+                ActorId(), clock.GetUtcNow(), request.Activate);
+        }
+        catch (ArgumentException exception)
+        {
+            ModelState.AddModelError(exception.ParamName ?? nameof(request.File), exception.Message);
+            return ValidationProblem(ModelState);
+        }
+
+        if (request.Activate)
+        {
+            var current = await db.ProductImages.Where(item => item.ProductId == productId && item.State == ProductImageState.Active)
+                .ToListAsync(cancellationToken);
+            foreach (var existing in current) existing.Archive(clock.GetUtcNow());
+        }
+        db.ProductImages.Add(image);
+        db.AdminAuditEvents.Add(Audit(request.Activate ? "UPLOAD_AND_ACTIVATE" : "UPLOAD", "ProductImage", image.Id,
+            $"Uploaded owner-reviewed product image for Product {productId}. Placements: {image.AllowedPlacements}."));
+        await db.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Owner admin {UserId} uploaded ProductImage {ImageId} for Product {ProductId}.", ActorId(), image.Id, productId);
+        return Created(image.PublicPath, ToProductImageResponse(image, product.Title, clock.GetUtcNow()));
+    }
+
+    [HttpGet("product-images/{imageId:guid}/content")]
+    public async Task<IActionResult> PreviewProductImage(Guid imageId, CancellationToken cancellationToken)
+    {
+        var image = await db.ProductImages.AsNoTracking().SingleOrDefaultAsync(item => item.Id == imageId, cancellationToken);
+        if (image is null) return NotFound();
+        Response.Headers.CacheControl = "private,no-store";
+        Response.Headers.XContentTypeOptions = "nosniff";
+        return File(image.Content, image.ContentType);
+    }
+
+    [HttpPost("product-images/{imageId:guid}/activate")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ActivateProductImage(Guid imageId, UpdateAdminProductImageStateRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.ChangeReason))
+        {
+            ModelState.AddModelError(nameof(request.ChangeReason), "A reason is required when activating a product image.");
+            return ValidationProblem(ModelState);
+        }
+        var image = await db.ProductImages.SingleOrDefaultAsync(item => item.Id == imageId, cancellationToken);
+        if (image is null) return NotFound();
+        var now = clock.GetUtcNow();
+        try { image.Activate(now); }
+        catch (InvalidOperationException exception)
+        {
+            ModelState.AddModelError(nameof(imageId), exception.Message);
+            return ValidationProblem(ModelState);
+        }
+        var current = await db.ProductImages.Where(item => item.ProductId == image.ProductId && item.Id != image.Id && item.State == ProductImageState.Active)
+            .ToListAsync(cancellationToken);
+        foreach (var existing in current) existing.Archive(now);
+        db.AdminAuditEvents.Add(Audit("ACTIVATE", "ProductImage", image.Id, $"Activated product image. Reason: {request.ChangeReason.Trim()}."));
+        await db.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("product-images/{imageId:guid}/archive")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ArchiveProductImage(Guid imageId, UpdateAdminProductImageStateRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.ChangeReason))
+        {
+            ModelState.AddModelError(nameof(request.ChangeReason), "A reason is required when archiving a product image.");
+            return ValidationProblem(ModelState);
+        }
+        var image = await db.ProductImages.SingleOrDefaultAsync(item => item.Id == imageId, cancellationToken);
+        if (image is null) return NotFound();
+        image.Archive(clock.GetUtcNow());
+        db.AdminAuditEvents.Add(Audit("ARCHIVE", "ProductImage", image.Id, $"Archived product image. Reason: {request.ChangeReason.Trim()}."));
+        await db.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
     private async Task<OfferValidationContext?> ValidateOfferAsync(UpsertAdminOfferRequest request, RetailerListing? existing, CancellationToken cancellationToken)
     {
         if (!SlugPattern.IsMatch(request.Slug ?? string.Empty)) ModelState.AddModelError(nameof(request.Slug), "Use lowercase letters, numbers, and single hyphens.");
@@ -557,6 +693,13 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
             listing.Evidence.ToString().ToUpperInvariant(), listing.History.ToString().ToUpperInvariant(), listing.IsEnabled, publicEligible, readiness,
             $"/products/{listing.Product.Slug}");
     }
+
+    private static AdminProductImageResponse ToProductImageResponse(ProductImage image, string productTitle, DateTimeOffset now) =>
+        new(image.Id, image.ProductId, productTitle, image.FileName, image.ContentType, image.Content.Length,
+            image.Width, image.Height, $"/api/v1/admin/product-images/{image.Id:D}/content", image.PublicPath, image.Origin.ToString().ToUpperInvariant(), image.State.ToString().ToUpperInvariant(),
+            image.RightsEvidenceReference, image.AllowedPlacements, image.EffectiveAt, image.ExpiresAt,
+            image.LastValidatedAt, image.CreatedAt, image.State == ProductImageState.Active &&
+            (image.EffectiveAt is null || image.EffectiveAt <= now) && (image.ExpiresAt is null || image.ExpiresAt > now));
 
     private static AdminBannerResponse ToBannerResponse(Retailer retailer, StoreBannerProfile? profile, DateTimeOffset now, bool hasPublicCatalogOffer)
     {

@@ -3,7 +3,7 @@ import type { StoreBannerData } from "../lib/api";
 
 const fallbackAsset = "/store-banners/marketplace-packages.svg";
 
-export function StoreBanner({ banner }: { banner: StoreBannerData }) {
+export function StoreBanner({ banner, mobileActive = true }: { banner: StoreBannerData; mobileActive?: boolean }) {
   if (banner.affiliateStatus === "DISABLED") return null;
 
   const active = banner.affiliateStatus === "ACTIVE_AFFILIATE" && banner.opensNewTab && banner.href.startsWith("/go/store/");
@@ -19,6 +19,7 @@ export function StoreBanner({ banner }: { banner: StoreBannerData }) {
   return (
     <Link
       className={`store-banner store-banner-${active ? "affiliate" : "discovery"}`}
+      data-mobile-active={mobileActive ? "true" : "false"}
       href={href}
       aria-label={accessibleName}
       target={active ? "_blank" : undefined}

@@ -78,7 +78,13 @@ public sealed record DealCardResponse(
     bool HasSafeComparison,
     string DetailsPath,
     string? HandoffPath,
-    string Disclosure);
+    string Disclosure,
+    ProductImageResponse? ProductImage);
+
+public sealed record ProductImageResponse(
+    string Url,
+    int Width,
+    int Height);
 
 public sealed record RetailerOfferResponse(
     Guid ListingId,
@@ -111,7 +117,8 @@ public sealed record ProductDetailResponse(
     IReadOnlyList<RetailerOfferResponse> SafeComparisons,
     IReadOnlyList<RetailerOfferResponse> RelatedListingsForReview,
     string HistorySummary,
-    string EvidenceSummary);
+    string EvidenceSummary,
+    ProductImageResponse? ProductImage);
 
 public sealed record ProductHistoryPointResponse(
     DateTimeOffset ObservedDate,
@@ -178,4 +185,5 @@ public sealed record SavedProductResponse(
     string HistoryState,
     string? Retailer,
     DateTimeOffset SavedAt,
-    string DetailsPath);
+    string DetailsPath,
+    ProductImageResponse? ProductImage);

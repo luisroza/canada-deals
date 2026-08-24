@@ -22,6 +22,8 @@ The panel is a trustworthy editorial desk, not a general CMS. It keeps the Great
 
 The editor progressively groups Product identity, Retailer listing, current offer facts, and publication. It supports the existing domain fields: slug/title/brand/category/model/MPN/GTIN/variants, retailer/policy/external ID/SKU/original title/URL/seller/condition/marketplace/pack/bundle/external identifiers, CAD price, observed/fetched times, availability/region/shipping, match decision, and enabled state.
 
+For an existing Product, a dedicated Product image section shows the current reviewed preview and publication state. The owner can upload a bounded PNG/JPEG/WebP file, record the rights evidence and optional effective/expiry dates, choose whether it activates immediately, and later activate or archive any retained version with an audit reason. A new offer must be saved before an image can be associated with its stable Product identity. Product imagery is allowed only in the fixed `DEAL_CARD`, `PRODUCT_PAGE`, and `WISHLIST` placements; the public experience uses a neutral fallback when no eligible image exists.
+
 Freshness, evidence, history, affiliate handoff, and reference price are read-only derived states. The administrator cannot type a discount/reference price or tracking URL. Existing retailer, Merchant Policy, and external listing identity cannot be changed after creation. Deactivation or match-decision changes require a reason and remain audited.
 
 ## Category and store management
@@ -56,4 +58,4 @@ Forms use semantic labels, field-associated errors, status/alert live regions, k
 
 ## Deliberately excluded
 
-User/role management, public admin links, destructive category/store deletion, category hierarchy, category imagery/SEO, arbitrary SVG or unbounded file upload, artwork deletion, page building, coupons, campaign scheduling, connector configuration, manual tracking URLs, merchant-rights approval, advanced analytics, MFA, and password recovery are not part of this slice. Image dimension/crop processing, metadata stripping, archive lifecycle, optimistic concurrency, and MFA/re-authentication remain follow-ups.
+User/role management, public admin links, destructive category/store deletion, category hierarchy, category imagery/SEO, arbitrary SVG or unbounded file upload, artwork deletion, page building, coupons, campaign scheduling, connector configuration, manual tracking URLs, merchant-rights approval, advanced analytics, MFA, and password recovery are not part of this slice. Automated crop/background removal, metadata re-encoding, optimistic concurrency, and MFA/re-authentication remain follow-ups.

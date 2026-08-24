@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace CanadaDeals.Api.Contracts;
 
@@ -116,6 +117,27 @@ public sealed record AdminBannerAssetResponse(
     string AssetPath,
     DateTimeOffset CreatedAt);
 
+public sealed record AdminProductImageResponse(
+    Guid Id,
+    Guid ProductId,
+    string ProductTitle,
+    string FileName,
+    string ContentType,
+    int SizeBytes,
+    int Width,
+    int Height,
+    string PreviewPath,
+    string PublicPath,
+    string Origin,
+    string State,
+    string RightsEvidenceReference,
+    string AllowedPlacements,
+    DateTimeOffset? EffectiveAt,
+    DateTimeOffset? ExpiresAt,
+    DateTimeOffset LastValidatedAt,
+    DateTimeOffset CreatedAt,
+    bool IsPubliclyVisible);
+
 public sealed record AdminAuditResponse(
     Guid Id,
     string Action,
@@ -148,6 +170,7 @@ public sealed record AdminDashboardResponse(
     IReadOnlyList<AdminRetailerManagementResponse> ManagedRetailers,
     IReadOnlyList<AdminPolicyOption> Policies,
     IReadOnlyList<AdminOfferResponse> Offers,
+    IReadOnlyList<AdminProductImageResponse> ProductImages,
     IReadOnlyList<AdminBannerAssetResponse> BannerAssets,
     IReadOnlyList<AdminBannerResponse> Banners,
     IReadOnlyList<AdminReportResponse> Reports,
@@ -220,3 +243,16 @@ public sealed record UpsertAdminBannerRequest(
 public sealed record UpdateAdminBannerSelectionRequest(
     IReadOnlyList<Guid>? ActiveRetailerIds,
     [MaxLength(300)] string? ChangeReason);
+
+public sealed class UploadAdminProductImageRequest
+{
+    [Required] public IFormFile File { get; init; } = null!;
+    [Required, MaxLength(1000)] public string RightsEvidenceReference { get; init; } = string.Empty;
+    [Required, MaxLength(120)] public string AllowedPlacements { get; init; } = CanadaDeals.Domain.Catalog.ProductImage.DefaultPlacements;
+    public DateTimeOffset? EffectiveAt { get; init; }
+    public DateTimeOffset? ExpiresAt { get; init; }
+    public bool Activate { get; init; }
+}
+
+public sealed record UpdateAdminProductImageStateRequest(
+    [Required, MaxLength(300)] string ChangeReason);

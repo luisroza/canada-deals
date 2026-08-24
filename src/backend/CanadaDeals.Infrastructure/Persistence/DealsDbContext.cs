@@ -25,6 +25,7 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
     public DbSet<Brand> Brands => Set<Brand>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<Retailer> Retailers => Set<Retailer>();
     public DbSet<StoreBannerProfile> StoreBannerProfiles => Set<StoreBannerProfile>();
     public DbSet<StoreBannerAsset> StoreBannerAssets => Set<StoreBannerAsset>();
@@ -100,6 +101,25 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
             entity.HasIndex(x => x.NormalizedModelNumber);
             entity.HasIndex(x => x.NormalizedManufacturerPartNumber);
             entity.Property(x => x.VariantAttributesJson).HasColumnType("jsonb").IsRequired();
+        });
+
+        modelBuilder.Entity<ProductImage>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ProductId, x.State, x.CreatedAt });
+            entity.HasIndex(x => new { x.ProductId, x.ContentHash }).IsUnique();
+            entity.HasIndex(x => x.ProductId).IsUnique().HasFilter("\"State\" = 1");
+            entity.Property(x => x.FileName).HasMaxLength(ProductImage.MaxFileNameLength).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Content).HasColumnType("bytea").IsRequired();
+            entity.Property(x => x.ContentHash).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Provider).HasMaxLength(120);
+            entity.Property(x => x.RightsEvidenceReference).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.AllowedPlacements).HasMaxLength(120).IsRequired();
+            entity.HasOne(x => x.Product).WithMany(x => x.Images).HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UploadedByUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<RetailerListing>().WithMany().HasForeignKey(x => x.SourceListingId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<MerchantPolicy>().WithMany().HasForeignKey(x => x.MerchantPolicyId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Retailer>(entity =>

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { StoreBannerData } from "../lib/api";
 import { StoreBanner } from "./StoreBanner";
@@ -91,5 +91,43 @@ describe("StoreBannerRail", () => {
     expect(screen.getByRole("button", { name: "Next store banners" })).toBeDisabled();
     expect(screen.getByRole("status")).toHaveTextContent("5 stores");
     expect(container.textContent).not.toMatch(/never changes store order or deal ranking/i);
+  });
+
+  it("shows one discrete banner at a time on phones and supports buttons and swipe", async () => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (query: string) => ({
+        matches: query === "(max-width: 760px)",
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => false,
+      }),
+    });
+    const banners = Array.from({ length: 3 }, (_, index) => banner({
+      retailerKey: `mobile-${index + 1}`,
+      displayName: `Mobile ${index + 1}`,
+      title: `Shop Mobile ${index + 1}`,
+      href: `/?retailer=mobile-${index + 1}#deals`,
+    }));
+
+    const { container } = render(<StoreBannerRail banners={banners} />);
+    const mobileCarousel = within(container);
+    await waitFor(() => expect(mobileCarousel.getByRole("status")).toHaveTextContent("Page 1 of 3"));
+    const cards = [...container.querySelectorAll(".store-banner")];
+    expect(cards.map((card) => card.getAttribute("data-mobile-active"))).toEqual(["true", "false", "false"]);
+
+    fireEvent.click(mobileCarousel.getByRole("button", { name: "Next store banners" }));
+    await waitFor(() => expect(mobileCarousel.getByRole("status")).toHaveTextContent("Page 2 of 3"));
+    expect(cards.map((card) => card.getAttribute("data-mobile-active"))).toEqual(["false", "true", "false"]);
+
+    const rail = container.querySelector(".store-banner-rail")!;
+    fireEvent.touchStart(rail, { changedTouches: [{ clientX: 300 }] });
+    fireEvent.touchEnd(rail, { changedTouches: [{ clientX: 200 }] });
+    await waitFor(() => expect(mobileCarousel.getByRole("status")).toHaveTextContent("Page 3 of 3"));
+    expect(cards.map((card) => card.getAttribute("data-mobile-active"))).toEqual(["false", "false", "true"]);
   });
 });

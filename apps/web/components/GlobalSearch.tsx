@@ -37,7 +37,10 @@ export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [hydrated, setHydrated] = useState(false);
   const listboxId = `global-search-suggestions-${instanceId}`;
+
+  useEffect(() => { setHydrated(true); }, []);
 
   useEffect(() => {
     const normalized = query.trim();
@@ -115,6 +118,7 @@ export function GlobalSearch() {
             id="global-search-input"
             name="search"
             type="search"
+            disabled={!hydrated}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onFocus={() => query.trim().length >= 2 && setOpen(true)}
@@ -127,7 +131,7 @@ export function GlobalSearch() {
             aria-controls={listboxId}
             aria-activedescendant={activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
           />
-          <button className="global-search-submit" type="submit" aria-label="Search site">Search</button>
+          <button className="global-search-submit" type="submit" aria-label="Search site" disabled={!hydrated}>Search</button>
         </div>
       </form>
       <span className="visually-hidden global-search-status" aria-live="polite" aria-atomic="true">
