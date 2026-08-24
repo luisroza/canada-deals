@@ -28,7 +28,7 @@ export function RetailerAction({ offer, stickyOnMobile = false }: { offer: Retai
   return <>
     <a ref={sourceRef} className="button button-primary" href={href}>{label}</a>
     {stickyOnMobile && showSticky && <div className="mobile-retailer-bar" role="region" aria-label="Retailer action">
-      <a className="button button-primary" href={href}>{label}</a>
+      <a className="button button-primary" href={href}>Check retailer price</a>
     </div>}
   </>;
 }

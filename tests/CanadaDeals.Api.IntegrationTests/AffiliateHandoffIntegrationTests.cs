@@ -169,14 +169,14 @@ public sealed class AffiliateHandoffIntegrationTests(ApiFixture fixture) : IClas
         var brand = await db.Brands.FirstAsync();
         var category = await db.Categories.FirstAsync();
         var suffix = Guid.NewGuid().ToString("N");
-        var retailer = Retailer.Create($"affiliate-{suffix}", $"Affiliate fixture {suffix}");
+        var retailer = Retailer.Create($"affiliate-{suffix}", $"Partner fixture {suffix}");
         var now = DateTimeOffset.UtcNow;
         var policy = provider == AffiliateProviderType.Rakuten
             ? MerchantPolicy.Create($"affiliate-rakuten-{suffix}", PolicyPermission.Allowed, PolicyPermission.Allowed,
                 PolicyPermission.Denied, PolicyPermission.Allowed, 24, "SAME_PRODUCT_ONLY", "RAKUTEN",
                 "Controlled disclosure", 0, "Controlled test", now, PolicyPermission.Allowed)
             : await db.MerchantPolicies.FirstAsync(x => x.SourceKey == "demo-fixture");
-        var product = Product.Create($"affiliate-product-{suffix}", $"Affiliate Product {suffix}", brand, category,
+        var product = Product.Create($"affiliate-product-{suffix}", $"Partner Product {suffix}", brand, category,
             $"MODEL-{suffix}", $"MPN-{suffix}", null, new Dictionary<string, string>());
         db.AddRange(retailer, product);
         if (provider == AffiliateProviderType.Rakuten) db.Add(policy);

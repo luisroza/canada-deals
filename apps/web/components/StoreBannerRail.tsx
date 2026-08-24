@@ -153,7 +153,7 @@ export function StoreBannerRail({ banners }: { banners: StoreBannerData[] }) {
         onTouchEnd={handleTouchEnd}
       >
         {visibleBanners.map((banner, index) => (
-          <StoreBanner banner={banner} mobileActive={index === mobileIndex} key={banner.retailerKey} />
+          <StoreBanner banner={banner} mobileActive={index === mobileIndex} imagePriority={index === 0} key={banner.retailerKey} />
         ))}
       </div>
     </section>

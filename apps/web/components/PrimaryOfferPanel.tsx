@@ -1,6 +1,6 @@
+import type { ReactNode } from "react";
 import type { RetailerOffer } from "../lib/api";
 import { availabilityLabel } from "../lib/offerPresentation";
-import { OfferConditions } from "./OfferConditions";
 import { RetailerAction } from "./RetailerAction";
 import { freshnessTone, StateBadge } from "./StateBadge";
 
@@ -13,7 +13,7 @@ function observationCopy(offer: RetailerOffer) {
   return `Checked ${new Date(offer.observedAt).toLocaleString("en-CA")}`;
 }
 
-export function PrimaryOfferPanel({ offer }: { offer: RetailerOffer }) {
+export function PrimaryOfferPanel({ offer, secondaryAction }: { offer: RetailerOffer; secondaryAction?: ReactNode }) {
   const stale = offer.freshnessState === "STALE";
 
   return <section className="primary-offer" aria-labelledby="current-offer-heading">
@@ -25,9 +25,8 @@ export function PrimaryOfferPanel({ offer }: { offer: RetailerOffer }) {
       <StateBadge label={offer.matchState} tone={offer.isSafeComparison ? "good" : "warning"} />
       <StateBadge label={stale ? "May be stale" : offer.freshnessState.toLowerCase()} tone={freshnessTone(offer.freshnessState)} />
     </div>
+    <div className="primary-offer-actions"><RetailerAction offer={offer} stickyOnMobile />{secondaryAction}</div>
     {stale && <p className="stale-guidance"><strong>This observed price may have changed.</strong> Verify the current price and availability at the retailer before deciding.</p>}
-    <RetailerAction offer={offer} stickyOnMobile />
-    <OfferConditions offer={offer} />
     <p className="disclosure">{offer.disclosure}</p>
   </section>;
 }

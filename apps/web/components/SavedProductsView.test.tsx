@@ -55,7 +55,10 @@ describe("SavedProductsView", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderView();
 
-    expect(await screen.findByRole("heading", { name: "Fixture television" })).toBeVisible();
+    const heading = await screen.findByRole("heading", { name: "Fixture television" });
+    expect(heading).toBeVisible();
+    expect(heading.closest(".saved-product-body")).not.toBeNull();
+    expect(heading.closest(".saved-product-card")?.querySelector(".saved-product-visual")).not.toBeNull();
     expect(fetchMock).not.toHaveBeenCalledWith("/api/v1/price-alerts", expect.anything());
     fireEvent.click(screen.getByRole("button", { name: "Remove from wishlist" }));
     expect(await screen.findByRole("heading", { name: "Your wishlist is empty." })).toBeVisible();

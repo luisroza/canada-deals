@@ -1,7 +1,5 @@
 import Link from "next/link";
 import type { DealCard as DealCardModel } from "../lib/api";
-import { availabilityLabel } from "../lib/offerPresentation";
-import { freshnessTone, StateBadge } from "./StateBadge";
 import { WishlistCardButton } from "./WishlistCardButton";
 import { ProductVisual } from "./ProductVisual";
 
@@ -13,32 +11,31 @@ function formatPrice(price: number | null, currency: string) {
 function humanEvidence(state: string) {
   if (state === "STRONG") return "Strong evidence";
   if (state === "PARTIAL") return "Partial evidence";
-  return "Evidence unavailable";
+  return "Reference unavailable";
+}
+
+function humanFreshness(state: string) {
+  if (state === "RECENT") return "Checked recently";
+  if (state === "AGING") return "Checked earlier";
+  if (state === "STALE") return "May be stale";
+  return "Check time unavailable";
 }
 
 export function DealCard({ deal, returnTo = deal.detailsPath }: { deal: DealCardModel; returnTo?: string }) {
   return (
     <article className="deal-card">
-      <div className="deal-card-retailer"><span className="retailer-avatar" aria-hidden="true">{deal.retailer.slice(0, 1)}</span><strong>{deal.retailer}</strong><span className="deal-card-date">{deal.observedAt ? new Date(deal.observedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : "Date unavailable"}</span><WishlistCardButton productId={deal.productId} productTitle={deal.productTitle} returnTo={returnTo} /></div>
-      <Link className="deal-card-visual" href={deal.detailsPath} aria-label={`View ${deal.productTitle}`}>
-        <ProductVisual image={deal.productImage} title={deal.productTitle} category={deal.category} />
-        {deal.supportedSavingsPercent !== null && <strong className="discount-badge">-{Math.round(deal.supportedSavingsPercent)}%</strong>}
-      </Link>
+      <div className="deal-card-media">
+        <div className="deal-card-visual"><ProductVisual image={deal.productImage} title={deal.productTitle} category={deal.category} /></div>
+        <div className="deal-card-wishlist"><WishlistCardButton productId={deal.productId} productTitle={deal.productTitle} returnTo={returnTo} /></div>
+      </div>
       <div className="deal-card-body">
-        <p className="deal-card-context">{deal.brand} · {deal.category}</p>
+        <p className="deal-card-retailer-name">{deal.retailer}</p>
         <h2><Link href={deal.detailsPath}>{deal.productTitle}</Link></h2>
-        <div className="card-price-block">
-          {deal.referencePrice !== null && <span className="reference-price">{formatPrice(deal.referencePrice, deal.currency)}</span>}
-          <p className="price">{formatPrice(deal.currentPrice, deal.currency)}</p>
-        </div>
-        <div className="card-meta"><span>{availabilityLabel(deal.availabilityState)}</span><span>{deal.observedAt ? `Checked ${new Date(deal.observedAt).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" })}` : "Check time unavailable"}</span></div>
-        <div className="state-row compact-states">
-          <StateBadge label={humanEvidence(deal.evidenceState)} tone={deal.evidenceState === "STRONG" ? "good" : "neutral"} />
-          <StateBadge label={deal.freshnessState === "RECENT" ? "Recently checked" : deal.freshnessState === "STALE" ? "May be stale" : deal.freshnessState.toLowerCase()} tone={freshnessTone(deal.freshnessState)} />
-        </div>
+        <div className="deal-card-price-row"><p className="price">{formatPrice(deal.currentPrice, deal.currency)}</p>{deal.currentPrice !== null && <span>{deal.currency}</span>}</div>
+        {deal.supportedSavingsPercent !== null && deal.supportedSavingsPercent > 0 && <p className="deal-card-savings">{Math.round(deal.supportedSavingsPercent)}% below reference</p>}
+        <p className={`deal-card-confidence${deal.freshnessState === "STALE" ? " confidence-warning" : ""}`}>{humanFreshness(deal.freshnessState)} <span aria-hidden="true">·</span> {humanEvidence(deal.evidenceState)}</p>
         <div className="deal-card-footer">
-          <Link className="card-details-link" href={deal.detailsPath}>View details</Link>
-          {deal.handoffPath ? <a className="button button-primary" href={deal.handoffPath} rel="sponsored">Get deal</a> : <span className="button button-unavailable" aria-disabled="true">Link unavailable</span>}
+          {deal.handoffPath ? <a className="button button-primary" href={deal.handoffPath} rel="sponsored" aria-label={`Check retailer price at ${deal.retailer}`}>Check retailer price <span aria-hidden="true">↗</span></a> : <p className="deal-card-link-unavailable">Retailer link unavailable</p>}
         </div>
       </div>
     </article>

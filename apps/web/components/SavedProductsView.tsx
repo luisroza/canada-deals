@@ -73,16 +73,18 @@ export function SavedProductsView() {
           {visibleItems.length === 0 ? <section className="notice"><h2>No saved products match.</h2><p>Try another product, category, or store.</p><button className="button button-primary" type="button" onClick={clearFilters}>Clear Wishlist filters</button></section> : <div className="saved-grid">
           {visibleItems.map((item) => <article className="deal-card saved-product-card" key={item.productId}>
               <Link className="saved-product-visual" href={item.detailsPath}><ProductVisual image={item.productImage} title={item.productTitle} category={item.category} /></Link>
-              <p className="eyebrow">{item.category} · {item.brand}</p>
-              <h2><Link href={item.detailsPath}>{item.productTitle}</Link></h2>
-              <p className="price">{formatPrice(item.currentPrice, item.currency)}</p>
-              <p className="card-meta">{item.retailer ?? "Retailer context unavailable"}</p>
-              <p className="saved-at">Saved {new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" }).format(new Date(item.savedAt))}</p>
-              <div className="state-row">
-                <StateBadge label={`Evidence: ${item.evidenceState.toLowerCase()}`} tone={item.evidenceState === "STRONG" ? "good" : "neutral"} />
-                <StateBadge label={item.freshnessState === "RECENT" ? "Checked recently" : `Freshness: ${item.freshnessState.toLowerCase()}`} tone={freshnessTone(item.freshnessState)} />
+              <div className="saved-product-body">
+                <p className="eyebrow">{item.category} · {item.brand}</p>
+                <h2><Link href={item.detailsPath}>{item.productTitle}</Link></h2>
+                <p className="price">{formatPrice(item.currentPrice, item.currency)}</p>
+                <p className="card-meta">{item.retailer ?? "Retailer context unavailable"}</p>
+                <p className="saved-at">Saved {new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" }).format(new Date(item.savedAt))}</p>
+                <div className="state-row">
+                  <StateBadge label={`Evidence: ${item.evidenceState.toLowerCase()}`} tone={item.evidenceState === "STRONG" ? "good" : "neutral"} />
+                  <StateBadge label={item.freshnessState === "RECENT" ? "Checked recently" : `Freshness: ${item.freshnessState.toLowerCase()}`} tone={freshnessTone(item.freshnessState)} />
+                </div>
+                <div className="inline-actions"><Link className="button button-secondary" href={item.detailsPath}>View current offer</Link><button className="button button-text" type="button" disabled={wishlist.isPending(item.productId)} onClick={() => remove(item.productId)}>{wishlist.isPending(item.productId) ? "Removing…" : "Remove from wishlist"}</button></div>
               </div>
-              <div className="inline-actions"><Link className="button button-secondary" href={item.detailsPath}>View current offer</Link><button className="button button-text" type="button" disabled={wishlist.isPending(item.productId)} onClick={() => remove(item.productId)}>{wishlist.isPending(item.productId) ? "Removing…" : "Remove from wishlist"}</button></div>
             </article>
           )}
           </div>}

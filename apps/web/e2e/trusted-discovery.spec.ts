@@ -41,11 +41,13 @@ test("visitor can inspect evidence, freshness, and safe comparison", async ({ pa
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Find the right deal. Fast." })).toBeVisible();
   const northstarCard = page.locator(".deal-card", { has: page.getByRole("link", { name: "Northstar 55-inch QLED TV" }) });
-  await expect(northstarCard.getByText("Available online")).toBeVisible();
+  await expect(northstarCard.getByText(/Checked recently.*Strong evidence/)).toBeVisible();
+  await expect(northstarCard.getByRole("link", { name: "Check retailer price at Demo North Electronics" })).toBeVisible();
+  await expect(northstarCard.getByText("View details")).not.toBeVisible();
   await page.getByRole("link", { name: /Northstar 55-inch QLED TV/ }).first().click();
-  await expect(page.getByRole("heading", { name: "Offer confidence" })).toBeVisible();
-  await expect(page.getByText(/Price tracking and target-price alerts are not part/)).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Safe retailer comparison" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What we know about this offer" })).toBeVisible();
+  await expect(page.getByText(/Price tracking and target-price alerts are not part/)).not.toBeVisible();
+  await expect(page.getByRole("heading", { name: "Compare retailer offers" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Offer conditions" })).toBeVisible();
   await expect(page.getByText("Sold by Demo North Electronics").first()).toBeVisible();
   await expect(page.getByText("Shipping calculated at checkout")).toBeVisible();
@@ -67,7 +69,7 @@ test("affiliate CTA stays centralized on go and resolves a persisted safe tracki
 
 test("active store banner uses a protected new-tab handoff without exposing the affiliate URL", async ({ page }) => {
   await page.goto("/");
-  const banner = page.getByRole("link", { name: "Shop Demo North — opens retailer website in a new tab" });
+  const banner = page.getByRole("link", { name: /Retailer website Shop Demo North.*Visit retailer/i });
   await expect(banner).toHaveAttribute("href", "/go/store/demo-north-electronics");
   await expect(banner).toHaveAttribute("target", "_blank");
   await expect(banner).toHaveAttribute("rel", "noopener noreferrer sponsored");
@@ -80,7 +82,7 @@ test("active store banner uses a protected new-tab handoff without exposing the 
 
 test("discovery-only store banner stays inside the store-filtered catalog", async ({ page }) => {
   await page.goto("/");
-  const banner = page.getByRole("link", { name: "Browse Demo Home & Tool deals on GreatDeals.ca" });
+  const banner = page.getByRole("link", { name: /Browse by store Shop Demo Home & Tool.*See store deals/i });
   await expect(banner).not.toHaveAttribute("target");
   await banner.click();
   await expect(page).toHaveURL(/retailer=demo-home-tool/);
@@ -109,7 +111,7 @@ test("visitor sees a possible variant outside safe comparison", async ({ page })
   await expect(related).toBeVisible();
   await expect(related.getByText("MapleForge 20V Cordless Drill Tool-Only")).toBeVisible();
   await expect(related.getByRole("link", { name: /continue to/i })).not.toBeVisible();
-  await expect(page.getByText("No safe comparison available.")).toBeVisible();
+  await expect(page.getByText("No other confirmed retailer offer.")).toBeVisible();
 });
 
 test("price tracker and target-price controls are absent and legacy routes fail closed", async ({ page }) => {
@@ -124,7 +126,7 @@ test("product page remains readable and contained on mobile", async ({ page }) =
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/products/northstar-55-qled-tv");
   const productHeading = page.getByRole("heading", { name: "Northstar 55-inch QLED TV", level: 1 });
-  const comparisonHeading = page.getByRole("heading", { name: "Safe retailer comparison" });
+  const comparisonHeading = page.getByRole("heading", { name: "Compare retailer offers" });
 
   await expect(productHeading).toBeVisible();
   await expect(comparisonHeading).toBeVisible();
@@ -194,7 +196,7 @@ test("category and store filters remain visible in the URL", async ({ page }) =>
 test("browser back restores search and filter state", async ({ page }) => {
   await page.goto("/?search=northstar&category=electronics");
   await page.getByRole("link", { name: "Northstar 55-inch QLED TV" }).first().click();
-  await expect(page.getByRole("heading", { name: "Offer confidence" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What we know about this offer" })).toBeVisible();
   await page.goBack();
 
   await expect(page).toHaveURL(/search=northstar/);

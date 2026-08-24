@@ -34,29 +34,33 @@ const baseDeal = {
 describe("DealCard", () => {
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-  it("uses a compact deal hierarchy and exposes the approved affiliate handoff", () => {
+  it("uses a clean decision hierarchy and exposes the approved retailer handoff", () => {
     render(<DealCard deal={baseDeal} />);
     expect(screen.getByText("$1,099.99")).toBeInTheDocument();
-    expect(screen.getByText("$1,299.99")).toBeInTheDocument();
-    expect(screen.getByText("-15%")).toBeInTheDocument();
-    expect(screen.getByText("Strong evidence")).toBeInTheDocument();
-    expect(screen.getByText("Recently checked")).toBeInTheDocument();
-    expect(screen.getByText("Available online")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Get deal" })).toHaveAttribute("href", "/go/a");
-    expect(screen.getByRole("link", { name: "View details" })).toHaveAttribute("href", baseDeal.detailsPath);
+    expect(screen.getByText("CAD")).toBeInTheDocument();
+    expect(screen.getByText("15% below reference")).toBeInTheDocument();
+    expect(screen.getByText(/Checked recently.*Strong evidence/)).toBeInTheDocument();
+    expect(screen.queryByText("$1,299.99")).not.toBeInTheDocument();
+    expect(screen.queryByText("Available online")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "View details" })).not.toBeInTheDocument();
+    const retailerLink = screen.getByRole("link", { name: "Check retailer price at Demo North Electronics" });
+    expect(retailerLink).toHaveAttribute("href", "/go/a");
+    expect(retailerLink).toHaveAttribute("rel", "sponsored");
+    expect(retailerLink).not.toHaveAttribute("target");
+    expect(screen.getByRole("link", { name: baseDeal.productTitle })).toHaveAttribute("href", baseDeal.detailsPath);
     expect(screen.getByRole("img", { name: baseDeal.productTitle })).toHaveAttribute("src", baseDeal.productImage.url);
   });
 
-  it("renders stale evidence and a missing affiliate destination honestly", () => {
+  it("renders stale evidence and a missing retailer destination honestly", () => {
     render(<DealCard deal={{ ...baseDeal, freshnessState: "STALE", evidenceState: "UNAVAILABLE", handoffPath: null }} />);
-    expect(screen.getByText("May be stale")).toBeInTheDocument();
-    expect(screen.getByText("Evidence unavailable")).toBeInTheDocument();
-    expect(screen.getByText("Link unavailable")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText(/May be stale.*Reference unavailable/)).toBeInTheDocument();
+    expect(screen.getByText("Retailer link unavailable")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /check retailer price/i })).not.toBeInTheDocument();
   });
 
   it("offers a card-level Wishlist path that preserves the current discovery context", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ isAuthenticated: false, email: null }) }));
     render(<WishlistProvider><DealCard deal={baseDeal} returnTo="/?category=electronics#deals" /></WishlistProvider>);
-    expect(await screen.findByRole("link", { name: /sign in to save northstar 55-inch qled tv/i })).toHaveAttribute("href", "/account/sign-in?returnTo=%2F%3Fcategory%3Delectronics%23deals");
+    expect(await screen.findByRole("link", { name: "Save Northstar 55-inch QLED TV to your Wishlist — sign in required" })).toHaveAttribute("href", "/account/sign-in?returnTo=%2F%3Fcategory%3Delectronics%23deals");
   });
 });

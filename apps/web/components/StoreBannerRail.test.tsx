@@ -23,26 +23,36 @@ function banner(overrides: Partial<StoreBannerData> = {}): StoreBannerData {
 describe("StoreBanner", () => {
   it("opens an active affiliate handoff in a protected sponsored new tab", () => {
     render(<StoreBanner banner={banner({ affiliateStatus: "ACTIVE_AFFILIATE", href: "/go/store/demo-north", opensNewTab: true })} />);
-    const link = screen.getByRole("link", { name: /opens retailer website in a new tab/i });
+    const link = screen.getByRole("link", { name: /Retailer website.*Shop Demo North.*Electronics and everyday tech.*Visit retailer/i });
     expect(link).toHaveAttribute("href", "/go/store/demo-north");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer sponsored");
+    expect(link).not.toHaveAttribute("aria-label");
+    expect(link).toHaveAccessibleDescription("Opens retailer website in a new tab.");
     expect(screen.getByText("Retailer website")).toBeVisible();
     expect(screen.queryByText(/affiliate/i)).not.toBeInTheDocument();
   });
 
   it("keeps a discovery-only store inside GreatDeals", () => {
     render(<StoreBanner banner={banner()} />);
-    const link = screen.getByRole("link", { name: "Browse Demo North deals on GreatDeals.ca" });
+    const link = screen.getByRole("link", { name: /Browse by store.*Shop Demo North.*Electronics and everyday tech.*See store deals/i });
     expect(link).toHaveAttribute("href", "/?retailer=demo-north#deals");
     expect(link).not.toHaveAttribute("target");
+    expect(link).not.toHaveAttribute("aria-label");
+    expect(link).not.toHaveAttribute("aria-description");
     expect(link).toHaveClass("store-banner-discovery");
     expect(link).toHaveProperty("tabIndex", 0);
   });
 
   it("uses first-party fallback art when the configured asset is missing", () => {
     const { container } = render(<StoreBanner banner={banner({ assetPath: null })} />);
-    expect(container.querySelector("img")).toHaveAttribute("src", "/store-banners/marketplace-packages.svg");
+    const image = container.querySelector("img");
+    expect(image).toHaveAttribute("src", "/store-banners/marketplace-packages.svg");
+    expect(image).toHaveAttribute("width", "640");
+    expect(image).toHaveAttribute("height", "360");
+    expect(image).toHaveAttribute("loading", "lazy");
+    expect(image).toHaveAttribute("decoding", "async");
+    expect(image).not.toHaveAttribute("fetchpriority");
   });
 
   it("does not render a disabled banner", () => {
@@ -56,6 +66,15 @@ describe("StoreBanner", () => {
     expect(link).toHaveAttribute("href", "/#deals");
     expect(link).not.toHaveAttribute("target");
     expect(link).not.toHaveAttribute("rel");
+  });
+
+  it("fails closed when an active banner is not approved to open a new tab", () => {
+    const { container } = render(<StoreBanner banner={banner({ affiliateStatus: "ACTIVE_AFFILIATE", href: "/go/store/demo-north", opensNewTab: false })} />);
+    const link = container.querySelector("a");
+    expect(link).toHaveAttribute("href", "/#deals");
+    expect(link).not.toHaveAttribute("target");
+    expect(link).not.toHaveAttribute("rel");
+    expect(link).not.toHaveAttribute("aria-description");
   });
 });
 
@@ -93,6 +112,30 @@ describe("StoreBannerRail", () => {
     expect(screen.getByRole("button", { name: "Next store banners" })).toBeDisabled();
     expect(screen.getByRole("status")).toHaveTextContent("5 stores");
     expect(container.textContent).not.toMatch(/never changes store order or deal ranking/i);
+  });
+
+  it("prioritizes only the first initially visible banner image", () => {
+    const banners = Array.from({ length: 5 }, (_, index) => banner({
+      retailerKey: `priority-${index + 1}`,
+      displayName: `Priority ${index + 1}`,
+      title: `Shop Priority ${index + 1}`,
+      href: `/?retailer=priority-${index + 1}#deals`,
+    }));
+
+    const { container } = render(<StoreBannerRail banners={banners} />);
+    const images = [...container.querySelectorAll<HTMLImageElement>(".store-banner-art")];
+
+    expect(images).toHaveLength(5);
+    expect(images[0]).toHaveAttribute("loading", "eager");
+    expect(images[0]).toHaveAttribute("fetchpriority", "high");
+    expect(images[0]).toHaveAttribute("width", "640");
+    expect(images[0]).toHaveAttribute("height", "360");
+    expect(images[0]).toHaveAttribute("decoding", "async");
+    for (const image of images.slice(1)) {
+      expect(image).toHaveAttribute("loading", "lazy");
+      expect(image).toHaveAttribute("decoding", "async");
+      expect(image).not.toHaveAttribute("fetchpriority");
+    }
   });
 
   it("shows one discrete banner at a time on phones and supports buttons and swipe", async () => {
