@@ -29,7 +29,7 @@ export function StoreBanner({ banner, mobileActive = true }: { banner: StoreBann
       <img className="store-banner-art" src={banner.assetPath || fallbackAsset} alt="" width="640" height="360" loading="lazy" decoding="async" />
       <span className="store-banner-shade" aria-hidden="true" />
       <span className="store-banner-content">
-        <small>{active ? "Affiliate store" : "Browse by store"}</small>
+        <small>{active ? "Retailer website" : "Browse by store"}</small>
         <strong>{banner.title}</strong>
         <span>{banner.subtitle}</span>
         <b>{active ? "Visit retailer ↗" : "See store deals →"}</b>

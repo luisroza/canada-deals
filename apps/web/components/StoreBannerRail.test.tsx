@@ -27,6 +27,8 @@ describe("StoreBanner", () => {
     expect(link).toHaveAttribute("href", "/go/store/demo-north");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer sponsored");
+    expect(screen.getByText("Retailer website")).toBeVisible();
+    expect(screen.queryByText(/affiliate/i)).not.toBeInTheDocument();
   });
 
   it("keeps a discovery-only store inside GreatDeals", () => {

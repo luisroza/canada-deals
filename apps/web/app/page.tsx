@@ -54,7 +54,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Raw
   const effectiveSort = result?.sort ?? (params.search ? "relevance" : "recent");
 
   return <>
-    <section className="hero home-hero"><p className="eyebrow">Canadian deals, checked carefully</p><h1>Find the right deal. Fast.</h1><p className="lede">Browse current CAD offers by category or store, then verify the exact product before you buy.</p></section>
+    <section className="hero home-hero"><p className="eyebrow">Canadian deals, checked carefully</p><h1>Find the right deal. Fast.</h1><p className="lede">Discover Canadian deals by category or store — and save your favourites for later.</p></section>
     {result && <StoreBannerRail banners={storeBanners} />}
     {result && <DiscoveryControls params={params} categories={result.facets.categories} retailers={result.facets.retailers} resultCount={result.count} />}
     <section id="deals" aria-labelledby="deal-feed-heading">
