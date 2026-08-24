@@ -7,6 +7,7 @@ PostgreSQL is the system of record. EF Core/Npgsql owns the relational model and
 - `Brand`, `Category`, `Product`
 - `Retailer`, `RetailerListing`
 - `AffiliateProgram`, `AffiliateLink`, `ClickEvent`
+- `StoreBannerProfile`, `StoreAffiliateDestination`
 - `RakutenAdvertiserCapability`, `RakutenSourceMapping`, `RakutenImportRun`
 - `MerchantPolicy`, `PriceObservation`
 - `ListingIssueReport`
@@ -32,8 +33,15 @@ The migration chain is:
 8. `20260812143802_AddPersistentDataProtectionKeys`
 9. `20260812213653_AddAffiliateLinkProviders`
 10. `20260814173414_AddRakutenConnector`
+11. `20260820185739_AddStoreAffiliateBanners`
+12. `20260820191750_AddStoreBannerAssetRightsMetadata`
+13. `20260824132853_AddOwnerAdminPanel`
 
 No earlier migration was modified retroactively.
+
+`AddOwnerAdminPanel` adds `RetailerListings.IsEnabled` with a safe `TRUE` backfill/default so an offer can be drafted or reversibly deactivated without disabling its retailer or deleting history. Public discovery, Product detail, store eligibility, and listing affiliate handoff all exclude disabled listings. It also adds `AdminAuditEvents`, linked restrictively to the Identity actor, with action/entity/summary/time indexes and no password, token, IP address, or raw authorization data.
+
+`StoreBannerProfiles` uniquely configures one retailer banner with original/merchant-approved asset provenance, tri-state brand rights, approved asset provider and placement, evidence, neutral editorial order, enabled state, effective/expiry rights, and a reviewed first-party asset path. Expired or incomplete merchant rights fall back to Canada Deals original artwork rather than removing the store. `StoreAffiliateDestinations` uniquely stores one current provider-neutral storefront destination per affiliate program without inventing a `RetailerListing`. `ClickEvents` now supports exactly one product-link source or one store-destination source through `CK_ClickEvents_Source`; store clicks include retailer/program IDs and no user, email, IP, fingerprint, or query history. Retailer, program, banner, destination, and click relationships use restrictive deletion.
 
 `RakutenAdvertiserCapabilities` has a unique MID and records provider state separately from explicit operator mapping/enablement. `RakutenSourceMappings` uniquely binds `(AdvertiserMid, SourceListingKey)` and one listing to prevent duplicate ingestion. `RakutenImportRuns` records dry-run/live status and bounded counters without response payloads or secrets. Foreign keys use restrictive behavior so capability/policy/source audit is not silently erased.
 

@@ -37,21 +37,14 @@ async function signIn(page: import("@playwright/test").Page, email: string, retu
   await expect(page).toHaveURL(returnTo);
 }
 
-async function authenticatedMutation(page: import("@playwright/test").Page, path: string, body?: unknown) {
-  const tokenResponse = await page.request.get("/api/v1/account/antiforgery");
-  expect(tokenResponse.ok()).toBe(true);
-  const { requestToken } = await tokenResponse.json() as { requestToken: string };
-  return page.request.post(path, { headers: { "X-CSRF-TOKEN": requestToken }, data: body });
-}
-
 test("visitor can inspect evidence, freshness, and safe comparison", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Deals with strong evidence." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Find the right deal. Fast." })).toBeVisible();
   const northstarCard = page.locator(".deal-card", { has: page.getByRole("link", { name: "Northstar 55-inch QLED TV" }) });
   await expect(northstarCard.getByText("Available online")).toBeVisible();
   await page.getByRole("link", { name: /Northstar 55-inch QLED TV/ }).first().click();
-  await expect(page.getByRole("heading", { name: "Price evidence" })).toBeVisible();
-  await expect(page.getByText(/history coverage|history unavailable/i).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Offer confidence" })).toBeVisible();
+  await expect(page.getByText(/Price tracking and target-price alerts are not part/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Safe retailer comparison" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Offer conditions" })).toBeVisible();
   await expect(page.getByText("Sold by Demo North Electronics").first()).toBeVisible();
@@ -72,11 +65,33 @@ test("affiliate CTA stays centralized on go and resolves a persisted safe tracki
   expect(response.headers().location).toMatch(/^https:\/\/demo\.local\//);
 });
 
+test("active store banner uses a protected new-tab handoff without exposing the affiliate URL", async ({ page }) => {
+  await page.goto("/");
+  const banner = page.getByRole("link", { name: "Shop Demo North — opens retailer website in a new tab" });
+  await expect(banner).toHaveAttribute("href", "/go/store/demo-north-electronics");
+  await expect(banner).toHaveAttribute("target", "_blank");
+  await expect(banner).toHaveAttribute("rel", "noopener noreferrer sponsored");
+  await expect(banner).not.toHaveAttribute("href", /https?:\/\//);
+
+  const handoff = await page.request.get("/go/store/demo-north-electronics?destination=https%3A%2F%2Fattacker.example", { maxRedirects: 0 });
+  expect(handoff.status()).toBe(302);
+  expect(handoff.headers().location).toBe("https://demo.local/go/demo-north-electronics");
+});
+
+test("discovery-only store banner stays inside the store-filtered catalog", async ({ page }) => {
+  await page.goto("/");
+  const banner = page.getByRole("link", { name: "Browse Demo Home & Tool deals on GreatDeals.ca" });
+  await expect(banner).not.toHaveAttribute("target");
+  await banner.click();
+  await expect(page).toHaveURL(/retailer=demo-home-tool/);
+  await expect(page.getByRole("link", { name: "MapleForge 20V Cordless Drill Kit", exact: true })).toBeVisible();
+});
+
 test("controlled Rakuten fixture crosses search, product evidence, and persisted handoff", async ({ page }) => {
   await page.goto("/?search=RKT-FIXTURE-100");
-  await page.getByRole("link", { name: "Rakuten Controlled Fixture Headphones" }).click();
+  await page.getByRole("link", { name: "Rakuten Controlled Fixture Headphones", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Rakuten Controlled Fixture Headphones" })).toBeVisible();
-  await expect(page.getByText("Rakuten Controlled Fixture Retailer").first()).toBeVisible();
+  await expect(page.locator(".primary-offer").getByText("Rakuten Controlled Fixture Retailer", { exact: true })).toBeVisible();
 
   const cta = page.locator(".primary-offer").getByRole("link", { name: "Continue to Rakuten Controlled Fixture Retailer" });
   const href = await cta.getAttribute("href");
@@ -97,77 +112,23 @@ test("visitor sees a possible variant outside safe comparison", async ({ page })
   await expect(page.getByText("No safe comparison available.")).toBeVisible();
 });
 
-test("visitor sees unavailable history without a fabricated claim", async ({ page }) => {
-  await page.goto("/products/northstar-quiet-headphones");
-
-  await expect(page.getByRole("heading", { name: "Price evidence" })).toBeVisible();
-  await expect(page.getByText("Price history unavailable.")).toBeVisible();
-  await expect(page.getByText(/all-time-low/i)).not.toBeVisible();
-});
-
-test("visitor switches reliable Product history from 30 to 90 days", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("link", { name: /Northstar 55-inch QLED TV/ }).first().click();
-  const history = page.locator("section", { has: page.getByRole("heading", { name: "Price history" }) });
-
-  await expect(history.getByText("Reliable history", { exact: true })).toBeVisible();
-  await expect(history.locator(".history-summary")).toContainText("Lowest observed in the last 30 days: $1,049.99");
-  await expect(history.getByRole("img", { name: /Observed product prices over 30 days/ })).toBeVisible();
-  await history.getByRole("link", { name: "90 days" }).click();
-  await expect(page).toHaveURL(/history=90d/);
-  await expect(history.locator(".history-summary")).toContainText("Lowest observed in the last 90 days: $1,049.99");
-  await expect(history.getByText(/Tracking since/)).toBeVisible();
-  await expect(history.getByText(/lowest price ever/i)).toBeVisible();
-  await expect(history.getByText(/all-time low/i)).not.toBeVisible();
-});
-
-test("partial Product history shows real points and an explicit gap boundary", async ({ page }) => {
-  await page.goto("/products/mapleforge-20v-drill-kit?history=90d");
-  const history = page.locator("section", { has: page.getByRole("heading", { name: "Price history" }) });
-
-  await expect(history.getByText("Partial history", { exact: true })).toBeVisible();
-  await expect(history.getByText(/2 qualifying observations across 2 observed days/)).toBeVisible();
-  await expect(history.locator(".history-summary")).toContainText(/gaps limit stronger conclusions/i);
-  await expect(history.getByText(/lowest price ever/i)).toBeVisible();
-});
-
-test("unavailable Product history has no fake chart while current price remains visible", async ({ page }) => {
-  await page.goto("/products/search-fixture-unavailable-kettle?history=90d");
-  const history = page.locator("section", { has: page.getByRole("heading", { name: "Price history" }) });
-
-  await expect(history.getByRole("heading", { name: "Price history unavailable" })).toBeVisible();
-  await expect(history.getByRole("img")).not.toBeVisible();
-  await expect(history.locator(".history-current")).toContainText("$");
-});
-
-test("unsafe cheaper variant never enters canonical Product history", async ({ page }) => {
-  await page.goto("/products/mapleforge-20v-drill-kit?history=90d");
-  const history = page.locator("section", { has: page.getByRole("heading", { name: "Price history" }) });
-
-  await expect(history.locator(".history-summary")).toContainText("Lowest observed in the last 90 days: $179.99");
-  await expect(history.getByText("$49.99")).not.toBeVisible();
-  await expect(history.getByText("$59.99")).not.toBeVisible();
-  await expect(history.getByText("$89.99")).not.toBeVisible();
-});
-
-test("Product history remains readable and contained on mobile", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test("price tracker and target-price controls are absent and legacy routes fail closed", async ({ page }) => {
   await page.goto("/products/northstar-55-qled-tv?history=90d");
+  await expect(page.getByRole("heading", { name: "Price history" })).not.toBeVisible();
+  await expect(page.getByRole("heading", { name: "Target-price alert" })).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Save product" })).toBeVisible();
+  expect((await page.request.get("/api/v1/products/northstar-55-qled-tv/history?window=90d")).status()).toBe(404);
+});
+
+test("product page remains readable and contained on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/products/northstar-55-qled-tv");
   const productHeading = page.getByRole("heading", { name: "Northstar 55-inch QLED TV", level: 1 });
-  const historyHeading = page.getByRole("heading", { name: "Price history" });
   const comparisonHeading = page.getByRole("heading", { name: "Safe retailer comparison" });
 
   await expect(productHeading).toBeVisible();
-  await expect(historyHeading).toBeVisible();
-  expect(await productHeading.evaluate((node) => node.getBoundingClientRect().top)).toBeLessThan(await historyHeading.evaluate((node) => node.getBoundingClientRect().top));
-  expect(await comparisonHeading.evaluate((node) => node.getBoundingClientRect().top + window.scrollY)).toBeLessThan(await historyHeading.evaluate((node) => node.getBoundingClientRect().top + window.scrollY));
-  await expect(page.getByRole("link", { name: "30 days" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "90 days" })).toBeVisible();
+  await expect(comparisonHeading).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
-
-  const currentOffer = page.getByRole("heading", { name: "Current observed price" });
-  const targetAlert = page.getByRole("heading", { name: "Target-price alert" });
-  expect(await currentOffer.evaluate((node) => node.getBoundingClientRect().top + window.scrollY)).toBeLessThan(await targetAlert.evaluate((node) => node.getBoundingClientRect().top + window.scrollY));
   await expect(page.locator(".primary-offer").getByRole("link", { name: "Continue to Demo North Electronics" })).toBeVisible();
   await expect(page.locator(".mobile-retailer-bar")).not.toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 1400));
@@ -178,7 +139,7 @@ test("homepage remains usable at a representative mobile viewport", async ({ pag
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Deals with strong evidence." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Find the right deal. Fast." })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Mobile primary navigation" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Mobile primary navigation" }).getByRole("link")).toHaveCount(5);
   await expect(page.getByRole("main")).toBeVisible();
@@ -186,11 +147,11 @@ test("homepage remains usable at a representative mobile viewport", async ({ pag
   await expect(page.locator(":focus")).toBeVisible();
   const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(hasHorizontalOverflow).toBe(false);
-  const searchTop = await page.getByLabel("Search a product or model number").evaluate((node) => node.getBoundingClientRect().top);
-  const trustTop = await page.locator(".trust-strip").evaluate((node) => node.getBoundingClientRect().top);
+  const searchTop = await page.getByRole("combobox", { name: "Search products, models, or categories" }).evaluate((node) => node.getBoundingClientRect().top);
+  const storesTop = await page.locator(".store-banners").evaluate((node) => node.getBoundingClientRect().top);
   const firstDealTop = await page.locator("article.deal-card").first().evaluate((node) => node.getBoundingClientRect().top);
-  expect(searchTop).toBeLessThan(trustTop);
-  expect(firstDealTop).toBeLessThan(1000);
+  expect(searchTop).toBeLessThan(storesTop);
+  expect(firstDealTop).toBeLessThan(1500);
   await expect(page.getByText(/Alert product [0-9a-f]{32}/i)).not.toBeVisible();
 });
 
@@ -207,61 +168,47 @@ test("global search offers model and category suggestions on every page", async 
 
 test("exact model search uses relevance and opens the canonical product", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Search a product or model number").fill("NS55QLED-2026");
-  await page.getByRole("button", { name: "Search deals" }).click();
+  const search = page.getByRole("combobox", { name: "Search products, models, or categories" });
+  await search.fill("NS55QLED-2026");
+  await search.press("Enter");
 
   await expect(page).toHaveURL(/search=NS55QLED-2026/);
-  await expect(page.getByRole("heading", { name: "Most relevant" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Most relevant deals" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Northstar 55-inch QLED TV" }).first()).toBeVisible();
 });
 
-test("combined discovery filters remain visible in the URL and exclude unsafe variants", async ({ page }) => {
+test("category and store filters remain visible in the URL", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("#filter-panel")).not.toBeVisible();
-  await page.getByRole("button", { name: "Filters" }).click();
-  await expect(page.getByRole("region", { name: "Filter deals", exact: true })).toBeVisible();
   await page.getByLabel("Category").selectOption("home-improvement-tools");
-  await page.getByLabel("Minimum price").fill("100");
-  await page.getByLabel("Maximum price").fill("200");
-  await page.getByLabel("Comparison confidence").selectOption("safe");
-  await page.getByLabel("Availability").selectOption("online");
-  await page.getByRole("button", { name: "Apply filters" }).click();
+  await page.getByLabel("Store", { exact: true }).selectOption("demo-home-tool");
+  await page.getByRole("button", { name: "Show deals" }).click();
 
   await expect(page).toHaveURL(/category=home-improvement-tools/);
-  await expect(page).toHaveURL(/minPrice=100/);
-  await expect(page.getByRole("link", { name: "MapleForge 20V Cordless Drill Kit" })).toBeVisible();
-  await expect(page.getByText("Ridgeway 20V Cordless Drill Tool-Only")).not.toBeVisible();
+  await expect(page).toHaveURL(/retailer=demo-home-tool/);
+  await expect(page.getByRole("link", { name: "MapleForge 20V Cordless Drill Kit", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Remove Category filter" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Remove Store filter" })).toBeVisible();
+  await expect(page.getByLabel("Minimum price")).not.toBeVisible();
 });
 
 test("browser back restores search and filter state", async ({ page }) => {
-  await page.goto("/?search=northstar&category=electronics&match=safe");
+  await page.goto("/?search=northstar&category=electronics");
   await page.getByRole("link", { name: "Northstar 55-inch QLED TV" }).first().click();
-  await expect(page.getByRole("heading", { name: "Price evidence" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Offer confidence" })).toBeVisible();
   await page.goBack();
 
   await expect(page).toHaveURL(/search=northstar/);
-  await expect(page.getByLabel("Search a product or model number")).toHaveValue("northstar");
   await expect(page.getByLabel("Category", { exact: true })).toHaveValue("electronics");
-  await expect(page.getByLabel("Comparison confidence", { exact: true })).toHaveValue("safe");
 });
 
-test("mobile filter sheet is labelled, focusable, and applies controls", async ({ page }) => {
+test("mobile category and store controls stay compact and usable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Filters" }).click();
-
-  const dialog = page.getByRole("dialog", { name: "Filter deals" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("heading", { name: "Filter deals" })).toBeFocused();
-  await page.keyboard.press("Escape");
-  await expect(dialog).not.toBeVisible();
-  await expect(page.getByRole("button", { name: "Filters" })).toBeFocused();
-  await page.getByRole("button", { name: "Filters" }).click();
-  await dialog.getByLabel("Availability").selectOption("unavailable");
-  await dialog.getByRole("button", { name: "Apply filters" }).click();
-  await expect(page).toHaveURL(/availability=unavailable/);
-  await expect(page.getByRole("link", { name: "Northstar Search Fixture Kettle" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Filter deals" })).toBeVisible();
+  await page.getByLabel("Category").selectOption("electronics");
+  await page.getByRole("button", { name: "Show deals" }).click();
+  await expect(page).toHaveURL(/category=electronics/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
 });
 
 test("public SEO endpoints and stale Product structured data remain truthful", async ({ page }) => {
@@ -272,7 +219,7 @@ test("public SEO endpoints and stale Product structured data remain truthful", a
   expect(sitemap.ok()).toBe(true);
   expect(await sitemap.text()).toContain("/products/northstar-55-qled-tv");
 
-  await page.goto("/products/northstar-65-oled-tv?history=90d");
+  await page.goto("/products/northstar-65-oled-tv");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "http://localhost:3000/products/northstar-65-oled-tv");
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", /Northstar 65-inch OLED TV/);
   const jsonLd = JSON.parse(await page.locator('script[type="application/ld+json"]').textContent() ?? "{}");
@@ -282,10 +229,10 @@ test("public SEO endpoints and stale Product structured data remain truthful", a
 
 test("no-result search offers a clear recovery action", async ({ page }) => {
   await page.goto("/?search=definitely-no-such-product-xyz");
-  await expect(page.getByRole("heading", { name: "No products match these controls." })).toBeVisible();
-  await page.getByRole("link", { name: "Clear search and filters" }).click();
+  await expect(page.getByRole("heading", { name: "No products match this selection." })).toBeVisible();
+  await page.getByRole("link", { name: "Clear selection" }).click();
   await expect(page).toHaveURL("/");
-  await expect(page.getByRole("heading", { name: "Most recently checked" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recently checked deals" })).toBeVisible();
 });
 
 test("visitor can submit a price change report that becomes reviewable", async ({ page }) => {
@@ -359,7 +306,7 @@ test("saved products are isolated between accounts", async ({ page }) => {
   await expect(page).toHaveURL("/");
 
   await register(page, uniqueEmail("isolation-b"), "/saved");
-  await expect(page.getByRole("heading", { name: "No saved products yet." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your wishlist is empty." })).toBeVisible();
   await expect(page.getByText("MapleForge 20V Cordless Drill Kit")).not.toBeVisible();
 });
 
@@ -369,8 +316,8 @@ test("shopper can unsave a product from the saved list", async ({ page }) => {
   await page.getByRole("button", { name: "Save product" }).click();
   await page.goto("/saved");
   await expect(page.getByRole("heading", { name: "Northstar 65-inch OLED TV" })).toBeVisible();
-  await page.getByRole("button", { name: "Remove saved product" }).click();
-  await expect(page.getByRole("heading", { name: "No saved products yet." })).toBeVisible();
+  await page.getByRole("button", { name: "Remove from wishlist" }).click();
+  await expect(page.getByRole("heading", { name: "Your wishlist is empty." })).toBeVisible();
   await expect(page.getByText("Northstar 65-inch OLED TV")).not.toBeVisible();
 });
 
@@ -397,73 +344,10 @@ test("unconfirmed shopper can request a fresh confirmation email", async ({ page
   await finishEmailConfirmation(page, email, "/");
 });
 
-test("confirmed shopper creates a target alert and the real worker captures one deduplicated delivery", async ({ page }) => {
-  const productPath = "/products/northstar-quiet-headphones";
-  const email = uniqueEmail("target-alert");
-  await register(page, email, productPath);
-
-  await page.getByLabel("Target price (CAD)").fill("200.00");
-  await page.getByRole("checkbox", { name: /I agree to receive an email/ }).check();
-  await page.getByRole("button", { name: "Set alert" }).click();
-  await expect(page.getByText(/Active target:/)).toContainText("$200.00");
-  await expect(page.getByText(/not marketing or a weekly digest/i)).toBeVisible();
-
-  const productResponse = await page.request.get("/api/v1/products/northstar-quiet-headphones");
-  const productId = (await productResponse.json() as { productId: string }).productId;
-  const scenario = await authenticatedMutation(page, `/api/internal/price-alert-evaluation/scenarios/${productId}`, { price: 199, listingScope: "safe" });
-  expect(scenario.ok()).toBe(true);
-  const run = await authenticatedMutation(page, "/api/internal/price-alert-evaluation/run");
-  expect(run.status()).toBe(202);
-
-  await expect.poll(async () => {
-    const response = await page.request.get(`/api/internal/price-alert-evaluation/deliveries?productId=${productId}`);
-    const deliveries = await response.json() as Array<{ status: string }>;
-    return deliveries[0]?.status;
-  }, { timeout: 30_000 }).toBe("DEVELOPMENTCAPTURED");
-  const capturedResponse = await page.request.get(`/api/internal/price-alert-evaluation/deliveries?productId=${productId}`);
-  const captured = await capturedResponse.json() as Array<{ status: string; statusReason: string }>;
-  expect(captured[0]).toEqual(expect.objectContaining({ status: "DEVELOPMENTCAPTURED", statusReason: "CONTROLLED_DEVELOPMENT_TEST_CAPTURE" }));
-  const emailResponse = await page.request.get(`/api/internal/email-captures/latest?to=${encodeURIComponent(email)}`);
-  expect(emailResponse.ok()).toBe(true);
-  const alertEmail = await emailResponse.json() as { subject: string; textBody: string; htmlBody: string };
-  expect(alertEmail.subject).toContain("Northstar Quiet Wireless Headphones");
-  expect(alertEmail.textBody).toContain("Qualifying observed price: CAD 199.00");
-  expect(alertEmail.textBody).toContain("Your target: CAD 200.00");
-  expect(alertEmail.htmlBody).not.toContain("tracking");
-
-  const secondRun = await authenticatedMutation(page, "/api/internal/price-alert-evaluation/run");
-  expect(secondRun.status()).toBe(202);
-  await expect.poll(async () => {
-    const response = await page.request.get(`/api/internal/price-alert-evaluation/deliveries?productId=${productId}`);
-    return (await response.json() as unknown[]).length;
-  }, { timeout: 30_000 }).toBe(1);
-
-  await page.goto("/saved");
-  await expect(page.getByText(/Target alert:/)).toContainText("$200.00");
-  await page.getByRole("button", { name: "Remove alert" }).click();
-  await expect(page.getByText("No active target-price alert")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Northstar Quiet Wireless Headphones" })).toBeVisible();
-});
-
-test("worker ignores a cheaper possible-match variant for alert eligibility", async ({ page }) => {
-  const productPath = "/products/mapleforge-20v-drill-kit";
-  await register(page, uniqueEmail("unsafe-target"), productPath);
-  await page.getByLabel("Target price (CAD)").fill("100.00");
-  await page.getByRole("checkbox", { name: /I agree to receive an email/ }).check();
-  await page.getByRole("button", { name: "Set alert" }).click();
-
-  const productResponse = await page.request.get("/api/v1/products/mapleforge-20v-drill-kit");
-  const productId = (await productResponse.json() as { productId: string }).productId;
-  const scenario = await authenticatedMutation(page, `/api/internal/price-alert-evaluation/scenarios/${productId}`, { price: 89, listingScope: "review" });
-  expect(scenario.ok()).toBe(true);
-  const run = await authenticatedMutation(page, "/api/internal/price-alert-evaluation/run");
-  expect(run.status()).toBe(202);
-  const { jobId } = await run.json() as { jobId: string };
-
-  await expect.poll(async () => {
-    const response = await page.request.get(`/api/internal/price-alert-evaluation/jobs/${jobId}`);
-    return response.ok() ? ((await response.json() as { state: string }).state) : "MISSING";
-  }, { timeout: 30_000 }).toBe("SUCCEEDED");
-  const deliveriesResponse = await page.request.get(`/api/internal/price-alert-evaluation/deliveries?productId=${productId}`);
-  expect(await deliveriesResponse.json()).toEqual([]);
+test("price-alert routes fail closed in the current product", async ({ page }) => {
+  const email = uniqueEmail("wishlist-only");
+  await register(page, email, "/products/northstar-quiet-headphones");
+  await expect(page.getByLabel("Target price (CAD)")).not.toBeVisible();
+  expect((await page.request.get("/api/v1/price-alerts")).status()).toBe(404);
+  expect((await page.request.get("/api/internal/price-alert-evaluation/deliveries")).status()).toBe(404);
 });

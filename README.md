@@ -4,7 +4,7 @@ Canada Deals is a Canadian e-commerce deal-discovery platform intended to help s
 
 ## Current status
 
-The Human Product, Human UX, and Human Architecture / Data Integration Checkpoints are complete. Vertical Slice 9 now includes the provider-neutral affiliate boundary plus an opt-in Rakuten Advertising connector for OAuth token reuse/refresh, advertiser/partnership discovery, deep links, Product Search XML, dry-run, and policy-gated catalog persistence. All behavior is deterministically validated with controlled fixtures; no merchant is live, no real Rakuten credential was used, and production activation remains blocked by the merchant approval and data-rights checkpoint.
+The Human Product, Human UX, and Human Architecture / Data Integration Checkpoints are complete. The current store-led, Wishlist-only experience includes API-backed store banners with original Canada Deals artwork, internal discovery fallback, and a provider-neutral `/go/store/{retailerKey}` handoff for approved destinations. Vertical Slice 9 retains the provider-neutral affiliate boundary and opt-in Rakuten connector. All behavior is deterministically validated with controlled fixtures; no merchant is live, no real Rakuten credential was used, and production activation remains blocked by merchant approval, storefront destination, data-rights, and asset-rights evidence.
 
 ## Development workflow
 
@@ -35,6 +35,8 @@ Do not silently skip checkpoints, expand the MVP, or replace approved technologi
 - Agent scopes: `agents/` (the detailed Product Owner role is `agents/product-owner.md`; other specialized roles are maintained there or represented by clearly marked placeholders)
 
 The source-of-truth documents are not complete until the relevant phase is approved. Do not present proposals as decisions.
+
+Owner administration is available at the intentionally unlinked `/admin_panel` route after the single owner role is configured interactively. See `docs/operations/OWNER-ADMIN.md`; the hidden path is not treated as a security boundary.
 
 ## Important constraints
 

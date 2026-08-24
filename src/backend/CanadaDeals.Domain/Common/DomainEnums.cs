@@ -82,6 +82,12 @@ public enum AffiliateLinkStatus
     Disabled = 3
 }
 
+public enum StoreBannerAssetSource
+{
+    CanadaDealsOriginal = 0,
+    MerchantApprovedAffiliateAsset = 1
+}
+
 public enum IntegrationAdvertiserStatus
 {
     Unknown = 0,

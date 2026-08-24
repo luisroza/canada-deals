@@ -191,3 +191,33 @@ Only record decisions that have actually been approved. Proposed options and res
 - **Rejected for MVP:** Open comments, votes, reputation, gamification, forums, open publication of community deals, native push, and sponsored/commission-driven organic ranking.
 - **Evidence:** `docs/product/MVP.md`, `docs/product/PRODUCT-BACKLOG.md`, `docs/product/ROADMAP.md`, and the implemented API/Product Page contracts.
 - **Date:** 2026-08-14
+
+### DEC-018 - Store-led discovery and wishlist-only product revision
+
+- **Status:** Approved by explicit Human Product/UX instruction; implementation in progress
+- **Decision:** Reorient the public experience toward fast, visual deal discovery using Promobit as a structural reference while preserving an independent GreatDeals.ca visual identity. Desktop navigation groups Search, Categories, Stores, Wishlist, and Account. Mobile navigation exposes Home, Categories, Search, Wishlist, and Account. Discovery filters are limited to Category and Store.
+- **Cards and store entry:** Deal Cards use a compact store/image/title/price/check-time/CTA hierarchy. Store banners are generated for each eligible catalog retailer. Until a verified store-level affiliate destination exists, a banner opens the store-filtered GreatDeals feed; direct product handoffs continue to use only validated `/go/{listingId}` records.
+- **Removed product capabilities:** Public product-price history/tracker, Target Price Alert UI/API operation, alert worker enqueue, alert navigation, and weekly digest are disabled. Existing database tables, migrations, domain code, and historical validation evidence are retained for safe rollback/data migration and do not constitute an active feature.
+- **Preserved controls:** Current-price provenance, visible check time, safe matching, merchant policy, affiliate disclosure, report workflow, account security, Wishlist isolation, and affiliate activation gates remain mandatory. Community votes/comments, artificial urgency, unverified coupons, merchant logos/images without rights, and commission-driven ranking remain excluded.
+- **Date:** 2026-08-20
+
+### DEC-019 - Store affiliate banners use a distinct persisted handoff
+
+- **Status:** Implemented; live merchant activation remains blocked
+- **Decision:** Keep listing affiliate links and store affiliate destinations as separate identities. Product CTAs remain `/go/{listingId}`; an approved storefront banner uses `/go/store/{retailerKey}` backed by `StoreAffiliateDestination`, never a fake listing or browser-provided URL.
+- **Visual rights:** Default to first-party original SVG artwork and accessible HTML retailer names. `BrandAssetPolicy=UNKNOWN` cannot enable an official logo. Merchant-provided creative requires explicit provenance/evidence and effective/expiry metadata.
+- **Safety and neutrality:** Only enabled retailers with affiliate-permitted policy, ACTIVE complete programs, usable persisted destination, valid HTTPS/domain allowlists, and current provider capability can redirect. Store clicks record minimal store/program/placement context. Banner order is editorial then alphabetical and consumes no commission/EPC data.
+- **Fallback:** Missing/inactive destinations remain `DISCOVERY_ONLY` and link to the filtered GreatDeals catalog in the same tab.
+- **Date:** 2026-08-20
+
+### DEC-020 - Single-owner administration boundary
+
+- **Status:** Approved by explicit owner instruction; implemented and locally validated
+- **Decision:** Provide an intentionally unlinked `/admin_panel` operational workspace backed by ASP.NET Core Identity's single `OwnerAdmin` role and the `OwnerAdminOnly` server policy. Route obscurity and robots directives are discovery controls only, never authorization.
+- **Scope:** The owner can create/edit/draft/enable/reversibly disable ad-hoc offers, edit all current StoreBannerProfile fields, review listing-quality reports, and inspect audit events. Public user/role management, arbitrary uploads, connector configuration, tracking-URL editing, campaigns, coupons, and a large CMS remain excluded.
+- **Truth boundary:** Merchant Policy, HTTPS, timestamps, duplicates, CAD price, asset rights, and publication readiness are validated server-side. Freshness, evidence, history, reference price, affiliate status, and handoff remain derived and cannot be fabricated in the panel.
+- **Security:** Admin writes require cookie authentication, role authorization, CSRF, dedicated rate limiting, bounded validation, and `AdminAuditEvent`. Bootstrap is an interactive no-echo command, refuses a second different owner, and invalidates old sessions. No password or owner identity is committed.
+- **UX:** Use a distinct responsive admin shell that retains GreatDeals.ca visual tokens; group long forms progressively, expose plain-language readiness, require reasons for sensitive state changes, and adapt tables into cards on mobile.
+- **Operational gate:** A password disclosed through chat is considered compromised and is not used. The intended owner must bootstrap locally with a new password. MFA/step-up authentication remains a production follow-up.
+- **Evidence:** `docs/ux/ADMIN-PANEL.md`, `docs/operations/OWNER-ADMIN.md`, and `docs/qa/OWNER-ADMIN-PANEL-TEST-REPORT.md`.
+- **Date:** 2026-08-24

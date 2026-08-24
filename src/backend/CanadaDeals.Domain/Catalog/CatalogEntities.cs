@@ -76,4 +76,30 @@ public sealed class Product
 
     public IReadOnlyDictionary<string, string> VariantAttributes =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(VariantAttributesJson) ?? new Dictionary<string, string>();
+
+    public void UpdateAdministrativeIdentity(
+        string slug,
+        string title,
+        Brand brand,
+        Category category,
+        string? modelNumber,
+        string? manufacturerPartNumber,
+        string? gtin,
+        IReadOnlyDictionary<string, string>? variantAttributes)
+    {
+        var replacement = Create(slug, title, brand, category, modelNumber, manufacturerPartNumber, gtin, variantAttributes);
+        Slug = replacement.Slug;
+        Title = replacement.Title;
+        Brand = brand;
+        BrandId = brand.Id;
+        Category = category;
+        CategoryId = category.Id;
+        ModelNumber = replacement.ModelNumber;
+        ManufacturerPartNumber = replacement.ManufacturerPartNumber;
+        Gtin = replacement.Gtin;
+        SearchDocument = replacement.SearchDocument;
+        NormalizedModelNumber = replacement.NormalizedModelNumber;
+        NormalizedManufacturerPartNumber = replacement.NormalizedManufacturerPartNumber;
+        VariantAttributesJson = replacement.VariantAttributesJson;
+    }
 }

@@ -1,19 +1,19 @@
 # Canada Deals — UX / Product Design
 
-**Status:** APPROVED — Human UX Checkpoint completed
+**Status:** APPROVED — Human UX revision approved 2026-08-20
 **Product basis:** Human Product Checkpoint approved on 2026-08-11
 **Scope:** English-first responsive web MVP; no application code or technology decisions
 
 ## 1. Executive UX summary
 
-Canada Deals should feel like a calm decision tool for a planned purchase, not a noisy coupon feed. The experience must answer four questions quickly:
+GreatDeals.ca should feel like a fast, visual deal-discovery product with calm trust cues. The 2026-08-20 revision supersedes earlier UX references to price-history charts, target-price alerts, broad filters, Saved naming, and alert navigation. The experience must answer four questions quickly:
 
 1. Is this the product I want?
 2. Is the current price meaningful?
 3. How fresh and trustworthy is the evidence?
 4. Where can I safely continue the purchase?
 
-The primary interaction is **discover → verify → compare → hand off**. Price, reference evidence, freshness, match confidence, retailer context, and disclosure remain visible at the moment of decision.
+The primary interaction is **browse → scan → verify → hand off**, with **wishlist → return** as the only account-based retention loop. Current price, check time, retailer context, match confidence, and disclosure remain visible at the moment of decision.
 
 ## 2. Approved product basis
 
@@ -23,9 +23,13 @@ The primary interaction is **discover → verify → compare → hand off**. Pri
 - Secondary audience: expert deal hunters who can help stress-test quality.
 - Retailer priorities: Amazon.ca, Best Buy Canada, and Home Depot Canada; Walmart Canada remains a fallback candidate.
 - MVP platform: English-first responsive web.
-- P0: deal feed, search, filters, Deal Card, Product Page, freshness, evidence/confidence, safe comparison, retailer handoff, disclosure, and stale/wrong reporting.
-- P1: Save Product and Target-Price Alert.
-- P2: weekly digest; it is deliberately deferred, not removed.
+- P0: deal feed, search, category/store menus, category/store filters, store banners, compact Deal Card, Product Page, freshness, evidence/confidence, safe comparison, retailer handoff, disclosure, and stale/wrong reporting.
+- P1: Wishlist persistence.
+- Removed: public price tracker/history, target-price alerts, alert navigation, and weekly digest.
+
+## 2.1 Approved competitive UI interpretation
+
+Promobit was reviewed as a structural reference, not a visual identity to copy. GreatDeals adopts its low-friction information architecture: search with adjacent Categories and Stores menus, visual store entry points, feed-mode tabs, and image-led compact cards. GreatDeals deliberately excludes community authorship, votes, comments, gamification, coupon claims without evidence, countdown urgency, and promotional ranking. Product imagery remains a rights-gated enhancement; category visuals occupy that space until source display rights are verified.
 
 ## 3. UX principles
 
@@ -95,12 +99,12 @@ Scans more often, notices stale or weak evidence, and values history and alerts.
 3. Each retailer row shows price, observed time, availability context, shipping uncertainty, and CTA.
 4. Uncertain-match alternatives are separated and never merged into the primary comparison.
 
-### Journey D — save and alert
+### Journey D — wishlist
 
-1. Visitor selects Save or Target Price.
+1. Visitor selects Save to wishlist.
 2. If signed out, the UI explains the minimum account step and preserves context.
-3. Visitor enters target price and email preference.
-4. Confirmation states exactly what will trigger an alert.
+3. The signed-in shopper can revisit or remove the product from Wishlist.
+4. No target price, alert consent, or promotional notification is requested.
 
 ### Journey E — correct the record
 
@@ -116,12 +120,11 @@ Primary routes:
 - Deals
 - Search results
 - Product Page
-- Saved products
-- Alerts
+- Wishlist
 - Account / preferences
 - Report confirmation
 
-Desktop navigation: logo, search, Deals, Saved, Alerts, and a restrained account entry. Mobile navigation: Home, Deals, Search, Saved, and Account; Alerts remain discoverable from Saved and the account area.
+Desktop navigation: logo, search, Deals, Categories, Stores, Wishlist, and a restrained account entry. Mobile navigation: Home, Categories, Search, Wishlist, and Account.
 
 Avoid top-level navigation for community, cashback, coupons, or unsupported retailer breadth. Do not imply that every retailer or category is covered.
 
@@ -129,12 +132,13 @@ Avoid top-level navigation for community, cashback, coupons, or unsupported reta
 
 The homepage hierarchy is:
 
-1. **Promise:** “Find a price you can trust.”
-2. **Search:** product-first search with examples such as “Sony WH-1000XM5” or “Makita drill.”
-3. **Trust strip:** current price, evidence, freshness, and safe comparison explained in plain language.
-4. **Deals with strong evidence:** a small set of evidence-led cards, not an endless wall.
-5. **How it works:** discover, verify, compare.
-6. **Optional return path:** save and target-price alert, without forcing account creation.
+1. **Compact promise:** “Find the right deal. Fast.”
+2. **Global search:** product/model suggestions in the sticky header.
+3. **Store banners:** a responsive grid of eligible stores using original GreatDeals artwork, accessible HTML retailer text, and visibly distinct affiliate/discovery-only states.
+4. **Quick filters:** category and store only.
+5. **Feed modes:** latest, best supported savings, and lowest price.
+6. **Compact deal grid:** retailer, visual area, title, current price, check time, and CTA.
+7. **Optional return path:** wishlist, without forcing account creation during discovery.
 
 On mobile, the search and first useful card must appear before educational content. Promotional modules cannot displace the main search task.
 

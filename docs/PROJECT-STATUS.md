@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Application Implementation — Vertical Slice 9 Rakuten Connector — IMPLEMENTED AND VALIDATED; LIVE MERCHANT ACTIVATION BLOCKED
+Application Implementation — Owner Administration Panel — IMPLEMENTED AND VALIDATED; OWNER BOOTSTRAP AND LIVE MERCHANT ACTIVATION BLOCKED
 
 ## Completed
 
@@ -31,36 +31,44 @@ Application Implementation — Vertical Slice 9 Rakuten Connector — IMPLEMENTE
 - Vertical Slice 7 Production Email Delivery Boundary
 - Vertical Slice 8 Production Deployment + Email Operational Validation preparation
 - Vertical Slice 9 Affiliate Link Provider Activation and Rakuten Advertising Affiliate + Catalog Connector
+- Human Product/UX revision: Promobit-informed store-led discovery, category/store-only filtering, compact cards, and Wishlist-only retention
+- Provider-neutral Store Affiliate Banner System with original first-party artwork, discovery-only fallback, protected backend handoff, and minimal click attribution
+- Owner-only administration boundary with unlinked `/admin_panel`, role-protected offer/banner/report operations, reversible publication state, and audit trail
 
 ## Approved product direction
 
-- Positioning: Canadian price-truth layer for planned online purchases
+- Positioning: fast Canadian deal discovery with visible current-offer trust cues
 - Initial wedge: electronics plus home improvement/tools
 - English-first responsive web MVP
-- Evidence before enthusiasm, visible freshness, conservative history, and safe same-product comparison
-- Save Product and Target Price Alert remain P1; Weekly Digest remains P2
+- Promobit-informed information architecture with an independent GreatDeals.ca identity: Search, Categories, Stores, Wishlist, compact cards, and clear deal CTAs
+- Category and Store are the only public discovery filters; current check time and safe same-product comparison remain visible
+- Wishlist is the only retention feature; public price history/tracking, Target Price Alerts, and Weekly Digest are removed
 - Two high-quality approved retailers are sufficient for launch; retailer count is not an MVP KPI
 
 ## Current implementation
 
 - Backend: .NET 10 modular monolith projects under `src/backend/` for Domain, Infrastructure, API, and Worker.
-- Persistence: PostgreSQL/Npgsql through `20260814173414_AddRakutenConnector`; local development uses Docker Compose.
-- API: public discovery/product/history/health/report/handoff, PostgreSQL FTS + `pg_trgm` typo fallback, deterministic policy-safe P0 filtering/sorting/pagination, Identity accounts, current-user Saved Products, and idempotent current-user Target Price Alert list/create/update/disable.
+- Persistence: PostgreSQL/Npgsql through `20260820191750_AddStoreBannerAssetRightsMetadata`; local development uses Docker Compose.
+- API: public discovery/product/health/report/handoff, eligible store-banner discovery, PostgreSQL FTS + `pg_trgm` typo fallback, policy-safe filtering/sorting/pagination, Identity accounts, and current-user Wishlist persistence. Legacy history and price-alert routes fail closed by default behind disabled product feature flags.
 - Fixtures: Products A-H cover reliable/partial/unavailable/policy-hidden Product history, stale current price with valid history, unsafe cheaper history, discovery states, and alerts without live retailer sources.
-- Frontend: Next.js 16 + React 19 public URL-driven discovery search/filters and `/products/[slug]`, summary-first accessible 30/90-day Product history, an accessible Offer Conditions panel with seller/condition/availability/region/shipping/last-check facts and explicit unknown coupon/eligibility/expiry boundaries, account routes, Product Page Save and Target Price controls, and `/saved` alert management; public Product content remains server-rendered and SEO-visible.
-- UX refinement: a sticky global search provides accessible endpoint-backed product/category suggestions; catalog-backed category shortcuts and deterministic feed modes expose recently checked, supported savings, and lowest-price views; mobile navigation exposes Home/Deals/Search/Saved/Account; Deal Cards prioritize product, observed price, retailer, availability, evidence, and freshness; Product Page Save and Target Price actions are colocated after the primary evidence-led retailer offer.
+- Frontend: Next.js 16 + React 19 with sticky global search, adjacent Categories/Stores menus, API-backed visual store banners, category/store-only quick filters, responsive four/two/one-density deal cards, Product pages, account routes, and `/saved` as Wishlist. Public price-history and Target Price controls are absent.
+- UX refinement: store-led discovery and compact card scanning adopt the useful structural concepts observed on Promobit without copying its identity or importing community, voting, urgency, coupon, or engagement-ranking behavior. Product imagery remains an owned placeholder; store banners use original Canada Deals SVG artwork and retailer logos remain excluded until display rights are verified.
 - Reports: controlled reasons, optional bounded plain-text note, `OPEN` default status, non-cascading listing FK, no required PII, and no automatic mutation/suppression of listing truth.
 - Identity: normalized email identifier, Identity hashing/token support, confirmed-email policy, explicit 24-hour email-confirmation token provider, base64url confirmation links from a configured canonical origin, secure same-site cookie session, anti-forgery on mutations, generic resend/login behavior, lockout, and register/login/resend rate limit.
 - Saved Products: composite `(UserId, ProductId)` persistence, current-session ownership, canonical Product identity, user cascade/Product restrict delete behavior, and no influence on Price Truth, Deal Quality, evidence, freshness, affiliate economics, or organic ranking.
-- Target Price Alerts: one canonical Product configuration per user, confirmed-email ACTIVE gate, explicit alert-only consent, CAD target/version lifecycle, fresh/policy-permitted/safely-matched evaluation, and continuous-condition deduplication.
-- Delivery: provider-neutral transactional email with a production Resend HTTP adapter; durable account-confirmation and alert deliveries; exact Development/Test HTML/text capture; delivery-derived idempotency keys; bounded persisted retries; provider acceptance versus webhook-confirmed delivery; signed replay-safe lifecycle webhooks; and bounce/complaint/provider suppression.
+- Legacy Target Price Alerts: persistence/domain/migrations remain for safe rollback, but product routes are disabled by default, frontend controls are removed, and the worker can no longer enqueue alert evaluation.
+- Delivery: provider-neutral transactional email remains for account confirmation. Historical alert-delivery code and records are retained but are not an active product capability.
 - Deployment preparation: Docker multi-stage images for web/API/worker, non-root runtime users, health endpoints, production security headers, component-scoped secrets, DigitalOcean App Spec with Toronto services/worker/PRE_DEPLOY migration job/managed PostgreSQL binding, and operations scripts. No cloud resource has been provisioned.
 - Data Protection: PostgreSQL-backed shared key ring with explicit application name and PFX encryption required in Production; API restart preserves valid cookies and confirmation tokens.
-- Product history: 30/90-day bounded server projection, daily lowest qualifying safe price, explicit `RELIABLE`/`PARTIAL`/`UNAVAILABLE`, truthful tracking/coverage, no interpolation, and current freshness kept independent.
-- Tests: 72 domain tests, 138 PostgreSQL/provider integration tests, and 55 frontend tests pass with zero skips against PostgreSQL 17.
-- Browser validation: 28 Playwright tests pass against real Next.js/API/PostgreSQL/Worker, including global-search autocomplete, responsive mobile navigation, and a controlled Rakuten search → Product Page → `/go` → persisted safe tracking-link journey without live provider calls.
-- Worker: Hangfire PostgreSQL storage, health endpoint, and retry-safe Price Alert evaluation; no merchant ingestion.
-- Affiliate handoff: provider-neutral Impact/CJ adapters, persisted program/link/click lifecycle, pre-generated link refresh, HTTPS/domain/deeplink/relationship gates, and a provider-independent `/go/{listingId}` click path. No live credentials or merchant approval is configured.
+- Product history: historical storage/projection code remains policy-gated for compatibility, but the public endpoint and UI are disabled by default.
+- Store banners: eligible stores are projected from persisted retailer/profile state. ACTIVE controlled fixtures use `/go/store/{retailerKey}` in a protected sponsored new tab; stores without an approved usable destination remain DISCOVERY_ONLY and open the filtered GreatDeals catalog. The API never exposes raw tracking URLs.
+- Store artwork: eight responsive SVG compositions are owned by Canada Deals and contain no merchant logo, trade dress, retailer name, price, coupon, or promotional claim. Official merchant assets remain rights-gated.
+- Owner administration: separate responsive shell for Overview, Offers, Store Banners, customer Reports, and Audit. All APIs require the `OwnerAdmin` role; writes require CSRF, rate limiting, policy validation, and transactional audit. Bootstrap is interactive and no credential is committed.
+- Tests: owner-admin revision passed 76 domain tests, 4 focused PostgreSQL owner-admin integrations, 62 frontend tests, and the Next.js production build. A new isolated full PostgreSQL run passed 145/146 in parallel; the sole existing feed-equality concurrency failure passed immediately in isolation.
+- Browser validation: the clean controlled catalog was inspected at 1280 x 900 and 390 x 844. Store banners rendered four aligned columns on desktop and two columns on mobile without horizontal overflow; active/discovery semantics, visible disclosure, text, and link attributes were correct, with no browser warnings or errors.
+- LAN mobile validation: development CSP no longer upgrades private-network HTTP assets to unavailable HTTPS. `http://<LAN-IP>:3000` loaded the stylesheet and responsive two-column banner grid at 390 x 844; production retains `upgrade-insecure-requests`.
+- Worker: Hangfire PostgreSQL storage, health endpoint, affiliate-link refresh, and gated Rakuten jobs; Price Alert evaluation enqueue has been removed.
+- Affiliate handoff: provider-neutral Impact/CJ adapters, persisted program/link/store-destination/click lifecycle, pre-generated link refresh, HTTPS/domain/deeplink/relationship gates, `/go/{listingId}` product handoff, and `/go/store/{retailerKey}` store handoff. No live credentials or merchant approval is configured.
 - Rakuten connector: opt-in OAuth token-key + Publisher Account ID scope, memory-only token cache/refresh with anti-stampede, bounded Advertisers/Partnerships discovery, fail-closed partnership-removal reconciliation, provider capability snapshots, one-link deep-link generation, Product Search XML normalization, dry-run, MID-scoped import audit, UPC revalidation for existing mappings, transition-safe price observations, and MerchantPolicy-gated current-price/history persistence. Cancelled imports close their durable audit before propagating cancellation. It is disabled by default.
 
 ## Blocked external integrations
@@ -110,7 +118,8 @@ Human Architecture / Data Integration Checkpoint: approved. Application implemen
 - Rakuten release validation passed with 0 build warnings/errors: 71 domain, 132 backend/provider, 50 frontend, and 27 Playwright tests, all with zero skips. NuGet/pnpm audits found no known vulnerabilities and the App Spec remained schema-valid with Rakuten disabled.
 - Post-QA Rakuten stabilization passed on a new isolated PostgreSQL 17 database: 72 domain and 138 backend/provider tests, all with zero skips. Regression coverage now proves persisted `/go` fails closed after partnership removal, reconciliation suspends programs/disables links, existing mappings revalidate UPC, `AllowPriceHistory=UNKNOWN` creates no observations, `A -> B -> A` records the reversion, partial failures roll back and retry cleanly, and cancellation leaves no `RUNNING` audit. All 27 full-stack Playwright journeys also passed.
 - Product recommendation implementation exposes online availability on discovery cards and source-proven seller, condition, availability, regional, shipping, and last-check facts on Product offers. Missing coupon, eligibility, or expiry evidence is explicitly labelled unknown. Saved-search/keyword alerts and structured community confirmations are recorded as later controlled experiments; votes, comments, reputation, and engagement/commission ranking remain outside MVP.
-- UX competitive refinement preserves the Promobit-inspired discovery benefits without importing its promotional/community model: search suggestions, category shortcuts, transparent feed modes, card scan hierarchy, mobile navigation, and contextual Save/Target Price actions are implemented; product images remain blocked pending verified display rights, and coupon UI remains blocked pending verified code/eligibility/expiry evidence.
+- UX competitive refinement now implements the approved store-led navigation, store banners, Category/Store-only controls, compact card hierarchy, mobile navigation, and Wishlist-only return path. Product images remain blocked pending verified display rights, and coupon UI remains blocked pending verified code/eligibility/expiry evidence.
+- Store-led revision validation passed with 0 build warnings/errors: 72 domain, 138 isolated PostgreSQL integration, and 53 frontend tests passed with zero skips. Twenty-two unchanged Playwright scenarios passed in the final full-suite run and the sole selector-only correction then passed its targeted rerun, closing all 23 scenarios. Manual browser inspection confirmed four desktop card columns, two mobile columns, no horizontal overflow, working category navigation, and the clean four-store banner rail.
 - A separate clean PostgreSQL 17 database applied all eight migrations through `AddPersistentDataProtectionKeys`; a second `--migrate-only` execution was current, `DataProtectionKeys` and `pg_trgm` were present, and all 91 integrations passed without skips.
 - New restart integration coverage confirmed persisted Data Protection keeps an authenticated cookie and Identity confirmation token valid after API host replacement.
 - API, worker, and web production images built successfully. In a Docker network matching the private `api` service name, web `/`, web `/healthz`, and web-routed `/api/v1/deals` returned 200; all runtime containers used non-root accounts.
@@ -126,4 +135,4 @@ Human Architecture / Data Integration Checkpoint: approved. Application implemen
 
 ## Next vertical slice
 
-Recommended next checkpoint: **Rakuten Merchant Approval + Data Rights Checkpoint**. Rotate/configure credentials through an approved secret store, verify the Publisher Account ID, run read-only advertiser/partnership discovery, and approve one merchant's affiliate and catalog rights separately before enabling any live write.
+Recommended next checkpoint: **Owner Security + Operational Checkpoint**, followed by **Rakuten Merchant Approval + Data Rights Checkpoint**. First bootstrap the intended owner account with a newly rotated password, manually smoke-test `/admin_panel`, and decide whether MFA/step-up authentication is required before production use. Then rotate/configure provider credentials through an approved secret store and verify merchant affiliate/catalog rights separately before enabling any live write.

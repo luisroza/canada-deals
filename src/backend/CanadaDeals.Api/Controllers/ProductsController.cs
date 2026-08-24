@@ -6,7 +6,7 @@ namespace CanadaDeals.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/products")]
-public sealed class ProductsController(CatalogQueryService catalog) : ControllerBase
+public sealed class ProductsController(CatalogQueryService catalog, IConfiguration configuration) : ControllerBase
 {
     [HttpGet("{slug}")]
     [ProducesResponseType<ProductDetailResponse>(StatusCodes.Status200OK)]
@@ -23,6 +23,7 @@ public sealed class ProductsController(CatalogQueryService catalog) : Controller
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetHistory(string slug, [FromQuery] string? window, CancellationToken cancellationToken)
     {
+        if (!configuration.GetValue<bool>("ProductFeatures:PriceHistoryEnabled")) return NotFound();
         if (!CanadaDeals.Domain.PriceTruth.ProductHistoryRules.TryParseWindow(window, out var parsedWindow))
         {
             ModelState.AddModelError(nameof(window), "History window must be 30d or 90d.");

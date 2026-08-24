@@ -2,6 +2,7 @@ using System.Threading.RateLimiting;
 using System.Security.Claims;
 using CanadaDeals.Api.Health;
 using CanadaDeals.Api.Services;
+using CanadaDeals.Api.Security;
 using CanadaDeals.Infrastructure.Alerts;
 using CanadaDeals.Infrastructure.Affiliates;
 using CanadaDeals.Infrastructure.Email;
@@ -75,6 +76,9 @@ builder.Services.ConfigureApplicationCookie(options =>
         return Task.CompletedTask;
     };
 });
+builder.Services.AddAuthorization(options =>
+    options.AddPolicy(AdminAccess.Policy, policy =>
+        policy.RequireAuthenticatedUser().RequireRole(AdminAccess.OwnerRole)));
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-CSRF-TOKEN";
@@ -106,9 +110,21 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
             AutoReplenishment = true
         }));
+    options.AddPolicy("admin", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? context.Connection.RemoteIpAddress?.ToString()
+            ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = builder.Configuration.GetValue("AdminRateLimit:PermitLimit", 60),
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
 });
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<CatalogQueryService>();
+builder.Services.AddScoped<StoreBannerQueryService>();
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("postgresql");
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -122,6 +138,33 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 var app = builder.Build();
+
+var bootstrapOwnerAdmin = args.Contains("--bootstrap-owner-admin", StringComparer.Ordinal);
+var resetOwnerAdminPassword = args.Contains("--reset-owner-admin-password", StringComparer.Ordinal);
+if (bootstrapOwnerAdmin || resetOwnerAdminPassword)
+{
+    if (bootstrapOwnerAdmin && resetOwnerAdminPassword)
+    {
+        Console.Error.WriteLine("Choose either --bootstrap-owner-admin or --reset-owner-admin-password, not both.");
+        Environment.ExitCode = 1;
+        return;
+    }
+
+    try
+    {
+        await app.Services.ApplyMigrationsAndSeedAsync(app.Configuration.GetValue<bool>("Database:SeedDemoData"));
+        if (bootstrapOwnerAdmin)
+            await AdminBootstrapCommand.RunAsync(app.Services);
+        else
+            await AdminBootstrapCommand.ResetPasswordAsync(app.Services);
+    }
+    catch (InvalidOperationException exception)
+    {
+        Console.Error.WriteLine($"Owner administrator command failed: {exception.Message}");
+        Environment.ExitCode = 1;
+    }
+    return;
+}
 
 if (app.Configuration.GetValue<bool>("Database:ApplyMigrations"))
 {

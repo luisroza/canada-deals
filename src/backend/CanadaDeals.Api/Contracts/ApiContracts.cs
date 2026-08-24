@@ -139,6 +139,18 @@ public sealed record ProductHistoryResponse(
 
 public sealed record DiscoveryFacetOption(string Key, string Label);
 
+public sealed record StoreBannerResponse(
+    string RetailerKey,
+    string DisplayName,
+    string Title,
+    string Subtitle,
+    string AssetPath,
+    string AssetSource,
+    string BrandAssetPolicy,
+    string AffiliateStatus,
+    string Href,
+    bool OpensNewTab);
+
 public sealed record DiscoveryFacetsResponse(
     IReadOnlyList<DiscoveryFacetOption> Categories,
     IReadOnlyList<DiscoveryFacetOption> Retailers);

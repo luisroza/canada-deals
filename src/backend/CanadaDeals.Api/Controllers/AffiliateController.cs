@@ -11,6 +11,69 @@ namespace CanadaDeals.Api.Controllers;
 [Route("go")]
 public sealed class AffiliateController(DealsDbContext db, IConfiguration configuration, TimeProvider clock, ILogger<AffiliateController> logger) : ControllerBase
 {
+    [HttpGet("store/{retailerKey}")]
+    public async Task<IActionResult> RedirectToApprovedStore(string retailerKey, CancellationToken cancellationToken)
+    {
+        if (!configuration.GetValue<bool>("AffiliateHandoff:Enabled")) return NotFound();
+        if (string.IsNullOrWhiteSpace(retailerKey) || retailerKey.Length > 80) return NotFound();
+
+        var retailer = await db.Retailers.AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Key == retailerKey && candidate.IsEnabled, cancellationToken);
+        if (retailer is null) return NotFound();
+
+        var policyAllowsAffiliate = await db.RetailerListings.AsNoTracking()
+            .AnyAsync(listing => listing.IsEnabled && listing.RetailerId == retailer.Id &&
+                                 listing.MerchantPolicy.AllowAffiliateLinks == PolicyPermission.Allowed,
+                cancellationToken);
+        if (!policyAllowsAffiliate) return NotFound();
+
+        var now = clock.GetUtcNow();
+        var destination = await db.StoreAffiliateDestinations
+            .Include(candidate => candidate.AffiliateProgram)
+            .Where(candidate => candidate.RetailerId == retailer.Id && candidate.Status == AffiliateLinkStatus.Active)
+            .OrderByDescending(candidate => candidate.LastValidatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (destination is null || !destination.IsUsable(now)) return NotFound();
+
+        var program = destination.AffiliateProgram;
+        if (program.RetailerId != retailer.Id || program.Provider != destination.Provider ||
+            program.Status != AffiliateProgramStatus.Active)
+            return NotFound();
+
+        if (program.Provider == AffiliateProviderType.Rakuten)
+        {
+            var capability = await db.RakutenAdvertiserCapabilities
+                .AsNoTracking()
+                .Include(candidate => candidate.MerchantPolicy)
+                .SingleOrDefaultAsync(candidate => candidate.AdvertiserMid == program.ProviderProgramId &&
+                                                   candidate.RetailerId == retailer.Id,
+                    cancellationToken);
+            if (capability?.MerchantPolicy is null || !capability.CanGenerateAffiliateLink(capability.MerchantPolicy))
+            {
+                logger.LogWarning(
+                    "Blocked Rakuten store handoff for program {ProgramId}, retailer {RetailerId}: persisted capability is no longer eligible.",
+                    program.Id, retailer.Id);
+                return NotFound();
+            }
+        }
+
+        if (!program.CanGenerateLinks() ||
+            !AffiliateUrlPolicy.TryValidateHttps(destination.DestinationUrl, program.DestinationDomains, out _) ||
+            !AffiliateUrlPolicy.TryValidateHttps(destination.TrackingUrl, program.TrackingDomains, out var trackingDestination))
+        {
+            logger.LogWarning(
+                "Blocked store affiliate handoff for provider {Provider}, program {ProgramId}, retailer {RetailerId}: URL policy validation failed.",
+                program.Provider, program.Id, retailer.Id);
+            return Problem("The handoff is not currently available.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        db.ClickEvents.Add(ClickEvent.CreateForStore(destination.Id, retailer.Id, program.Id, "store_banner", now));
+        await db.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Store affiliate handoff accepted for provider {Provider}, program {ProgramId}, retailer {RetailerId}.",
+            program.Provider, program.Id, retailer.Id);
+        return Redirect(trackingDestination!.ToString());
+    }
+
     [HttpGet("{listingId:guid}")]
     public async Task<IActionResult> RedirectToApprovedListing(Guid listingId, CancellationToken cancellationToken)
     {
@@ -19,7 +82,7 @@ public sealed class AffiliateController(DealsDbContext db, IConfiguration config
         var listing = await db.RetailerListings
             .Include(x => x.MerchantPolicy)
             .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
-            .SingleOrDefaultAsync(x => x.Id == listingId, cancellationToken);
+            .SingleOrDefaultAsync(x => x.IsEnabled && x.Id == listingId, cancellationToken);
 
         if (listing is null || !listing.MerchantPolicy.CanUseAffiliateLinks ||
             string.IsNullOrWhiteSpace(listing.ApprovedAffiliateDestinationReference)) return NotFound();

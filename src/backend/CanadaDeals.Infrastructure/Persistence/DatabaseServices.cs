@@ -114,6 +114,7 @@ public static class DemoDataSeeder
             await EnsureSlice6HistoryFixturesAsync(db, DateTimeOffset.UtcNow, cancellationToken);
             await EnsureAffiliateFixturesAsync(db, DateTimeOffset.UtcNow, cancellationToken);
             await EnsureRakutenE2eFixtureAsync(db, DateTimeOffset.UtcNow, cancellationToken);
+            await EnsureStoreBannerFixturesAsync(db, DateTimeOffset.UtcNow, cancellationToken);
             return;
         }
 
@@ -218,6 +219,51 @@ public static class DemoDataSeeder
         await EnsureSlice6HistoryFixturesAsync(db, now, cancellationToken);
         await EnsureAffiliateFixturesAsync(db, now, cancellationToken);
         await EnsureRakutenE2eFixtureAsync(db, now, cancellationToken);
+        await EnsureStoreBannerFixturesAsync(db, now, cancellationToken);
+    }
+
+    private static async Task EnsureStoreBannerFixturesAsync(DealsDbContext db, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var definitions = new Dictionary<string, (string Title, string Subtitle, string AssetPath, int Order)>
+        {
+            ["demo-north-electronics"] = ("Shop Demo North", "Electronics and everyday tech", "/store-banners/electronics-devices.svg", 10),
+            ["demo-home-tool"] = ("Shop Demo Home & Tool", "Tools and home essentials", "/store-banners/home-decor.svg", 20),
+            ["demo-market-lab"] = ("Explore Demo Market", "A broad marketplace selection", "/store-banners/marketplace-packages.svg", 30),
+            ["rakuten-controlled-fixture-retailer"] = ("Shop the controlled tech store", "Headphones and personal electronics", "/store-banners/pc-hardware.svg", 40)
+        };
+        var retailers = await db.Retailers.Where(retailer => definitions.Keys.Contains(retailer.Key)).ToListAsync(cancellationToken);
+        var existingProfiles = await db.StoreBannerProfiles.Where(profile => retailers.Select(retailer => retailer.Id).Contains(profile.RetailerId))
+            .Select(profile => profile.RetailerId).ToListAsync(cancellationToken);
+        foreach (var retailer in retailers.Where(retailer => !existingProfiles.Contains(retailer.Id)))
+        {
+            var definition = definitions[retailer.Key];
+            db.StoreBannerProfiles.Add(StoreBannerProfile.CreateOriginal(
+                retailer.Id, definition.Title, definition.Subtitle, definition.AssetPath, definition.Order));
+        }
+        await db.SaveChangesAsync(cancellationToken);
+
+        var activeFixtureKeys = new[] { "demo-north-electronics", "rakuten-controlled-fixture-retailer" };
+        var activeRetailers = retailers.Where(retailer => activeFixtureKeys.Contains(retailer.Key)).ToList();
+        var existingDestinations = await db.StoreAffiliateDestinations
+            .Where(destination => activeRetailers.Select(retailer => retailer.Id).Contains(destination.RetailerId))
+            .Select(destination => destination.RetailerId).ToListAsync(cancellationToken);
+        foreach (var retailer in activeRetailers.Where(retailer => !existingDestinations.Contains(retailer.Id)))
+        {
+            var program = await db.AffiliatePrograms.SingleAsync(candidate =>
+                candidate.RetailerId == retailer.Id && candidate.Status == AffiliateProgramStatus.Active, cancellationToken);
+            var rakuten = program.Provider == AffiliateProviderType.Rakuten;
+            db.StoreAffiliateDestinations.Add(StoreAffiliateDestination.CreateActive(
+                retailer.Id,
+                program.Id,
+                program.Provider,
+                rakuten ? "https://click.linksynergy.test/store?id=fixture-only" : $"https://demo.local/go/{retailer.Key}",
+                rakuten ? "https://merchant.safe.test" : $"https://demo.local/stores/{retailer.Key}",
+                now,
+                now.AddYears(1),
+                now.AddYears(2),
+                "FIXTURE_ONLY_STORE_DESTINATION"));
+        }
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private static async Task EnsureAffiliateFixturesAsync(DealsDbContext db, DateTimeOffset now, CancellationToken cancellationToken)

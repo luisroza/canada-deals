@@ -28,22 +28,22 @@ const baseDeal = {
 };
 
 describe("DealCard", () => {
-  it("shows price, evidence, freshness, and safe comparison context", () => {
+  it("uses a compact deal hierarchy and exposes the approved affiliate handoff", () => {
     render(<DealCard deal={baseDeal} />);
     expect(screen.getByText("$1,099.99")).toBeInTheDocument();
+    expect(screen.getByText("$1,299.99")).toBeInTheDocument();
+    expect(screen.getByText("-15%")).toBeInTheDocument();
     expect(screen.getByText("Strong evidence")).toBeInTheDocument();
-    expect(screen.getByText("Checked recently")).toBeInTheDocument();
+    expect(screen.getByText("Recently checked")).toBeInTheDocument();
     expect(screen.getByText("Available online")).toBeInTheDocument();
-    expect(screen.getByText("Current observed price")).toBeInTheDocument();
-    expect(screen.getByText(/Observed at/)).toHaveTextContent("Demo North Electronics");
-    expect(screen.getByText(/Safe comparison available/)).toBeInTheDocument();
-    expect(screen.getByText(/15.4% below supported reference/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Get deal" })).toHaveAttribute("href", "/go/a");
+    expect(screen.getByRole("link", { name: "View details" })).toHaveAttribute("href", baseDeal.detailsPath);
   });
 
-  it("renders stale and unavailable evidence honestly", () => {
-    render(<DealCard deal={{ ...baseDeal, freshnessState: "STALE", evidenceState: "UNAVAILABLE", hasSafeComparison: false, matchState: "No safe comparison available" }} />);
+  it("renders stale evidence and a missing affiliate destination honestly", () => {
+    render(<DealCard deal={{ ...baseDeal, freshnessState: "STALE", evidenceState: "UNAVAILABLE", handoffPath: null }} />);
     expect(screen.getByText("May be stale")).toBeInTheDocument();
     expect(screen.getByText("Evidence unavailable")).toBeInTheDocument();
-    expect(screen.getByText("No safe comparison available")).toBeInTheDocument();
+    expect(screen.getByText("Link unavailable")).toHaveAttribute("aria-disabled", "true");
   });
 });

@@ -12,11 +12,157 @@ public sealed class Retailer
     public string Name { get; private set; } = string.Empty;
     public string Key { get; private set; } = string.Empty;
     public string CountryCode { get; private set; } = "CA";
+    public bool IsEnabled { get; private set; } = true;
 
     public static Retailer Create(string key, string name) => new()
     {
-        Id = Guid.NewGuid(), Key = key, Name = name
+        Id = Guid.NewGuid(), Key = key, Name = name, IsEnabled = true
     };
+
+    public void SetEnabled(bool enabled) => IsEnabled = enabled;
+}
+
+public sealed class StoreBannerProfile
+{
+    private StoreBannerProfile() { }
+
+    public Guid Id { get; private set; }
+    public Guid RetailerId { get; private set; }
+    public Retailer Retailer { get; private set; } = null!;
+    public string Title { get; private set; } = string.Empty;
+    public string Subtitle { get; private set; } = string.Empty;
+    public string? AssetPath { get; private set; }
+    public StoreBannerAssetSource AssetSource { get; private set; }
+    public PolicyPermission BrandAssetPolicy { get; private set; }
+    public AffiliateProviderType? AssetProvider { get; private set; }
+    public string? AllowedPlacement { get; private set; }
+    public int BannerOrder { get; private set; }
+    public bool IsEnabled { get; private set; }
+    public string? AssetEvidenceReference { get; private set; }
+    public DateTimeOffset? EffectiveAt { get; private set; }
+    public DateTimeOffset? ExpiresAt { get; private set; }
+
+    public static StoreBannerProfile CreateOriginal(
+        Guid retailerId,
+        string title,
+        string subtitle,
+        string? assetPath,
+        int bannerOrder,
+        bool enabled = true)
+    {
+        if (retailerId == Guid.Empty) throw new ArgumentException("Retailer is required.", nameof(retailerId));
+        if (string.IsNullOrWhiteSpace(title) || title.Length > 120) throw new ArgumentException("A banner title of at most 120 characters is required.", nameof(title));
+        if (string.IsNullOrWhiteSpace(subtitle) || subtitle.Length > 180) throw new ArgumentException("A banner subtitle of at most 180 characters is required.", nameof(subtitle));
+        if (!string.IsNullOrWhiteSpace(assetPath) && (!assetPath.StartsWith("/store-banners/", StringComparison.Ordinal) || assetPath.Contains("..", StringComparison.Ordinal)))
+            throw new ArgumentException("Original assets must use the first-party /store-banners/ path.", nameof(assetPath));
+
+        return new StoreBannerProfile
+        {
+            Id = Guid.NewGuid(), RetailerId = retailerId, Title = title.Trim(), Subtitle = subtitle.Trim(),
+            AssetPath = string.IsNullOrWhiteSpace(assetPath) ? null : assetPath.Trim(),
+            AssetSource = StoreBannerAssetSource.CanadaDealsOriginal,
+            BrandAssetPolicy = PolicyPermission.Unknown,
+            AllowedPlacement = "store_banner",
+            BannerOrder = bannerOrder,
+            IsEnabled = enabled
+        };
+    }
+
+    public static StoreBannerProfile CreateMerchantApproved(
+        Guid retailerId,
+        AffiliateProviderType provider,
+        string title,
+        string subtitle,
+        string assetPath,
+        int bannerOrder,
+        string evidenceReference,
+        string allowedPlacement,
+        DateTimeOffset effectiveAt,
+        DateTimeOffset? expiresAt = null,
+        bool enabled = true)
+    {
+        if (retailerId == Guid.Empty) throw new ArgumentException("Retailer is required.", nameof(retailerId));
+        if (provider == AffiliateProviderType.Unknown) throw new ArgumentException("Asset provider is required.", nameof(provider));
+        if (string.IsNullOrWhiteSpace(title) || title.Length > 120) throw new ArgumentException("A banner title of at most 120 characters is required.", nameof(title));
+        if (string.IsNullOrWhiteSpace(subtitle) || subtitle.Length > 180) throw new ArgumentException("A banner subtitle of at most 180 characters is required.", nameof(subtitle));
+        if (string.IsNullOrWhiteSpace(assetPath) || !assetPath.StartsWith("/store-banners/", StringComparison.Ordinal) || assetPath.Contains("..", StringComparison.Ordinal))
+            throw new ArgumentException("Approved assets must be copied to the reviewed first-party /store-banners/ path.", nameof(assetPath));
+        if (string.IsNullOrWhiteSpace(evidenceReference) || evidenceReference.Length > 500)
+            throw new ArgumentException("A redacted asset-rights evidence reference is required and limited to 500 characters.", nameof(evidenceReference));
+        if (!string.Equals(allowedPlacement?.Trim(), "store_banner", StringComparison.Ordinal))
+            throw new ArgumentException("This asset must explicitly allow the store_banner placement.", nameof(allowedPlacement));
+        if (expiresAt.HasValue && expiresAt <= effectiveAt) throw new ArgumentOutOfRangeException(nameof(expiresAt));
+
+        return new StoreBannerProfile
+        {
+            Id = Guid.NewGuid(), RetailerId = retailerId, Title = title.Trim(), Subtitle = subtitle.Trim(),
+            AssetPath = assetPath.Trim(), AssetSource = StoreBannerAssetSource.MerchantApprovedAffiliateAsset,
+            BrandAssetPolicy = PolicyPermission.Allowed, AssetProvider = provider,
+            AssetEvidenceReference = evidenceReference.Trim(), AllowedPlacement = "store_banner",
+            EffectiveAt = effectiveAt, ExpiresAt = expiresAt, BannerOrder = bannerOrder, IsEnabled = enabled
+        };
+    }
+
+    public void UpdateOriginal(string title, string subtitle, string? assetPath, int bannerOrder, bool enabled)
+    {
+        Apply(CreateOriginal(RetailerId, title, subtitle, assetPath, bannerOrder, enabled));
+    }
+
+    public void UpdateMerchantApproved(
+        AffiliateProviderType provider,
+        string title,
+        string subtitle,
+        string assetPath,
+        int bannerOrder,
+        string evidenceReference,
+        string allowedPlacement,
+        DateTimeOffset effectiveAt,
+        DateTimeOffset? expiresAt,
+        bool enabled)
+    {
+        Apply(CreateMerchantApproved(RetailerId, provider, title, subtitle, assetPath, bannerOrder, evidenceReference, allowedPlacement, effectiveAt, expiresAt, enabled));
+    }
+
+    public bool IsDisplayable(DateTimeOffset now)
+    {
+        _ = now;
+        return IsEnabled;
+    }
+
+    public bool CanUseConfiguredAsset(DateTimeOffset now, string placement = "store_banner")
+    {
+        if (string.IsNullOrWhiteSpace(AssetPath) || !AssetPath.StartsWith("/store-banners/", StringComparison.Ordinal) || AssetPath.Contains("..", StringComparison.Ordinal))
+            return false;
+        if (AssetSource == StoreBannerAssetSource.CanadaDealsOriginal) return true;
+
+        return AssetSource == StoreBannerAssetSource.MerchantApprovedAffiliateAsset &&
+               BrandAssetPolicy == PolicyPermission.Allowed &&
+               AssetProvider is not null and not AffiliateProviderType.Unknown &&
+               !string.IsNullOrWhiteSpace(AssetEvidenceReference) &&
+               string.Equals(AllowedPlacement, placement, StringComparison.Ordinal) &&
+               EffectiveAt.HasValue && EffectiveAt <= now &&
+               (!ExpiresAt.HasValue || ExpiresAt > now);
+    }
+
+    public void SetEnabled(bool enabled) => IsEnabled = enabled;
+
+    public void Disable() => SetEnabled(false);
+
+    private void Apply(StoreBannerProfile replacement)
+    {
+        Title = replacement.Title;
+        Subtitle = replacement.Subtitle;
+        AssetPath = replacement.AssetPath;
+        AssetSource = replacement.AssetSource;
+        BrandAssetPolicy = replacement.BrandAssetPolicy;
+        AssetProvider = replacement.AssetProvider;
+        AllowedPlacement = replacement.AllowedPlacement;
+        BannerOrder = replacement.BannerOrder;
+        IsEnabled = replacement.IsEnabled;
+        AssetEvidenceReference = replacement.AssetEvidenceReference;
+        EffectiveAt = replacement.EffectiveAt;
+        ExpiresAt = replacement.ExpiresAt;
+    }
 }
 
 public sealed class RetailerListing
@@ -52,6 +198,7 @@ public sealed class RetailerListing
     public string? CurrentPriceCurrency { get; private set; }
     public Guid MerchantPolicyId { get; private set; }
     public MerchantPolicy MerchantPolicy { get; private set; } = null!;
+    public bool IsEnabled { get; private set; } = true;
     public ICollection<AffiliateLink> AffiliateLinks { get; private set; } = new List<AffiliateLink>();
 
     public static RetailerListing Create(
@@ -92,7 +239,7 @@ public sealed class RetailerListing
         RetailerSku = retailerSku, ApprovedAffiliateDestinationReference = approvedAffiliateDestinationReference,
         Seller = seller, IsMarketplaceSeller = isMarketplaceSeller, Condition = condition,
         PackQuantity = packQuantity, BundleContents = bundleContents, RegionAvailabilityContext = regionAvailabilityContext,
-        OnlineAvailability = onlineAvailability, ShippingContext = shippingContext
+        OnlineAvailability = onlineAvailability, ShippingContext = shippingContext, IsEnabled = true
     };
 
     public IReadOnlyDictionary<string, string> VariantAttributes => Deserialize(VariantAttributesJson);
@@ -109,6 +256,60 @@ public sealed class RetailerListing
         SourceObservedAt = observedAt;
         FetchedAt = fetchedAt;
     }
+
+    public void UpdateAdministrativeDetails(
+        string originalTitle,
+        string productUrl,
+        decimal currentPriceAmount,
+        DateTimeOffset observedAt,
+        string? retailerSku,
+        string? approvedAffiliateDestinationReference,
+        string? seller,
+        bool? isMarketplaceSeller,
+        ProductCondition condition,
+        int? packQuantity,
+        string? bundleContents,
+        IReadOnlyDictionary<string, string>? variantAttributes,
+        IReadOnlyDictionary<string, string>? externalIdentifiers,
+        OnlineAvailabilityState onlineAvailability,
+        string? regionAvailabilityContext,
+        string? shippingContext,
+        bool enabled,
+        DateTimeOffset fetchedAt)
+    {
+        if (string.IsNullOrWhiteSpace(originalTitle) || originalTitle.Length > 300) throw new ArgumentException("A listing title of at most 300 characters is required.", nameof(originalTitle));
+        if (string.IsNullOrWhiteSpace(productUrl) || productUrl.Length > 1000) throw new ArgumentException("A product URL of at most 1000 characters is required.", nameof(productUrl));
+        if (!Enum.IsDefined(condition)) throw new ArgumentOutOfRangeException(nameof(condition));
+        if (!Enum.IsDefined(onlineAvailability)) throw new ArgumentOutOfRangeException(nameof(onlineAvailability));
+
+        OriginalTitle = originalTitle.Trim();
+        ProductUrl = productUrl.Trim();
+        RetailerSku = Normalize(retailerSku);
+        ApprovedAffiliateDestinationReference = Normalize(approvedAffiliateDestinationReference);
+        Seller = Normalize(seller);
+        IsMarketplaceSeller = isMarketplaceSeller;
+        Condition = condition;
+        PackQuantity = packQuantity;
+        BundleContents = Normalize(bundleContents);
+        VariantAttributesJson = JsonSerializer.Serialize(variantAttributes ?? new Dictionary<string, string>());
+        ExternalIdentifiersJson = JsonSerializer.Serialize(externalIdentifiers ?? new Dictionary<string, string>());
+        OnlineAvailability = onlineAvailability;
+        RegionAvailabilityContext = Normalize(regionAvailabilityContext);
+        ShippingContext = Normalize(shippingContext);
+        IsEnabled = enabled;
+        Freshness = FreshnessState.Recent;
+        RecordCurrentPrice(currentPriceAmount, "CAD", observedAt, fetchedAt);
+    }
+
+    public void SetEnabled(bool enabled) => IsEnabled = enabled;
+
+    public void SetAdministrativeMatchState(MatchState matchState)
+    {
+        if (!Enum.IsDefined(matchState)) throw new ArgumentOutOfRangeException(nameof(matchState));
+        MatchState = matchState;
+    }
+
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static IReadOnlyDictionary<string, string> Deserialize(string json) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new Dictionary<string, string>();

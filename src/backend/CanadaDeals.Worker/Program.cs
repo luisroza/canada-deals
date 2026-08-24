@@ -1,4 +1,3 @@
-using CanadaDeals.Infrastructure.Alerts;
 using CanadaDeals.Infrastructure.Affiliates;
 using CanadaDeals.Infrastructure.Email;
 using CanadaDeals.Infrastructure.Persistence;
@@ -18,7 +17,6 @@ builder.Services.AddHangfire(configuration => configuration.UsePostgreSqlStorage
 builder.Services.AddHangfireServer(options => options.WorkerCount = 1);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddCanadaDealsTransactionalEmail(builder.Configuration, builder.Environment);
-builder.Services.AddScoped<PriceAlertEvaluationJob>();
 builder.Services.AddSingleton<FixtureJob>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHealthChecks();

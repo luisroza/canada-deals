@@ -204,14 +204,73 @@ public sealed class AffiliateLink
     }
 }
 
+public sealed class StoreAffiliateDestination
+{
+    private StoreAffiliateDestination() { }
+
+    public Guid Id { get; private set; }
+    public Guid RetailerId { get; private set; }
+    public Guid AffiliateProgramId { get; private set; }
+    public AffiliateProgram AffiliateProgram { get; private set; } = null!;
+    public AffiliateProviderType Provider { get; private set; }
+    public string TrackingUrl { get; private set; } = string.Empty;
+    public string DestinationUrl { get; private set; } = string.Empty;
+    public string? ProviderReference { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset LastValidatedAt { get; private set; }
+    public DateTimeOffset RevalidateAt { get; private set; }
+    public DateTimeOffset? ExpiresAt { get; private set; }
+    public AffiliateLinkStatus Status { get; private set; }
+    public string? FailureReason { get; private set; }
+
+    public static StoreAffiliateDestination CreateActive(
+        Guid retailerId,
+        Guid programId,
+        AffiliateProviderType provider,
+        string trackingUrl,
+        string destinationUrl,
+        DateTimeOffset now,
+        DateTimeOffset revalidateAt,
+        DateTimeOffset? expiresAt = null,
+        string? providerReference = null)
+    {
+        if (retailerId == Guid.Empty || programId == Guid.Empty) throw new ArgumentException("Retailer and program are required.");
+        if (provider == AffiliateProviderType.Unknown) throw new ArgumentException("Provider is required.", nameof(provider));
+        if (string.IsNullOrWhiteSpace(trackingUrl) || string.IsNullOrWhiteSpace(destinationUrl)) throw new ArgumentException("Tracking and destination URLs are required.");
+        if (revalidateAt <= now) throw new ArgumentOutOfRangeException(nameof(revalidateAt));
+        if (expiresAt.HasValue && expiresAt <= now) throw new ArgumentOutOfRangeException(nameof(expiresAt));
+
+        return new StoreAffiliateDestination
+        {
+            Id = Guid.NewGuid(), RetailerId = retailerId, AffiliateProgramId = programId, Provider = provider,
+            TrackingUrl = trackingUrl.Trim(), DestinationUrl = destinationUrl.Trim(),
+            ProviderReference = string.IsNullOrWhiteSpace(providerReference) ? null : providerReference.Trim(),
+            CreatedAt = now, LastValidatedAt = now, RevalidateAt = revalidateAt, ExpiresAt = expiresAt,
+            Status = AffiliateLinkStatus.Active
+        };
+    }
+
+    public bool IsUsable(DateTimeOffset now) => Status == AffiliateLinkStatus.Active && (!ExpiresAt.HasValue || ExpiresAt > now);
+
+    public void Disable(string reason)
+    {
+        Status = AffiliateLinkStatus.Disabled;
+        FailureReason = string.IsNullOrWhiteSpace(reason) ? "DISABLED" : reason.Trim();
+    }
+}
+
 public sealed class ClickEvent
 {
     private ClickEvent() { }
 
     public Guid Id { get; private set; }
-    public Guid AffiliateLinkId { get; private set; }
-    public AffiliateLink AffiliateLink { get; private set; } = null!;
-    public Guid RetailerListingId { get; private set; }
+    public Guid? AffiliateLinkId { get; private set; }
+    public AffiliateLink? AffiliateLink { get; private set; }
+    public Guid? RetailerListingId { get; private set; }
+    public Guid? StoreAffiliateDestinationId { get; private set; }
+    public StoreAffiliateDestination? StoreAffiliateDestination { get; private set; }
+    public Guid? RetailerId { get; private set; }
+    public Guid? AffiliateProgramId { get; private set; }
     public string Placement { get; private set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; private set; }
 
@@ -220,5 +279,18 @@ public sealed class ClickEvent
         if (linkId == Guid.Empty || listingId == Guid.Empty) throw new ArgumentException("Link and listing are required.");
         if (string.IsNullOrWhiteSpace(placement) || placement.Length > 40) throw new ArgumentException("Placement is required and limited to 40 characters.", nameof(placement));
         return new ClickEvent { Id = Guid.NewGuid(), AffiliateLinkId = linkId, RetailerListingId = listingId, Placement = placement.Trim(), CreatedAt = now };
+    }
+
+    public static ClickEvent CreateForStore(Guid destinationId, Guid retailerId, Guid programId, string placement, DateTimeOffset now)
+    {
+        if (destinationId == Guid.Empty || retailerId == Guid.Empty || programId == Guid.Empty)
+            throw new ArgumentException("Destination, retailer, and program are required.");
+        if (string.IsNullOrWhiteSpace(placement) || placement.Length > 40)
+            throw new ArgumentException("Placement is required and limited to 40 characters.", nameof(placement));
+        return new ClickEvent
+        {
+            Id = Guid.NewGuid(), StoreAffiliateDestinationId = destinationId, RetailerId = retailerId,
+            AffiliateProgramId = programId, Placement = placement.Trim(), CreatedAt = now
+        };
     }
 }

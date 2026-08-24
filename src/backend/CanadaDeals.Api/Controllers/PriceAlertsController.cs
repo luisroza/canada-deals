@@ -22,6 +22,7 @@ public sealed class PriceAlertsController(
     UserManager<ApplicationUser> userManager,
     IBackgroundJobClient jobs,
     TimeProvider clock,
+    IConfiguration configuration,
     ILogger<PriceAlertsController> logger) : ControllerBase
 {
     [HttpGet]
@@ -29,6 +30,7 @@ public sealed class PriceAlertsController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
+        if (!configuration.GetValue<bool>("ProductFeatures:PriceAlertsEnabled")) return NotFound();
         var userId = CurrentUserId();
         var alerts = await db.PriceAlerts
             .AsNoTracking()
@@ -62,6 +64,7 @@ public sealed class PriceAlertsController(
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Put(Guid productId, UpsertPriceAlertRequest request, CancellationToken cancellationToken)
     {
+        if (!configuration.GetValue<bool>("ProductFeatures:PriceAlertsEnabled")) return NotFound();
         if (!request.ConsentToEmail)
         {
             ModelState.AddModelError(nameof(request.ConsentToEmail), "Confirm that you want this target-price email alert.");
@@ -136,6 +139,7 @@ public sealed class PriceAlertsController(
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete(Guid productId, CancellationToken cancellationToken)
     {
+        if (!configuration.GetValue<bool>("ProductFeatures:PriceAlertsEnabled")) return NotFound();
         var userId = CurrentUserId();
         var alert = await db.PriceAlerts.SingleOrDefaultAsync(
             x => x.UserId == userId && x.ProductId == productId,

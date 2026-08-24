@@ -23,6 +23,7 @@ public sealed class InternalPriceAlertEvaluationController(
     UserManager<ApplicationUser> userManager,
     IBackgroundJobClient jobs,
     TimeProvider clock,
+    IConfiguration configuration,
     IWebHostEnvironment environment) : ControllerBase
 {
     [HttpPost("scenarios/{productId:guid}")]
@@ -32,6 +33,7 @@ public sealed class InternalPriceAlertEvaluationController(
         ControlledPriceObservationRequest request,
         CancellationToken cancellationToken)
     {
+        if (!configuration.GetValue<bool>("ProductFeatures:PriceAlertsEnabled")) return NotFound();
         if (!environment.IsDevelopment() && !environment.IsEnvironment("Test")) return NotFound();
         if (decimal.Round(request.Price, 2) != request.Price)
         {
@@ -84,6 +86,7 @@ public sealed class InternalPriceAlertEvaluationController(
     [ValidateAntiForgeryToken]
     public IActionResult Run()
     {
+        if (!configuration.GetValue<bool>("ProductFeatures:PriceAlertsEnabled")) return NotFound();
         if (!environment.IsDevelopment() && !environment.IsEnvironment("Test")) return NotFound();
         var jobId = jobs.Enqueue<PriceAlertEvaluationJob>(job => job.RunAsync());
         return Accepted(new AlertEvaluationJobResponse(jobId));
@@ -92,6 +95,7 @@ public sealed class InternalPriceAlertEvaluationController(
     [HttpGet("jobs/{jobId}")]
     public IActionResult JobStatus(string jobId)
     {
+        if (!configuration.GetValue<bool>("ProductFeatures:PriceAlertsEnabled")) return NotFound();
         if (!environment.IsDevelopment() && !environment.IsEnvironment("Test")) return NotFound();
         var details = JobStorage.Current.GetMonitoringApi().JobDetails(jobId);
         if (details is null) return NotFound();
@@ -102,6 +106,7 @@ public sealed class InternalPriceAlertEvaluationController(
     [HttpGet("deliveries")]
     public async Task<IActionResult> Deliveries(Guid? productId, CancellationToken cancellationToken)
     {
+        if (!configuration.GetValue<bool>("ProductFeatures:PriceAlertsEnabled")) return NotFound();
         if (!environment.IsDevelopment() && !environment.IsEnvironment("Test")) return NotFound();
         var userId = CurrentUserId();
         var query = db.NotificationDeliveries

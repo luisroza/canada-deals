@@ -1,4 +1,5 @@
 using CanadaDeals.Domain.Accounts;
+using CanadaDeals.Domain.Administration;
 using CanadaDeals.Domain.Affiliates;
 using CanadaDeals.Domain.Alerts;
 using CanadaDeals.Domain.Catalog;
@@ -20,10 +21,12 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options), IDataProtectionKeyContext
 {
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+    public DbSet<AdminAuditEvent> AdminAuditEvents => Set<AdminAuditEvent>();
     public DbSet<Brand> Brands => Set<Brand>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Retailer> Retailers => Set<Retailer>();
+    public DbSet<StoreBannerProfile> StoreBannerProfiles => Set<StoreBannerProfile>();
     public DbSet<RetailerListing> RetailerListings => Set<RetailerListing>();
     public DbSet<PriceObservation> PriceObservations => Set<PriceObservation>();
     public DbSet<MerchantPolicy> MerchantPolicies => Set<MerchantPolicy>();
@@ -37,6 +40,7 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
     public DbSet<EmailSuppression> EmailSuppressions => Set<EmailSuppression>();
     public DbSet<AffiliateProgram> AffiliatePrograms => Set<AffiliateProgram>();
     public DbSet<AffiliateLink> AffiliateLinks => Set<AffiliateLink>();
+    public DbSet<StoreAffiliateDestination> StoreAffiliateDestinations => Set<StoreAffiliateDestination>();
     public DbSet<ClickEvent> ClickEvents => Set<ClickEvent>();
     public DbSet<RakutenAdvertiserCapability> RakutenAdvertiserCapabilities => Set<RakutenAdvertiserCapability>();
     public DbSet<RakutenSourceMapping> RakutenSourceMappings => Set<RakutenSourceMapping>();
@@ -46,6 +50,17 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.HasPostgresExtension("pg_trgm");
+
+        modelBuilder.Entity<AdminAuditEvent>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.CreatedAt);
+            entity.HasIndex(x => new { x.EntityType, x.EntityId, x.CreatedAt });
+            entity.Property(x => x.Action).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.EntityType).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Summary).HasMaxLength(AdminAuditEvent.MaxSummaryLength).IsRequired();
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.ActorUserId).OnDelete(DeleteBehavior.Restrict);
+        });
 
         modelBuilder.Entity<Brand>(entity =>
         {
@@ -91,6 +106,20 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
             entity.Property(x => x.Key).HasMaxLength(80).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(160).IsRequired();
             entity.Property(x => x.CountryCode).HasMaxLength(2).IsRequired();
+            entity.Property(x => x.IsEnabled).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<StoreBannerProfile>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.RetailerId).IsUnique();
+            entity.HasIndex(x => new { x.IsEnabled, x.BannerOrder });
+            entity.Property(x => x.Title).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Subtitle).HasMaxLength(180).IsRequired();
+            entity.Property(x => x.AssetPath).HasMaxLength(300);
+            entity.Property(x => x.AssetEvidenceReference).HasMaxLength(1000);
+            entity.Property(x => x.AllowedPlacement).HasMaxLength(80);
+            entity.HasOne(x => x.Retailer).WithMany().HasForeignKey(x => x.RetailerId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<MerchantPolicy>(entity =>
@@ -119,6 +148,7 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
             entity.Property(x => x.ProductUrl).HasMaxLength(1000).IsRequired();
             entity.Property(x => x.CurrentPriceAmount).HasPrecision(12, 2);
             entity.Property(x => x.CurrentPriceCurrency).HasMaxLength(3);
+            entity.Property(x => x.IsEnabled).HasDefaultValue(true);
             entity.Property(x => x.VariantAttributesJson).HasColumnType("jsonb").IsRequired();
             entity.Property(x => x.ExternalIdentifiersJson).HasColumnType("jsonb").IsRequired();
         });
@@ -152,14 +182,34 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
                 .HasForeignKey(x => x.AffiliateProgramId).OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<StoreAffiliateDestination>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.AffiliateProgramId).IsUnique();
+            entity.HasIndex(x => new { x.RetailerId, x.Status, x.RevalidateAt });
+            entity.Property(x => x.TrackingUrl).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.DestinationUrl).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.ProviderReference).HasMaxLength(240);
+            entity.Property(x => x.FailureReason).HasMaxLength(160);
+            entity.HasOne<Retailer>().WithMany().HasForeignKey(x => x.RetailerId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.AffiliateProgram).WithMany()
+                .HasForeignKey(x => x.AffiliateProgramId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<ClickEvent>(entity =>
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.AffiliateLinkId, x.CreatedAt });
             entity.HasIndex(x => new { x.RetailerListingId, x.CreatedAt });
+            entity.HasIndex(x => new { x.StoreAffiliateDestinationId, x.CreatedAt });
+            entity.HasIndex(x => new { x.RetailerId, x.CreatedAt });
             entity.Property(x => x.Placement).HasMaxLength(40).IsRequired();
             entity.HasOne(x => x.AffiliateLink).WithMany().HasForeignKey(x => x.AffiliateLinkId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<RetailerListing>().WithMany().HasForeignKey(x => x.RetailerListingId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.StoreAffiliateDestination).WithMany().HasForeignKey(x => x.StoreAffiliateDestinationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Retailer>().WithMany().HasForeignKey(x => x.RetailerId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<AffiliateProgram>().WithMany().HasForeignKey(x => x.AffiliateProgramId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table => table.HasCheckConstraint("CK_ClickEvents_Source", "(\"AffiliateLinkId\" IS NOT NULL AND \"RetailerListingId\" IS NOT NULL AND \"StoreAffiliateDestinationId\" IS NULL) OR (\"AffiliateLinkId\" IS NULL AND \"RetailerListingId\" IS NULL AND \"StoreAffiliateDestinationId\" IS NOT NULL AND \"RetailerId\" IS NOT NULL AND \"AffiliateProgramId\" IS NOT NULL)"));
         });
 
         modelBuilder.Entity<RakutenAdvertiserCapability>(entity =>

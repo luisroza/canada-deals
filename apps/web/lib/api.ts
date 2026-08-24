@@ -86,6 +86,19 @@ export type ProductHistory = {
 
 export type DiscoveryFacet = { key: string; label: string };
 
+export type StoreBannerData = {
+  retailerKey: string;
+  displayName: string;
+  title: string;
+  subtitle: string;
+  assetPath: string | null;
+  assetSource: "CANADADEALSORIGINAL" | "MERCHANTAPPROVEDAFFILIATEASSET";
+  brandAssetPolicy: "UNKNOWN" | "ALLOWED" | "DENIED";
+  affiliateStatus: "ACTIVE_AFFILIATE" | "DISCOVERY_ONLY" | "DISABLED";
+  href: string;
+  opensNewTab: boolean;
+};
+
 export type DiscoveryResponse = {
   items: DealCard[];
   count: number;
@@ -147,6 +160,12 @@ export async function getDeals(params: DiscoveryParams = {}): Promise<DiscoveryR
   const response = await fetch(`${apiBase}/api/v1/deals${suffix}`, { cache: "no-store" });
   if (!response.ok) throw new Error("Deals could not be loaded.");
   return response.json() as Promise<DiscoveryResponse>;
+}
+
+export async function getStoreBanners(): Promise<StoreBannerData[]> {
+  const response = await fetch(`${apiBase}/api/v1/store-banners`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Store banners could not be loaded.");
+  return response.json() as Promise<StoreBannerData[]>;
 }
 
 export async function getProduct(slug: string): Promise<ProductDetail | null> {

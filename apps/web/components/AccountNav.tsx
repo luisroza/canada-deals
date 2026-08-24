@@ -20,5 +20,5 @@ export function AccountNav() {
     window.location.assign("/");
   }
 
-  return <nav className="site-nav" aria-label="Primary"><Link href="/">Deals</Link><Link href="/saved">Saved</Link>{loaded && (authenticated ? <button className="nav-button" type="button" onClick={logout}>Sign out</button> : <Link href="/account/sign-in">Sign in</Link>)}</nav>;
+  return <nav className="site-nav" aria-label="Account"><Link className="wishlist-link" href="/saved">Wishlist</Link>{loaded && (authenticated ? <button className="nav-button" type="button" onClick={logout}>Sign out</button> : <Link href="/account/sign-in">Sign in</Link>)}</nav>;
 }

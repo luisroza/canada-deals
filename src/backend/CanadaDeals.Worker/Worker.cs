@@ -1,5 +1,4 @@
 using Hangfire;
-using CanadaDeals.Infrastructure.Alerts;
 using CanadaDeals.Infrastructure.Affiliates;
 using CanadaDeals.Infrastructure.Rakuten;
 
@@ -14,11 +13,6 @@ public sealed class Worker(ILogger<Worker> logger, IBackgroundJobClient jobs, IC
         if (configuration.GetValue<bool>("Worker:EnqueueSampleJob"))
         {
             jobs.Enqueue<FixtureJob>(job => job.Run());
-        }
-
-        if (configuration.GetValue<bool>("Worker:EnqueueAlertEvaluationJob"))
-        {
-            jobs.Enqueue<PriceAlertEvaluationJob>(job => job.RunAsync());
         }
 
         if (configuration.GetValue<bool>("Worker:EnqueueAffiliateLinkRefreshJob"))

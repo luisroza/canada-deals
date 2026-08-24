@@ -1,15 +1,15 @@
 # GreatDeals.ca MVP
 
-**Status:** APPROVED - Human Product Checkpoint completed
+**Status:** APPROVED - Human Product Revision approved 2026-08-20
 **Scope:** Product proposal only; no technology or integration is approved by this document.
 
 ## MVP statement
 
-Build a responsive English-first web experience that helps Canadian shoppers compare trustworthy online offers in electronics, home improvement, and tools. The MVP should make a shopper's next decision faster: investigate, save/alert, or click to a permitted retailer.
+Build a responsive English-first deal-discovery experience that helps Canadian shoppers scan current offers quickly, narrow by category or store, verify the exact product, save it to a wishlist, or click to a permitted retailer.
 
 ## MVP objective
 
-Validate that Canadian planned-purchase shoppers will use an evidence-rich deal page, trust it enough to click to a retailer, and return when a saved product reaches a target price.
+Validate that Canadian shoppers can find relevant promotions quickly, trust the current-offer context enough to click to a retailer, and return to a lightweight wishlist.
 
 ## In scope
 
@@ -17,15 +17,16 @@ Validate that Canadian planned-purchase shoppers will use an evidence-rich deal 
 |---|---|---|---|
 | Category deal feed | Shoppers need a focused starting point | Validates the core discovery loop | A visitor can browse current offers with category and freshness context |
 | Search | Shoppers often begin with a planned product | Captures high-intent demand | Search returns relevant products and does not require an account |
-| Filters | Broad feeds create noise | Makes the wedge usable | Retailer, category, price, discount, freshness, and online availability can be narrowed |
-| Deal card | Users need a fast comparison surface | Core UI for click testing | Card shows product, CAD price, retailer, online availability, evidence state, timestamp, and CTA |
-| Product page | A deal feed alone cannot explain value | Supports trust and conversion | Page shows offer context, safe comparisons, history when available, seller/condition/availability/shipping/region facts, explicit unknown coupon/eligibility/expiry boundaries, disclosure, and report action |
+| Filters | Broad feeds create noise | Keeps discovery simple | Results can be narrowed by category and store only |
+| Store banners | Shoppers often start from a trusted retailer | Adds a visual store-first path | Every eligible catalog store has an original, accessible banner; discovery-only stores open their GreatDeals feed and approved active stores use the safe backend store handoff |
+| Deal card | Users need a fast scan-and-click surface | Core UI for click testing | Card prioritizes store, visual product area, title, current CAD price, timestamp, status, and affiliate CTA when approved |
+| Product page | A deal feed alone cannot confirm the exact item | Supports trust and conversion | Page shows current offer context, safe comparisons, seller/condition/availability/shipping/region facts, disclosure, wishlist action, and report action |
 | Freshness and confidence | Stale or weak data destroys trust | Differentiation depends on it | Each offer has a visible last-checked/freshness state and identity-confidence rule |
 | Safe same-product comparison | Users otherwise open several retailer sites | Main cross-retailer value | Comparisons appear only when identity/variant confidence passes a defined threshold |
-| Save product/deal | Planned shoppers need a lightweight return path | Low-cost retention test | User can save without a complex onboarding flow |
-| Target-price email alert | Users want to wait for a better price | Direct retention hypothesis | User can set a target and consent to relevant email notifications |
+| Wishlist | Shoppers need a lightweight return path | Low-cost retention test | A signed-in user can save and remove products without alerts or target prices |
 | Affiliate/outbound measurement | Business viability needs qualified traffic | Must be measurable from day one | Retailer handoff is trackable and affiliate disclosure is visible |
 | Stale/incorrect report | Automated data will be imperfect | Creates a correction loop | User can report a stale price or wrong product |
+| Owner operations | Offers, banners, and reports require a safe correction path | Keeps public data manageable without a large CMS | One role-protected owner can draft/publish/deactivate offers, manage reviewed banners, resolve reports, and inspect audit; public users cannot discover or access these operations |
 
 ## Priority bands
 
@@ -35,7 +36,7 @@ Deal feed, search, filters, evidence-rich deal cards, product pages, freshness s
 
 ### P1 - High-priority retention experiment
 
-Save product/deal and target-price email alerts. The retention sequence is Save Product → Target Price → Alert → Return. Weekly Digest is P2 and remains on the roadmap, but is not part of the MVP retention requirement.
+Wishlist persistence only. Price tracking, target-price alerts, and weekly digests are removed from the current product scope.
 
 ## Major assumptions
 
@@ -50,14 +51,14 @@ Save product/deal and target-price email alerts. The retention sequence is Save 
 - Amazon Associates Canada acceptance, Product Advertising API eligibility, display rules, and refresh limits.
 - Affiliate or permitted data access for Best Buy Canada, Home Depot Canada, and Walmart Canada.
 - Product variant, seller, condition, pack-size, price-history, and regional-availability rules.
-- Email consent, unsubscribe, deliverability, and alert-frequency requirements.
+- Storefront-level affiliate destinations and image display rights for each approved merchant.
 - Manual audit of at least 100 product/offer matches before automated scale.
 
 ## MVP measurement set
 
 - Search success rate and time to first relevant offer.
 - Deal-card-to-product and product-page-to-retailer CTR.
-- Save rate and target-price alert creation/open/return rate.
+- Wishlist save, revisit, and removal rate.
 - Stale-price and product-mismatch report rate.
 - Qualified affiliate clicks per session after approved programs are active.
 
@@ -66,14 +67,15 @@ Save product/deal and target-price email alerts. The retention sequence is Save 
 - Proposed first retailers: Amazon.ca, Best Buy Canada, and Home Depot Canada; Walmart Canada is a fallback candidate.
 - A retailer enters MVP only after the Data/Affiliate Architect verifies source permission, data fields, refresh limits, and affiliate feasibility.
 - A product is not presented as a comparison match when variant, seller, condition, or pack size is ambiguous.
-- “Historical low” is displayed only when the history is sufficiently complete and permitted; otherwise the UI says history is unavailable.
+- Product price-history charts, historical-low claims, and target-price alerts are not exposed.
+- Store banners never invent a direct retailer destination. Until a persisted provider-approved store-level affiliate destination exists, they open the store-filtered GreatDeals feed. Approved store destinations use `/go/store/{retailerKey}`; product CTAs continue through `/go/{listingId}`.
 
 ## Success criteria
 
 - Visitors can reach a relevant offer without signing in.
 - Every displayed offer has a source and freshness state.
 - Product pages produce measurable retailer click-through.
-- A measurable subset of visitors saves a product or requests an alert.
+- A measurable subset of visitors saves and revisits a product through the wishlist.
 - Stale and mismatch reports are visible and actionable.
 - Early users report that the explanation improves purchase confidence.
 
@@ -87,7 +89,8 @@ Save product/deal and target-price email alerts. The retention sequence is Save 
 - Mass programmatic SEO.
 - Twenty-plus retailer coverage.
 - French-complete experience.
+- Public price tracking/history, target-price alerts, and promotional email digests.
 
 These exclusions keep the first release focused on the evidence-to-click loop and avoid taking on four difficult systems at once: community moderation, flyer/local data, affiliate reconciliation, and cross-market app distribution.
 
-Weekly digest remains a roadmap item at **P2**, not an MVP feature. The first retention loop is Save Product -> Target Price -> Alert -> Return.
+The current retention loop is Browse -> Wishlist -> Return. Price alerts and historical tracking are explicitly outside the product.

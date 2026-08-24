@@ -2,6 +2,7 @@ import type { SavedProduct } from "./api";
 
 export type AccountSession = { isAuthenticated: boolean; email: string | null; emailConfirmed: boolean };
 
+/** Legacy contract retained for migration compatibility. Price alerts are not exposed by the current product UI. */
 export type PriceAlert = {
   productId: string;
   productSlug: string;
@@ -101,12 +102,14 @@ export function unsaveProduct(productId: string) {
   return mutation<never>(`/api/v1/saved-products/${encodeURIComponent(productId)}`, "DELETE");
 }
 
+/** @deprecated Price alerts are disabled in the current product. */
 export async function getPriceAlerts(): Promise<PriceAlert[]> {
   const response = await fetch("/api/v1/price-alerts", { cache: "no-store", credentials: "same-origin" });
-  if (!response.ok) throw new AccountApiError("Price alerts could not be loaded.", response.status);
+  if (!response.ok) throw new AccountApiError("Price alerts are not available.", response.status);
   return response.json() as Promise<PriceAlert[]>;
 }
 
+/** @deprecated Price alerts are disabled in the current product. */
 export function upsertPriceAlert(productId: string, targetPrice: number) {
   return mutation<{ productId: string; targetPrice: number; currency: string; status: string; targetVersion: number; message: string }>(
     `/api/v1/price-alerts/${encodeURIComponent(productId)}`,
@@ -115,6 +118,7 @@ export function upsertPriceAlert(productId: string, targetPrice: number) {
   );
 }
 
+/** @deprecated Price alerts are disabled in the current product. */
 export function removePriceAlert(productId: string) {
   return mutation<never>(`/api/v1/price-alerts/${encodeURIComponent(productId)}`, "DELETE");
 }

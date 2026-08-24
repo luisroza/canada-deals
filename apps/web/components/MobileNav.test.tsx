@@ -12,9 +12,9 @@ describe("MobileNav", () => {
     render(<MobileNav />);
     const nav = screen.getByRole("navigation", { name: "Mobile primary navigation" });
     expect(nav).toContainElement(screen.getByRole("link", { name: "Home" }));
-    expect(nav).toContainElement(screen.getByRole("link", { name: "Deals" }));
+    expect(nav).toContainElement(screen.getByRole("link", { name: "Categories" }));
     expect(nav).toContainElement(screen.getByRole("link", { name: "Search" }));
-    expect(screen.getByRole("link", { name: "Saved" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Wishlist" })).toHaveAttribute("aria-current", "page");
     expect(nav).toContainElement(screen.getByRole("link", { name: "Account" }));
   });
 });

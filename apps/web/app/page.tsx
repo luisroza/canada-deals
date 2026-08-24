@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DealCard } from "../components/DealCard";
 import { DiscoveryControls } from "../components/DiscoveryControls";
-import { getDeals, type DiscoveryParams } from "../lib/api";
+import { StoreBannerRail } from "../components/StoreBannerRail";
+import { getDeals, getStoreBanners, type DiscoveryParams, type StoreBannerData } from "../lib/api";
 import { absoluteUrl } from "../lib/seo";
 
 type RawParams = Record<string, string | string[] | undefined>;
 
 function normalize(raw: RawParams): DiscoveryParams {
   const value = (key: string) => typeof raw[key] === "string" ? raw[key] as string : undefined;
-  return { search: value("search") ?? value("q"), category: value("category"), retailer: value("retailer"), minPrice: value("minPrice"), maxPrice: value("maxPrice"), hasReference: value("hasReference"), freshness: value("freshness"), match: value("match"), availability: value("availability"), sort: value("sort"), page: value("page"), pageSize: value("pageSize") };
+  return { search: value("search") ?? value("q"), category: value("category"), retailer: value("retailer"), sort: value("sort"), page: value("page"), pageSize: value("pageSize") };
 }
 
 function pageHref(params: DiscoveryParams, page: number) {
@@ -41,24 +42,25 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 export default async function Home({ searchParams }: { searchParams: Promise<RawParams> }) {
   const params = normalize(await searchParams);
   let result;
+  let storeBanners: StoreBannerData[] = [];
   let error = false;
-  try { result = await getDeals(params); } catch { error = true; }
+  try { [result, storeBanners] = await Promise.all([getDeals(params), getStoreBanners()]); } catch { error = true; }
   const effectiveSort = result?.sort ?? (params.search ? "relevance" : "recent");
 
   return <>
-    <section className="hero"><p className="eyebrow">Canadian price-truth layer</p><h1>Deals with strong evidence.</h1><p className="lede">Find current CAD offers, understand when they were checked, and compare only listings we can safely identify as the same product.</p></section>
+    <section className="hero home-hero"><p className="eyebrow">Canadian deals, checked carefully</p><h1>Find the right deal. Fast.</h1><p className="lede">Browse current CAD offers by category or store, then verify the exact product before you buy.</p></section>
+    {result && <StoreBannerRail banners={storeBanners} />}
     {result && <DiscoveryControls params={params} categories={result.facets.categories} retailers={result.facets.retailers} resultCount={result.count} />}
-    <div className="trust-strip" aria-label="What we show"><div className="trust-item"><strong>Current CAD price</strong><span>What the source last observed</span></div><div className="trust-item"><strong>Freshness</strong><span>When the offer was checked</span></div><div className="trust-item"><strong>Evidence</strong><span>What the available history supports</span></div><div className="trust-item"><strong>Safe matching</strong><span>Variants stay out when uncertain</span></div></div>
     <section id="deals" aria-labelledby="deal-feed-heading">
-      <div className="section-heading"><div><p className="eyebrow">{params.search ? `Results for “${params.search}”` : "Curated discovery feed"}</p><h2 id="deal-feed-heading">{effectiveSort === "relevance" ? "Most relevant" : effectiveSort === "savings" ? "Strongest supported savings" : effectiveSort === "price-asc" ? "Lowest current price" : "Most recently checked"}</h2></div></div>
+      <div className="section-heading"><div><p className="eyebrow">{params.search ? `Results for “${params.search}”` : "Current offers"}</p><h2 id="deal-feed-heading">{effectiveSort === "relevance" ? "Most relevant deals" : effectiveSort === "savings" ? "Biggest verified savings" : effectiveSort === "price-asc" ? "Lowest prices" : "Recently checked deals"}</h2></div><span className="feed-count">{result?.count ?? 0} products</span></div>
       <nav className="feed-modes" aria-label="Deal feed views">
         {params.search && <Link href={sortHref(params, "relevance")} aria-current={effectiveSort === "relevance" ? "page" : undefined}>Most relevant</Link>}
-        <Link href={sortHref(params, "recent")} aria-current={effectiveSort === "recent" ? "page" : undefined}>Recently checked</Link>
-        <Link href={sortHref(params, "savings")} aria-current={effectiveSort === "savings" ? "page" : undefined}>Supported savings</Link>
-        <Link href={sortHref(params, "price-asc")} aria-current={effectiveSort === "price-asc" ? "page" : undefined}>Lowest current price</Link>
+        <Link href={sortHref(params, "recent")} aria-current={effectiveSort === "recent" ? "page" : undefined}>Latest</Link>
+        <Link href={sortHref(params, "savings")} aria-current={effectiveSort === "savings" ? "page" : undefined}>Best savings</Link>
+        <Link href={sortHref(params, "price-asc")} aria-current={effectiveSort === "price-asc" ? "page" : undefined}>Lowest price</Link>
       </nav>
       {error && <div className="error-state" role="alert">Deals are temporarily unavailable. Check that the API and local PostgreSQL are running.</div>}
-      {!error && result?.items.length === 0 && <div className="empty-state"><h3>No products match these controls.</h3><p>Try another product name, model number, or remove one or more filters.</p><Link className="button button-secondary" href="/">Clear search and filters</Link></div>}
+      {!error && result?.items.length === 0 && <div className="empty-state"><h3>No products match this selection.</h3><p>Try another search, category, or store.</p><Link className="button button-secondary" href="/">Clear selection</Link></div>}
       {!error && result && <div className="deal-grid">{result.items.map(deal => <DealCard key={deal.productId} deal={deal} />)}</div>}
       {!error && result && result.totalPages > 1 && <nav className="pagination" aria-label="Search result pages">{result.page > 1 && <Link className="button button-secondary" href={pageHref(params, result.page - 1)}>Previous</Link>}<span>Page {result.page} of {result.totalPages}</span>{result.hasNext && <Link className="button button-secondary" href={pageHref(params, result.page + 1)}>Next</Link>}</nav>}
     </section>

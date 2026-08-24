@@ -66,6 +66,14 @@ Accepts Resend lifecycle webhooks. It verifies the raw body against `svix-id`, `
 
 The client supplies only the internal listing ID. The server loads the listing, ACTIVE `AffiliateProgram`, and current persisted `AffiliateLink`; validates HTTPS, no userinfo, retailer destination equality/domain, provider tracking domain, program status, and link expiry; persists a minimal opaque `ClickEvent`; and redirects to the provider-returned tracking URL. Arbitrary query-string destinations are ignored. Provider APIs are never called in this request. Missing, suspended, expired, or unapproved relationships return no redirect; invalid URL policy returns `503` without exposing the target. Production handoff stays disabled until the human activation checkpoint is satisfied.
 
+### `GET /api/v1/store-banners`
+
+Returns enabled banners for retailers with publishable catalog listings. Copy, first-party asset path, original/merchant-approved asset provenance, brand-rights state, neutral editorial order, affiliate/discovery status, safe internal href, and new-tab state are backend-controlled. Raw destination and tracking URLs are never returned. Missing profiles use an original first-party fallback; explicitly disabled profiles and disabled retailers are omitted.
+
+### `GET /go/store/{retailerKey}`
+
+Resolves a controlled retailer key to one persisted `StoreAffiliateDestination`. Redirect requires an enabled retailer, at least one affiliate-permitted MerchantPolicy, ACTIVE complete `AffiliateProgram`, usable destination, exact retailer/program/provider association, HTTPS destination and tracking URLs, allowlisted merchant/tracking hosts, and current Rakuten capability where applicable. The request cannot supply a destination. A valid request writes one privacy-minimal `ClickEvent` with `placement=store_banner` and returns `302`; missing or inactive state returns `404`, while invalid URL policy returns `503` without revealing the target.
+
 ### `GET /health`
 
 Reports application health and PostgreSQL reachability. Nonexistent retailer integrations are not part of readiness.
@@ -83,12 +91,22 @@ Creates an anonymous review signal for an existing retailer listing. The request
 
 Supported reasons are `PRICE_CHANGED`, `WRONG_PRODUCT`, `WRONG_VARIANT`, `OFFER_EXPIRED`, `RETAILER_PAGE_UNAVAILABLE`, and `OTHER`. New reports always start as `OPEN`; clients cannot set status, timestamps, listing ID, or internal fields. Unknown listings return `404`, invalid reasons/notes return `400`, and valid submissions return `201` with the report ID, status, and honest confirmation. A report never changes price, matching, availability, evidence, or public visibility automatically.
 
+### Owner administration API
+
+`GET /api/v1/admin/session` and `GET /api/v1/admin/dashboard` require the `OwnerAdminOnly` policy. The dashboard returns operational counts, existing brand/category/retailer/policy options, bounded offer/banner/report projections, publication readiness, and recent audit events. It never returns password hashes, tracking URLs, provider credentials, or arbitrary personal data.
+
+`POST /api/v1/admin/offers` creates an ad-hoc Product and RetailerListing. `PUT /api/v1/admin/offers/{listingId}` edits the existing identity/listing and can reversibly enable or disable it. Both writes require CSRF and the owner role. CAD price/timestamps/HTTPS/JSON bounds/duplicate identity/policy/affiliate permission are validated; evidence, history, freshness, reference price, and handoff remain derived. Retailer, Merchant Policy, and external listing ID are immutable after creation.
+
+`PUT /api/v1/admin/banners/{retailerId}` creates or updates one StoreBannerProfile using all persisted banner-rights fields. It accepts only the reviewed first-party path boundary and the domain's original/merchant-approved rules. Tracking destination remains read-only and provider-managed.
+
+`PUT /api/v1/admin/reports/{reportId}/status` changes a ListingIssueReport to OPEN, REVIEWED, RESOLVED, or DISMISSED with a required resolution note and audit event. Administrative writes are rate-limited per authenticated user and audited transactionally.
+
 ### `GET /api/internal/listing-issue-reports?status=OPEN`
 
-Provides minimal operator reviewability only when the API host is running in `Development`. It returns at most 100 reports ordered by creation time with listing context and is `404` outside Development. It is not a public or production admin API. Until the approved authentication/admin boundary is implemented, operators may use this local diagnostic endpoint or query `ListingIssueReports` directly.
+Provides legacy minimal operator reviewability only when the API host is running in `Development`. It returns at most 100 reports ordered by creation time with listing context and is `404` outside Development. Production review uses the role-protected owner administration API.
 
 Anonymous reporting stores no name, email, full IP address, or other required PII. Submission rate limiting, bot abuse, and repeated false-report controls remain explicit Security Review follow-ups.
 
 ## Deliberately deferred
 
-Password reset, MFA, production admin review, live provider credential validation, and merchant catalog/price APIs remain deferred. Impact/CJ tracking-link adapters are implemented deterministically, but no merchant is marked live. Production email code is implemented; live provider/DNS validation remains blocked as documented in `docs/backend/EMAIL.md`.
+Password reset, MFA/step-up authentication, live provider credential validation, and merchant catalog/price APIs remain deferred. Impact/CJ tracking-link adapters are implemented deterministically, but no merchant is marked live. Production email code is implemented; live provider/DNS validation remains blocked as documented in `docs/backend/EMAIL.md`.

@@ -61,4 +61,12 @@ public sealed class ListingIssueReport
             UpdatedAt = createdAt
         };
     }
+
+    public void ChangeStatus(ListingIssueStatus status, DateTimeOffset updatedAt)
+    {
+        if (!Enum.IsDefined(status)) throw new ArgumentOutOfRangeException(nameof(status));
+        if (updatedAt < CreatedAt) throw new ArgumentOutOfRangeException(nameof(updatedAt));
+        Status = status;
+        UpdatedAt = updatedAt;
+    }
 }
