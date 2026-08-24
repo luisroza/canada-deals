@@ -82,7 +82,7 @@ The backend remains one bounded application with explicit modules:
 - **Ingestion:** connector lifecycle, fetch, normalization, idempotency, retry, quarantine, policy enforcement.
 - **Matching:** deterministic identifiers, candidate matches, manual review, merge/split audit.
 - **Affiliate Handoff:** approved link generation/revalidation, safe redirect, disclosure metadata, click telemetry.
-- **Administration:** source policy, connector health, moderation of match decisions, import retry, audit trail.
+- **Administration:** owner-only reversible Category/Store lifecycle, editorial offers and banners, source policy, connector health, moderation of match decisions, import retry, and audit trail. Category/store deactivation is evaluated by public queries and handoffs rather than cascading destructive updates.
 
 The Next.js application should mirror these user-facing capabilities but should not duplicate domain rules. The API remains authoritative for product identity, price state, eligibility, alerts, disclosures, and redirect safety.
 
@@ -101,7 +101,7 @@ The Next.js application should mirror these user-facing capabilities but should 
 | Email | Resend transactional email | simple API and low-volume free tier; alerts are P1 not a core marketplace | deliverability, residency, or volume requirements change |
 | Hosting | DigitalOcean App Platform, Toronto; managed PostgreSQL, Toronto | small-team operations, low starting cost, Canadian region availability | workload or compliance requires Azure controls or multi-region design |
 | Edge | Cloudflare Free baseline | DNS, TLS, CDN and DDoS baseline at zero cost | WAF/SLA/advanced edge controls become necessary |
-| Assets | no retailer image cache by default; optional Spaces for owned/permitted assets | avoids affiliate-policy and license risk | explicit source permissions and storage need are approved |
+| Assets | built-in first-party SVGs plus a bounded PostgreSQL-backed reviewed banner library; optional Spaces for future scale | durable low-volume owner uploads without ephemeral container writes or new MVP infrastructure | asset volume/traffic justifies object storage/CDN or permitted retailer feeds require it |
 
 ## Option scoring
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { DealCard as DealCardModel } from "../lib/api";
 import { availabilityLabel } from "../lib/offerPresentation";
 import { freshnessTone, StateBadge } from "./StateBadge";
+import { WishlistCardButton } from "./WishlistCardButton";
 
 function formatPrice(price: number | null, currency: string) {
   if (price === null) return "Price unavailable";
@@ -14,10 +15,10 @@ function humanEvidence(state: string) {
   return "Evidence unavailable";
 }
 
-export function DealCard({ deal }: { deal: DealCardModel }) {
+export function DealCard({ deal, returnTo = deal.detailsPath }: { deal: DealCardModel; returnTo?: string }) {
   return (
     <article className="deal-card">
-      <div className="deal-card-retailer"><span className="retailer-avatar" aria-hidden="true">{deal.retailer.slice(0, 1)}</span><strong>{deal.retailer}</strong><span>{deal.observedAt ? new Date(deal.observedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : "Date unavailable"}</span></div>
+      <div className="deal-card-retailer"><span className="retailer-avatar" aria-hidden="true">{deal.retailer.slice(0, 1)}</span><strong>{deal.retailer}</strong><span className="deal-card-date">{deal.observedAt ? new Date(deal.observedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : "Date unavailable"}</span><WishlistCardButton productId={deal.productId} productTitle={deal.productTitle} returnTo={returnTo} /></div>
       <Link className="deal-card-visual" href={deal.detailsPath} aria-label={`View ${deal.productTitle}`}>
         <span className="product-visual-mark" aria-hidden="true">{deal.category.slice(0, 2).toUpperCase()}</span>
         <span className="product-visual-copy">{deal.category}<small>Image shown when retailer rights permit</small></span>

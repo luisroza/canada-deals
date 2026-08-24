@@ -1,4 +1,6 @@
 export type AdminReferenceOption = { id: string; key: string; label: string; isEnabled: boolean };
+export type AdminCategory = { id: string; name: string; slug: string; isEnabled: boolean; productCount: number; publishedOfferCount: number };
+export type AdminRetailer = { id: string; name: string; key: string; countryCode: string; isEnabled: boolean; listingCount: number; publishedOfferCount: number; hasBannerProfile: boolean; isBannerActive: boolean; affiliateProgramCount: number };
 export type AdminPolicyOption = { id: string; sourceKey: string; priceStorage: string; priceHistory: string; affiliateLinks: string; requiredAttribution: string };
 export type AdminOffer = {
   listingId: string; productId: string; slug: string; productTitle: string; brandId: string; brand: string; categoryId: string; category: string;
@@ -13,13 +15,16 @@ export type AdminBanner = {
   retailerId: string; retailerKey: string; retailer: string; profileId: string | null; title: string; subtitle: string; assetPath: string | null;
   assetSource: string; brandAssetPolicy: string; assetProvider: string | null; allowedPlacement: string | null; bannerOrder: number; isEnabled: boolean;
   assetEvidenceReference: string | null; effectiveAt: string | null; expiresAt: string | null; visibilityState: string; rightsState: string;
+  isInPublicCarousel: boolean; publicPosition: number | null; publicArtworkState: string; publicEligibilityReason: string;
 };
+export type AdminBannerAsset = { id: string; fileName: string; contentType: string; sizeBytes: number; assetPath: string; createdAt: string };
 export type AdminAudit = { id: string; action: string; entityType: string; entityId: string; summary: string; createdAt: string };
 export type AdminReport = { reportId: string; listingId: string; retailer: string; listingTitle: string; reason: string; customerNote: string | null; status: string; createdAt: string; updatedAt: string };
 export type AdminDashboard = {
   counts: { publishedOffers: number; draftOffers: number; enabledBanners: number; blockedOrExpiredBanners: number; openReports: number };
   brands: AdminReferenceOption[]; categories: AdminReferenceOption[]; retailers: AdminReferenceOption[]; policies: AdminPolicyOption[];
-  offers: AdminOffer[]; banners: AdminBanner[]; reports: AdminReport[]; recentAudit: AdminAudit[];
+  managedCategories: AdminCategory[]; managedRetailers: AdminRetailer[];
+  offers: AdminOffer[]; bannerAssets: AdminBannerAsset[]; banners: AdminBanner[]; reports: AdminReport[]; recentAudit: AdminAudit[];
 };
 
 export type AdminOfferInput = {
@@ -72,5 +77,25 @@ export async function getAdminDashboard() {
 
 export function createAdminOffer(input: AdminOfferInput) { return mutation("/api/v1/admin/offers", "POST", input); }
 export function updateAdminOffer(listingId: string, input: AdminOfferInput) { return mutation(`/api/v1/admin/offers/${encodeURIComponent(listingId)}`, "PUT", input); }
+export function createAdminCategory(name: string, slug: string) { return mutation("/api/v1/admin/categories", "POST", { name, slug }); }
+export function updateAdminCategory(categoryId: string, name: string, isEnabled: boolean, changeReason: string | null) { return mutation(`/api/v1/admin/categories/${encodeURIComponent(categoryId)}`, "PUT", { name, isEnabled, changeReason }); }
+export function createAdminRetailer(name: string, key: string) { return mutation("/api/v1/admin/retailers", "POST", { name, key }); }
+export function updateAdminRetailer(retailerId: string, name: string, isEnabled: boolean, changeReason: string | null) { return mutation(`/api/v1/admin/retailers/${encodeURIComponent(retailerId)}`, "PUT", { name, isEnabled, changeReason }); }
 export function updateAdminBanner(retailerId: string, input: AdminBannerInput) { return mutation(`/api/v1/admin/banners/${encodeURIComponent(retailerId)}`, "PUT", input); }
+export function updateAdminBannerSelection(activeRetailerIds: string[], changeReason: string | null) {
+  return mutation("/api/v1/admin/banners/selection", "PUT", { activeRetailerIds, changeReason });
+}
+export async function uploadAdminBannerAsset(file: File) {
+  const body = new FormData();
+  body.append("file", file);
+  const response = await fetch("/api/v1/admin/banner-assets", {
+    method: "POST",
+    cache: "no-store",
+    credentials: "same-origin",
+    headers: { "X-CSRF-TOKEN": await token() },
+    body,
+  });
+  if (!response.ok) throw await parseError(response);
+  return response.json() as Promise<AdminBannerAsset>;
+}
 export function updateAdminReport(reportId: string, status: string, resolutionNote: string) { return mutation(`/api/v1/admin/reports/${encodeURIComponent(reportId)}/status`, "PUT", { status, resolutionNote }); }

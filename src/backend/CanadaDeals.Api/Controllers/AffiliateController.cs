@@ -82,7 +82,7 @@ public sealed class AffiliateController(DealsDbContext db, IConfiguration config
         var listing = await db.RetailerListings
             .Include(x => x.MerchantPolicy)
             .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
-            .SingleOrDefaultAsync(x => x.IsEnabled && x.Id == listingId, cancellationToken);
+            .SingleOrDefaultAsync(x => x.IsEnabled && x.Retailer.IsEnabled && x.Product.Category.IsEnabled && x.Id == listingId, cancellationToken);
 
         if (listing is null || !listing.MerchantPolicy.CanUseAffiliateLinks ||
             string.IsNullOrWhiteSpace(listing.ApprovedAffiliateDestinationReference)) return NotFound();

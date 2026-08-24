@@ -25,6 +25,12 @@ function sortHref(params: DiscoveryParams, sort: string) {
   return `/?${query.toString()}`;
 }
 
+function currentDiscoveryHref(params: DiscoveryParams) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => { if (value) query.set(key, value); });
+  return query.size > 0 ? `/?${query.toString()}#deals` : "/#deals";
+}
+
 export async function generateMetadata({ searchParams }: { searchParams: Promise<RawParams> }): Promise<Metadata> {
   const params = normalize(await searchParams);
   const narrowed = Object.values(params).some(Boolean);
@@ -61,7 +67,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Raw
       </nav>
       {error && <div className="error-state" role="alert">Deals are temporarily unavailable. Check that the API and local PostgreSQL are running.</div>}
       {!error && result?.items.length === 0 && <div className="empty-state"><h3>No products match this selection.</h3><p>Try another search, category, or store.</p><Link className="button button-secondary" href="/">Clear selection</Link></div>}
-      {!error && result && <div className="deal-grid">{result.items.map(deal => <DealCard key={deal.productId} deal={deal} />)}</div>}
+      {!error && result && <div className="deal-grid">{result.items.map(deal => <DealCard key={deal.productId} deal={deal} returnTo={currentDiscoveryHref(params)} />)}</div>}
       {!error && result && result.totalPages > 1 && <nav className="pagination" aria-label="Search result pages">{result.page > 1 && <Link className="button button-secondary" href={pageHref(params, result.page - 1)}>Previous</Link>}<span>Page {result.page} of {result.totalPages}</span>{result.hasNext && <Link className="button button-secondary" href={pageHref(params, result.page + 1)}>Next</Link>}</nav>}
     </section>
   </>;

@@ -3,6 +3,7 @@ using System;
 using CanadaDeals.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace CanadaDeals.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(DealsDbContext))]
-    partial class DealsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260824150108_AddStoreBannerAssetLibrary")]
+    partial class AddStoreBannerAssetLibrary
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -494,11 +497,6 @@ namespace CanadaDeals.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("IsEnabled")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -513,8 +511,6 @@ namespace CanadaDeals.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Slug")
                         .IsUnique();
-
-                    b.HasIndex("IsEnabled", "Name");
 
                     b.ToTable("Categories");
                 });

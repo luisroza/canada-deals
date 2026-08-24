@@ -2,23 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { getSession, signOut } from "../lib/account";
+import { signOut } from "../lib/account";
+import { useWishlist } from "./WishlistContext";
 
 export function AccountNav() {
   const pathname = usePathname();
-  const [authenticated, setAuthenticated] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    getSession().then((session) => setAuthenticated(session.isAuthenticated)).catch(() => {}).finally(() => setLoaded(true));
-  }, [pathname]);
+  const wishlist = useWishlist();
 
   async function logout() {
     await signOut();
-    setAuthenticated(false);
     window.location.assign("/");
   }
 
-  return <nav className="site-nav" aria-label="Account"><Link className="wishlist-link" href="/saved">Wishlist</Link>{loaded && (authenticated ? <button className="nav-button" type="button" onClick={logout}>Sign out</button> : <Link href="/account/sign-in">Sign in</Link>)}</nav>;
+  const wishlistLabel = wishlist.authenticated && wishlist.count > 0 ? `Wishlist (${wishlist.count})` : "Wishlist";
+  return <nav className="site-nav" aria-label="Account"><Link className="wishlist-link" href="/saved">{wishlistLabel}</Link>{!wishlist.loading && (wishlist.authenticated ? <button className="nav-button" type="button" onClick={logout}>Sign out</button> : <Link href={`/account/sign-in?returnTo=${encodeURIComponent(pathname)}`}>Sign in</Link>)}</nav>;
 }

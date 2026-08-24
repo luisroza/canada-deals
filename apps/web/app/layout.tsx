@@ -4,6 +4,7 @@ import { AccountNav } from "../components/AccountNav";
 import { CatalogMenus } from "../components/CatalogMenus";
 import { GlobalSearch } from "../components/GlobalSearch";
 import { MobileNav } from "../components/MobileNav";
+import { WishlistProvider } from "../components/WishlistContext";
 import { getDeals, type DiscoveryFacet } from "../lib/api";
 import "./globals.css";
 
@@ -26,14 +27,16 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en-CA">
       <body>
-        <a className="skip-link" href="#main-content">Skip to content</a>
-        <header className="site-header">
-          <div className="header-inner header-primary"><Link className="brand" href="/">GreatDeals<span>.ca</span></Link><GlobalSearch /><AccountNav /></div>
-          <div className="catalog-bar"><div className="header-inner"><CatalogMenus categories={categories} retailers={retailers} /></div></div>
-        </header>
-        <main id="main-content" className="page-shell">{children}</main>
-        <footer><div className="header-inner">Prices are last-observed source data. Affiliate links appear only for approved, validated retailer relationships.</div></footer>
-        <MobileNav />
+        <WishlistProvider>
+          <a className="skip-link" href="#main-content">Skip to content</a>
+          <header className="site-header">
+            <div className="header-inner header-primary"><Link className="brand" href="/">GreatDeals<span>.ca</span></Link><GlobalSearch /><AccountNav /></div>
+            <div className="catalog-bar"><div className="header-inner"><CatalogMenus categories={categories} retailers={retailers} /></div></div>
+          </header>
+          <main id="main-content" className="page-shell">{children}</main>
+          <footer><div className="header-inner">Prices are last-observed source data. Affiliate links appear only for approved, validated retailer relationships.</div></footer>
+          <MobileNav />
+        </WishlistProvider>
       </body>
     </html>
   );

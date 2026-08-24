@@ -103,8 +103,10 @@ Scans more often, notices stale or weak evidence, and values history and alerts.
 
 1. Visitor selects Save to wishlist.
 2. If signed out, the UI explains the minimum account step and preserves context.
-3. The signed-in shopper can revisit or remove the product from Wishlist.
-4. No target price, alert consent, or promotional notification is requested.
+3. A signed-in shopper can save directly from a Deal Card or Product Page; card state and the navigation count stay synchronized from one Wishlist load per navigation.
+4. The shopper can search the Wishlist, narrow it by category or store, sort by saved date/current price/name/store, revisit a current offer, or remove the product.
+5. Loading, signed-out, empty, no-match, mutation-error, and load-error/retry states are mutually exclusive and announced accessibly.
+6. No target price, alert consent, or promotional notification is requested.
 
 ### Journey E — correct the record
 
@@ -134,10 +136,10 @@ The homepage hierarchy is:
 
 1. **Compact promise:** “Find the right deal. Fast.”
 2. **Global search:** product/model suggestions in the sticky header.
-3. **Store banners:** a responsive grid of eligible stores using original GreatDeals artwork, accessible HTML retailer text, and visibly distinct affiliate/discovery-only states.
+3. **Store banners:** a one-row responsive carousel of all enabled eligible stores using original GreatDeals artwork, accessible HTML retailer text, and visibly distinct affiliate/discovery-only states. Desktop exposes no more than four banners at once; tablet and mobile expose fewer, preserve a next-item cue, and support touch scrolling plus explicit Previous/Next controls.
 4. **Quick filters:** category and store only.
 5. **Feed modes:** latest, best supported savings, and lowest price.
-6. **Compact deal grid:** retailer, visual area, title, current price, check time, and CTA.
+6. **Compact deal grid:** retailer, visual area, title, current price, check time, Wishlist toggle, and CTA.
 7. **Optional return path:** wishlist, without forcing account creation during discovery.
 
 On mobile, the search and first useful card must appear before educational content. Promotional modules cannot displace the main search task.

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using CanadaDeals.Api.Security;
 using CanadaDeals.Infrastructure.Identity;
@@ -28,6 +29,17 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
     private static async Task<HttpResponseMessage> MutateAsync(HttpClient client, HttpMethod method, string path, object body)
     {
         using var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
+        request.Headers.Add("X-CSRF-TOKEN", await TokenAsync(client));
+        return await client.SendAsync(request);
+    }
+
+    private static async Task<HttpResponseMessage> UploadAsync(HttpClient client, byte[] bytes, string contentType, string fileName)
+    {
+        using var body = new MultipartFormDataContent();
+        var file = new ByteArrayContent(bytes);
+        file.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
+        body.Add(file, "file", fileName);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/admin/banner-assets") { Content = body };
         request.Headers.Add("X-CSRF-TOKEN", await TokenAsync(client));
         return await client.SendAsync(request);
     }
@@ -143,6 +155,74 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
     }
 
     [RequiresPostgresFact]
+    public async Task Owner_can_manage_categories_without_deleting_linked_catalog_records()
+    {
+        var client = await CreateAuthenticatedAsync(admin: true);
+        var slug = $"managed-category-{Guid.NewGuid():N}";
+        using var created = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/categories", new { name = "Managed Category", slug });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var createdJson = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var categoryId = createdJson.RootElement.GetProperty("categoryId").GetGuid();
+
+        await using (var initialScope = fixture.Services.CreateAsyncScope())
+        {
+            var initialDb = initialScope.ServiceProvider.GetRequiredService<DealsDbContext>();
+            Assert.False((await initialDb.Categories.SingleAsync(item => item.Id == categoryId)).IsEnabled);
+        }
+
+        using var activated = await MutateAsync(client, HttpMethod.Put, $"/api/v1/admin/categories/{categoryId}", new { name = "Managed Category", isEnabled = true, changeReason = "Ready for editorial use" });
+        Assert.Equal(HttpStatusCode.NoContent, activated.StatusCode);
+
+        var productSlug = $"managed-category-product-{Guid.NewGuid():N}";
+        var offer = JsonSerializer.SerializeToNode(await OfferInputAsync(productSlug, enabled: true))!.AsObject();
+        offer["categoryId"] = categoryId;
+        using var offerCreated = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", offer);
+        Assert.Equal(HttpStatusCode.Created, offerCreated.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/v1/products/{productSlug}")).StatusCode);
+
+        using var reasonRequired = await MutateAsync(client, HttpMethod.Put, $"/api/v1/admin/categories/{categoryId}", new { name = "Managed Category", isEnabled = false, changeReason = "" });
+        Assert.Equal(HttpStatusCode.BadRequest, reasonRequired.StatusCode);
+        using var deactivated = await MutateAsync(client, HttpMethod.Put, $"/api/v1/admin/categories/{categoryId}", new { name = "Managed Category", isEnabled = false, changeReason = "Seasonal category retired" });
+        Assert.Equal(HttpStatusCode.NoContent, deactivated.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/v1/products/{productSlug}")).StatusCode);
+
+        await using var verification = fixture.Services.CreateAsyncScope();
+        var db = verification.ServiceProvider.GetRequiredService<DealsDbContext>();
+        Assert.True(await db.Products.AnyAsync(product => product.CategoryId == categoryId));
+        Assert.True(await db.AdminAuditEvents.AnyAsync(item => item.EntityId == categoryId && item.Action == "DEACTIVATE"));
+    }
+
+    [RequiresPostgresFact]
+    public async Task Owner_can_manage_stores_and_deactivation_closes_public_discovery()
+    {
+        var client = await CreateAuthenticatedAsync(admin: true);
+        var key = $"managed-store-{Guid.NewGuid():N}";
+        using var created = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/retailers", new { name = "Managed Store", key });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var createdJson = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var retailerId = createdJson.RootElement.GetProperty("retailerId").GetGuid();
+
+        using var activated = await MutateAsync(client, HttpMethod.Put, $"/api/v1/admin/retailers/{retailerId}", new { name = "Managed Store Canada", isEnabled = true, changeReason = "Editorial setup complete" });
+        Assert.Equal(HttpStatusCode.NoContent, activated.StatusCode);
+
+        var productSlug = $"managed-store-product-{Guid.NewGuid():N}";
+        var offer = JsonSerializer.SerializeToNode(await OfferInputAsync(productSlug, enabled: true))!.AsObject();
+        offer["retailerId"] = retailerId;
+        using var offerCreated = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", offer);
+        Assert.Equal(HttpStatusCode.Created, offerCreated.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/v1/products/{productSlug}")).StatusCode);
+
+        using var deactivated = await MutateAsync(client, HttpMethod.Put, $"/api/v1/admin/retailers/{retailerId}", new { name = "Managed Store Canada", isEnabled = false, changeReason = "Store is temporarily unavailable" });
+        Assert.Equal(HttpStatusCode.NoContent, deactivated.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/v1/products/{productSlug}")).StatusCode);
+
+        await using var verification = fixture.Services.CreateAsyncScope();
+        var db = verification.ServiceProvider.GetRequiredService<DealsDbContext>();
+        Assert.True(await db.RetailerListings.AnyAsync(listing => listing.RetailerId == retailerId));
+        Assert.True(await db.AdminAuditEvents.AnyAsync(item => item.EntityId == retailerId && item.Action == "DEACTIVATE"));
+    }
+
+    [RequiresPostgresFact]
     public async Task Admin_mutations_require_antiforgery_and_banner_assets_remain_first_party()
     {
         var client = await CreateAuthenticatedAsync(admin: true);
@@ -173,6 +253,32 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
         var profile = await db.StoreBannerProfiles.AsNoTracking().SingleAsync(item => item.RetailerId == retailerId);
         Assert.Equal("/store-banners/electronics-devices.svg", profile.AssetPath);
         Assert.True(profile.IsEnabled);
+    }
+
+    [RequiresPostgresFact]
+    public async Task Owner_can_upload_a_reviewed_raster_asset_and_public_delivery_uses_the_persisted_copy()
+    {
+        var client = await CreateAuthenticatedAsync(admin: true);
+        byte[] png = [137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4];
+        using var uploaded = await UploadAsync(client, png, "image/png", "homepage-store.png");
+        Assert.Equal(HttpStatusCode.Created, uploaded.StatusCode);
+        using var json = JsonDocument.Parse(await uploaded.Content.ReadAsStringAsync());
+        var assetPath = json.RootElement.GetProperty("assetPath").GetString();
+        Assert.StartsWith("/api/v1/store-banner-assets/", assetPath);
+
+        using var publicAsset = await client.GetAsync(assetPath);
+        Assert.Equal(HttpStatusCode.OK, publicAsset.StatusCode);
+        Assert.Equal("image/png", publicAsset.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(png, await publicAsset.Content.ReadAsByteArrayAsync());
+
+        await using var scope = fixture.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<DealsDbContext>();
+        var assetId = Guid.Parse(assetPath!["/api/v1/store-banner-assets/".Length..]);
+        Assert.True(await db.StoreBannerAssets.AnyAsync(asset => asset.Id == assetId));
+        Assert.True(await db.AdminAuditEvents.AnyAsync(audit => audit.EntityType == "StoreBannerAsset" && audit.Action == "UPLOAD"));
+
+        using var rejected = await UploadAsync(client, [1, 2, 3, 4], "image/png", "not-really.png");
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
     }
 
     [RequiresPostgresFact]

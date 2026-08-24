@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { StoreBannerData } from "../lib/api";
 import { StoreBanner } from "./StoreBanner";
-import { StoreBannerRail } from "./StoreBannerRail";
+import { calculateStoreCarousel, StoreBannerRail } from "./StoreBannerRail";
 
 function banner(overrides: Partial<StoreBannerData> = {}): StoreBannerData {
   return {
@@ -58,7 +58,17 @@ describe("StoreBanner", () => {
 });
 
 describe("StoreBannerRail", () => {
-  it("shows at most four enabled banners in supplied editorial order", () => {
+  it("calculates one banner per phone page and four per desktop page", () => {
+    expect(calculateStoreCarousel({ clientWidth: 390, scrollWidth: 1970, scrollLeft: 0, itemWidth: 390, gap: 5, itemCount: 5 })).toMatchObject({ pages: 5, itemsPerPage: 1, page: 1, canNext: true });
+    expect(calculateStoreCarousel({ clientWidth: 1200, scrollWidth: 1503, scrollLeft: 0, itemWidth: 291, gap: 12, itemCount: 5 })).toMatchObject({ pages: 2, itemsPerPage: 4, page: 1, canNext: true });
+  });
+
+  it("tracks the final mobile page without creating an extra page for gaps", () => {
+    expect(calculateStoreCarousel({ clientWidth: 390, scrollWidth: 1970, scrollLeft: 1580, itemWidth: 390, gap: 5, itemCount: 5 })).toMatchObject({ pages: 5, page: 5, canNext: false, canPrevious: true });
+    expect(calculateStoreCarousel({ clientWidth: 1200, scrollWidth: 1503, scrollLeft: 303, itemWidth: 291, gap: 12, itemCount: 5 })).toMatchObject({ pages: 2, page: 2, canNext: false, canPrevious: true });
+  });
+
+  it("keeps every enabled banner in editorial order inside the four-column carousel", () => {
     const banners = [
       banner({ retailerKey: "disabled", affiliateStatus: "DISABLED" }),
       ...Array.from({ length: 5 }, (_, index) => banner({
@@ -69,14 +79,17 @@ describe("StoreBannerRail", () => {
       })),
     ];
     const { container } = render(<StoreBannerRail banners={banners} />);
-    expect(container.textContent).toMatch(/may earn a commission/i);
+    expect(container.textContent).not.toMatch(/may earn a commission/i);
     expect([...container.querySelectorAll("a")].map((link) => link.textContent)).toEqual([
       expect.stringContaining("Shop Demo 1"),
       expect.stringContaining("Shop Demo 2"),
       expect.stringContaining("Shop Demo 3"),
       expect.stringContaining("Shop Demo 4"),
+      expect.stringContaining("Shop Demo 5"),
     ]);
-    expect(container.textContent).not.toContain("Shop Demo 5");
-    expect(container.textContent).toMatch(/never changes store order or deal ranking/i);
+    expect(screen.getByRole("button", { name: "Previous store banners" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next store banners" })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("5 stores");
+    expect(container.textContent).not.toMatch(/never changes store order or deal ranking/i);
   });
 });

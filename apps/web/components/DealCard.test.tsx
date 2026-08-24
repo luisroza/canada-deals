@@ -1,6 +1,9 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DealCard } from "./DealCard";
+import { WishlistProvider } from "./WishlistContext";
+
+vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
 
 const baseDeal = {
   listingId: "a",
@@ -28,6 +31,8 @@ const baseDeal = {
 };
 
 describe("DealCard", () => {
+  afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+
   it("uses a compact deal hierarchy and exposes the approved affiliate handoff", () => {
     render(<DealCard deal={baseDeal} />);
     expect(screen.getByText("$1,099.99")).toBeInTheDocument();
@@ -45,5 +50,11 @@ describe("DealCard", () => {
     expect(screen.getByText("May be stale")).toBeInTheDocument();
     expect(screen.getByText("Evidence unavailable")).toBeInTheDocument();
     expect(screen.getByText("Link unavailable")).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("offers a card-level Wishlist path that preserves the current discovery context", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ isAuthenticated: false, email: null }) }));
+    render(<WishlistProvider><DealCard deal={baseDeal} returnTo="/?category=electronics#deals" /></WishlistProvider>);
+    expect(await screen.findByRole("link", { name: /sign in to save northstar 55-inch qled tv/i })).toHaveAttribute("href", "/account/sign-in?returnTo=%2F%3Fcategory%3Delectronics%23deals");
   });
 });

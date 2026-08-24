@@ -36,6 +36,31 @@ public sealed class StoreAffiliateBannerIntegrationTests(ApiFixture fixture) : I
     }
 
     [RequiresPostgresFact]
+    public async Task Eligible_store_without_an_explicitly_active_banner_profile_is_not_published_in_the_carousel()
+    {
+        await using var scope = fixture.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<DealsDbContext>();
+        var suffix = Guid.NewGuid().ToString("N");
+        var retailer = Retailer.Create($"no-banner-{suffix}", $"No banner {suffix}");
+        var brand = await db.Brands.FirstAsync();
+        var category = await db.Categories.FirstAsync();
+        var policy = await db.MerchantPolicies.FirstAsync(candidate => candidate.SourceKey == "demo-fixture");
+        var now = DateTimeOffset.UtcNow;
+        var product = Product.Create($"no-banner-product-{suffix}", $"No banner product {suffix}", brand, category,
+            $"NB-{suffix}", $"NB-{suffix}", null, new Dictionary<string, string>());
+        db.AddRange(retailer, product);
+        await db.SaveChangesAsync();
+        db.RetailerListings.Add(RetailerListing.Create(product.Id, retailer.Id, $"NB-{suffix}", product.Title,
+            "https://merchant.safe.test/no-banner", policy.Id, MatchState.Confirmed, now, now, 20m, "CAD",
+            FreshnessState.Recent, EvidenceState.Strong, HistoryAvailability.Unavailable));
+        await db.SaveChangesAsync();
+
+        using var response = await Client().GetAsync("/api/v1/store-banners");
+        response.EnsureSuccessStatusCode();
+        Assert.DoesNotContain(retailer.Key, await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
+    [RequiresPostgresFact]
     public async Task Active_store_destination_redirects_and_records_exactly_one_minimal_click()
     {
         var scenario = await CreateScenarioAsync(AffiliateProgramStatus.Active);

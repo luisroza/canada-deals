@@ -23,11 +23,37 @@ public sealed class Category
     public Guid Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public string Slug { get; private set; } = string.Empty;
+    public bool IsEnabled { get; private set; } = true;
 
-    public static Category Create(string name, string slug) => new()
+    public static Category Create(string name, string slug, bool enabled = true)
     {
-        Id = Guid.NewGuid(), Name = name, Slug = slug
-    };
+        ValidateName(name);
+        ValidateSlug(slug);
+        return new Category
+        {
+            Id = Guid.NewGuid(), Name = name.Trim(), Slug = slug.Trim(), IsEnabled = enabled
+        };
+    }
+
+    public void UpdateAdministrativeName(string name)
+    {
+        ValidateName(name);
+        Name = name.Trim();
+    }
+
+    public void SetEnabled(bool enabled) => IsEnabled = enabled;
+
+    private static void ValidateName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 120)
+            throw new ArgumentException("A category name of at most 120 characters is required.", nameof(name));
+    }
+
+    private static void ValidateSlug(string slug)
+    {
+        if (string.IsNullOrWhiteSpace(slug) || slug.Trim().Length > 140)
+            throw new ArgumentException("A category slug of at most 140 characters is required.", nameof(slug));
+    }
 }
 
 public sealed class Product
@@ -101,5 +127,11 @@ public sealed class Product
         NormalizedModelNumber = replacement.NormalizedModelNumber;
         NormalizedManufacturerPartNumber = replacement.NormalizedManufacturerPartNumber;
         VariantAttributesJson = replacement.VariantAttributesJson;
+    }
+
+    public void RefreshSearchDocument()
+    {
+        SearchDocument = string.Join(' ', new[] { Title, Brand.Name, Category.Name, ModelNumber, ManufacturerPartNumber, Gtin }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 }

@@ -207,6 +207,7 @@ Only record decisions that have actually been approved. Proposed options and res
 - **Decision:** Keep listing affiliate links and store affiliate destinations as separate identities. Product CTAs remain `/go/{listingId}`; an approved storefront banner uses `/go/store/{retailerKey}` backed by `StoreAffiliateDestination`, never a fake listing or browser-provided URL.
 - **Visual rights:** Default to first-party original SVG artwork and accessible HTML retailer names. `BrandAssetPolicy=UNKNOWN` cannot enable an official logo. Merchant-provided creative requires explicit provenance/evidence and effective/expiry metadata.
 - **Safety and neutrality:** Only enabled retailers with affiliate-permitted policy, ACTIVE complete programs, usable persisted destination, valid HTTPS/domain allowlists, and current provider capability can redirect. Store clicks record minimal store/program/placement context. Banner order is editorial then alphabetical and consumes no commission/EPC data.
+- **Carousel presentation:** All reviewed enabled profiles participate in one ordered, single-row carousel. The owner controls membership through enabled state and sequence through Display order. Responsive layout exposes no more than four banners at once, with touch scrolling and accessible Previous/Next controls; it does not silently truncate the enabled set.
 - **Fallback:** Missing/inactive destinations remain `DISCOVERY_ONLY` and link to the filtered GreatDeals catalog in the same tab.
 - **Date:** 2026-08-20
 
@@ -220,4 +221,32 @@ Only record decisions that have actually been approved. Proposed options and res
 - **UX:** Use a distinct responsive admin shell that retains GreatDeals.ca visual tokens; group long forms progressively, expose plain-language readiness, require reasons for sensitive state changes, and adapt tables into cards on mobile.
 - **Operational gate:** A password disclosed through chat is considered compromised and is not used. The intended owner must bootstrap locally with a new password. MFA/step-up authentication remains a production follow-up.
 - **Evidence:** `docs/ux/ADMIN-PANEL.md`, `docs/operations/OWNER-ADMIN.md`, and `docs/qa/OWNER-ADMIN-PANEL-TEST-REPORT.md`.
+- **Date:** 2026-08-24
+
+### DEC-021 - Shared Wishlist usability boundary
+
+- **Status:** Approved by explicit owner instruction; implemented and locally validated
+- **Decision:** Keep common shopper accounts and Wishlist persistence as the only public retention loop. Add card-level save, a synchronized navigation count, and local Wishlist search/category/store/sort controls while preserving Product Page save/remove behavior.
+- **Efficiency:** Load account and Wishlist state once per client navigation through a shared provider. Deal Cards must not issue one session or Wishlist request per card.
+- **Account boundary:** Anonymous discovery remains complete. A signed-out card save links to the existing sign-in/create-account flow and preserves the current discovery URL. Signed-in writes continue through the existing CSRF-protected, user-isolated Saved Products API.
+- **Trust boundary:** Wishlist state and count do not affect price truth, freshness, evidence, comparison, availability, organic ranking, or affiliate eligibility. No tracker, target price, alert, digest, marketing consent, or new personal data is added.
+- **UX:** Loading, signed-out, empty, no-match, load-error/retry, and mutation-error states are exclusive and accessible. Card toggles expose text plus `aria-pressed`; local controls use explicit labels and announce result counts.
+- **Date:** 2026-08-24
+
+### DEC-022 - Explicit carousel selection and bounded reviewed artwork library
+
+- **Status:** Approved by explicit owner instruction; implemented and locally validated
+- **Selection:** A store enters the homepage carousel only through an explicitly enabled `StoreBannerProfile`; an eligible store without a profile is never auto-published with fallback copy/artwork. The owner edits all active selections in one audited operation, while the dashboard distinguishes selected profiles from profiles that are actually public after retailer/offer eligibility checks.
+- **Artwork intake:** Owner-only CSRF-protected upload accepts PNG, JPEG, and WebP up to 2 MB, validates media signatures, persists immutable content in PostgreSQL, records an audit event, and serves it from a same-origin opaque asset ID. No uploaded path or client URL is trusted. Database storage is deliberately limited to low-volume banners; object storage becomes the replacement when volume or bandwidth warrants it.
+- **Rights:** Upload does not grant publication rights. Provenance remains the fixed domain taxonomy `CanadaDealsOriginal` or `MerchantApprovedAffiliateAsset`; merchant provider, evidence, placement, and effective/expiry gates remain mandatory and fail closed. SVG upload, deletion, and arbitrary provenance types remain excluded.
+- **UX:** Banner cards expose active selection, public position, artwork state, public eligibility reason, and state filters. The editor groups copy, artwork, provenance/rights, and placement around a responsive public-like preview with accessible labels and 44px actions.
+- **Date:** 2026-08-24
+
+### DEC-023 - Reversible owner management for categories and stores
+
+- **Status:** Approved by explicit owner instruction; implemented and locally validated
+- **Decision:** Add independent Categories and Stores areas to the owner panel. The owner can create, rename, activate, and deactivate records; new records start inactive, URL slugs/store keys remain immutable, and the panel exposes no destructive delete operation.
+- **Public effect:** Inactive categories and stores are removed from public discovery facets, feeds, Product pages, and applicable handoffs. Store deactivation also removes its banner from the carousel. Existing Products, listings, wishlists, banners, affiliate programs/links/destinations, observations, and audit evidence remain persisted.
+- **Safety:** Deactivation requires a reason and is audited. Backend-derived impact counts cover the complete database. Store activation never grants merchant data, artwork, connector, or affiliate rights; existing policy and provider gates remain independently fail closed.
+- **UX:** Use separate responsive card lists with search/status filters, textual states, 44px actions, one-column mobile reflow, immutable identifier guidance, and an explicit impact warning in each editor.
 - **Date:** 2026-08-24

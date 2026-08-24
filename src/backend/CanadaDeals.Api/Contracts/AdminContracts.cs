@@ -6,6 +6,26 @@ public sealed record AdminSessionResponse(bool IsAuthenticated, bool IsAdmin, st
 
 public sealed record AdminReferenceOption(Guid Id, string Key, string Label, bool IsEnabled = true);
 
+public sealed record AdminCategoryManagementResponse(
+    Guid Id,
+    string Name,
+    string Slug,
+    bool IsEnabled,
+    int ProductCount,
+    int PublishedOfferCount);
+
+public sealed record AdminRetailerManagementResponse(
+    Guid Id,
+    string Name,
+    string Key,
+    string CountryCode,
+    bool IsEnabled,
+    int ListingCount,
+    int PublishedOfferCount,
+    bool HasBannerProfile,
+    bool IsBannerActive,
+    int AffiliateProgramCount);
+
 public sealed record AdminPolicyOption(
     Guid Id,
     string SourceKey,
@@ -82,7 +102,19 @@ public sealed record AdminBannerResponse(
     DateTimeOffset? EffectiveAt,
     DateTimeOffset? ExpiresAt,
     string VisibilityState,
-    string RightsState);
+    string RightsState,
+    bool IsInPublicCarousel,
+    int? PublicPosition,
+    string PublicArtworkState,
+    string PublicEligibilityReason);
+
+public sealed record AdminBannerAssetResponse(
+    Guid Id,
+    string FileName,
+    string ContentType,
+    int SizeBytes,
+    string AssetPath,
+    DateTimeOffset CreatedAt);
 
 public sealed record AdminAuditResponse(
     Guid Id,
@@ -112,11 +144,32 @@ public sealed record AdminDashboardResponse(
     IReadOnlyList<AdminReferenceOption> Brands,
     IReadOnlyList<AdminReferenceOption> Categories,
     IReadOnlyList<AdminReferenceOption> Retailers,
+    IReadOnlyList<AdminCategoryManagementResponse> ManagedCategories,
+    IReadOnlyList<AdminRetailerManagementResponse> ManagedRetailers,
     IReadOnlyList<AdminPolicyOption> Policies,
     IReadOnlyList<AdminOfferResponse> Offers,
+    IReadOnlyList<AdminBannerAssetResponse> BannerAssets,
     IReadOnlyList<AdminBannerResponse> Banners,
     IReadOnlyList<AdminReportResponse> Reports,
     IReadOnlyList<AdminAuditResponse> RecentAudit);
+
+public sealed record CreateAdminCategoryRequest(
+    [Required, MaxLength(120)] string Name,
+    [Required, MaxLength(140)] string Slug);
+
+public sealed record UpdateAdminCategoryRequest(
+    [Required, MaxLength(120)] string Name,
+    bool IsEnabled,
+    [MaxLength(300)] string? ChangeReason);
+
+public sealed record CreateAdminRetailerRequest(
+    [Required, MaxLength(160)] string Name,
+    [Required, MaxLength(80)] string Key);
+
+public sealed record UpdateAdminRetailerRequest(
+    [Required, MaxLength(160)] string Name,
+    bool IsEnabled,
+    [MaxLength(300)] string? ChangeReason);
 
 public sealed record UpsertAdminOfferRequest(
     [Required, MaxLength(140)] string Slug,
@@ -162,4 +215,8 @@ public sealed record UpsertAdminBannerRequest(
     DateTimeOffset? ExpiresAt,
     [Range(0, 10000)] int BannerOrder,
     bool IsEnabled,
+    [MaxLength(300)] string? ChangeReason);
+
+public sealed record UpdateAdminBannerSelectionRequest(
+    IReadOnlyList<Guid>? ActiveRetailerIds,
     [MaxLength(300)] string? ChangeReason);

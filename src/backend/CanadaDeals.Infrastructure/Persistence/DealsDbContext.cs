@@ -27,6 +27,7 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Retailer> Retailers => Set<Retailer>();
     public DbSet<StoreBannerProfile> StoreBannerProfiles => Set<StoreBannerProfile>();
+    public DbSet<StoreBannerAsset> StoreBannerAssets => Set<StoreBannerAsset>();
     public DbSet<RetailerListing> RetailerListings => Set<RetailerListing>();
     public DbSet<PriceObservation> PriceObservations => Set<PriceObservation>();
     public DbSet<MerchantPolicy> MerchantPolicies => Set<MerchantPolicy>();
@@ -74,8 +75,10 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.Slug).IsUnique();
+            entity.HasIndex(x => new { x.IsEnabled, x.Name });
             entity.Property(x => x.Name).HasMaxLength(120).IsRequired();
             entity.Property(x => x.Slug).HasMaxLength(140).IsRequired();
+            entity.Property(x => x.IsEnabled).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<Product>(entity =>
@@ -120,6 +123,16 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
             entity.Property(x => x.AssetEvidenceReference).HasMaxLength(1000);
             entity.Property(x => x.AllowedPlacement).HasMaxLength(80);
             entity.HasOne(x => x.Retailer).WithMany().HasForeignKey(x => x.RetailerId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<StoreBannerAsset>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.CreatedAt);
+            entity.Property(x => x.FileName).HasMaxLength(StoreBannerAsset.MaxFileNameLength).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(StoreBannerAsset.MaxContentTypeLength).IsRequired();
+            entity.Property(x => x.Content).HasColumnType("bytea").IsRequired();
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UploadedByUserId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<MerchantPolicy>(entity =>

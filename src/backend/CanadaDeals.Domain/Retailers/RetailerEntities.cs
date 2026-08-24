@@ -14,12 +14,35 @@ public sealed class Retailer
     public string CountryCode { get; private set; } = "CA";
     public bool IsEnabled { get; private set; } = true;
 
-    public static Retailer Create(string key, string name) => new()
+    public static Retailer Create(string key, string name, bool enabled = true)
     {
-        Id = Guid.NewGuid(), Key = key, Name = name, IsEnabled = true
-    };
+        ValidateKey(key);
+        ValidateName(name);
+        return new Retailer
+        {
+            Id = Guid.NewGuid(), Key = key.Trim(), Name = name.Trim(), IsEnabled = enabled
+        };
+    }
+
+    public void UpdateAdministrativeName(string name)
+    {
+        ValidateName(name);
+        Name = name.Trim();
+    }
 
     public void SetEnabled(bool enabled) => IsEnabled = enabled;
+
+    private static void ValidateKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key) || key.Trim().Length > 80)
+            throw new ArgumentException("A retailer key of at most 80 characters is required.", nameof(key));
+    }
+
+    private static void ValidateName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 160)
+            throw new ArgumentException("A retailer name of at most 160 characters is required.", nameof(name));
+    }
 }
 
 public sealed class StoreBannerProfile
@@ -53,8 +76,8 @@ public sealed class StoreBannerProfile
         if (retailerId == Guid.Empty) throw new ArgumentException("Retailer is required.", nameof(retailerId));
         if (string.IsNullOrWhiteSpace(title) || title.Length > 120) throw new ArgumentException("A banner title of at most 120 characters is required.", nameof(title));
         if (string.IsNullOrWhiteSpace(subtitle) || subtitle.Length > 180) throw new ArgumentException("A banner subtitle of at most 180 characters is required.", nameof(subtitle));
-        if (!string.IsNullOrWhiteSpace(assetPath) && (!assetPath.StartsWith("/store-banners/", StringComparison.Ordinal) || assetPath.Contains("..", StringComparison.Ordinal)))
-            throw new ArgumentException("Original assets must use the first-party /store-banners/ path.", nameof(assetPath));
+        if (!string.IsNullOrWhiteSpace(assetPath) && !StoreBannerAsset.IsReviewedPath(assetPath))
+            throw new ArgumentException("Original assets must use a reviewed GreatDeals banner path.", nameof(assetPath));
 
         return new StoreBannerProfile
         {
@@ -85,8 +108,8 @@ public sealed class StoreBannerProfile
         if (provider == AffiliateProviderType.Unknown) throw new ArgumentException("Asset provider is required.", nameof(provider));
         if (string.IsNullOrWhiteSpace(title) || title.Length > 120) throw new ArgumentException("A banner title of at most 120 characters is required.", nameof(title));
         if (string.IsNullOrWhiteSpace(subtitle) || subtitle.Length > 180) throw new ArgumentException("A banner subtitle of at most 180 characters is required.", nameof(subtitle));
-        if (string.IsNullOrWhiteSpace(assetPath) || !assetPath.StartsWith("/store-banners/", StringComparison.Ordinal) || assetPath.Contains("..", StringComparison.Ordinal))
-            throw new ArgumentException("Approved assets must be copied to the reviewed first-party /store-banners/ path.", nameof(assetPath));
+        if (!StoreBannerAsset.IsReviewedPath(assetPath))
+            throw new ArgumentException("Approved assets must use a reviewed GreatDeals banner path.", nameof(assetPath));
         if (string.IsNullOrWhiteSpace(evidenceReference) || evidenceReference.Length > 500)
             throw new ArgumentException("A redacted asset-rights evidence reference is required and limited to 500 characters.", nameof(evidenceReference));
         if (!string.Equals(allowedPlacement?.Trim(), "store_banner", StringComparison.Ordinal))
@@ -131,7 +154,7 @@ public sealed class StoreBannerProfile
 
     public bool CanUseConfiguredAsset(DateTimeOffset now, string placement = "store_banner")
     {
-        if (string.IsNullOrWhiteSpace(AssetPath) || !AssetPath.StartsWith("/store-banners/", StringComparison.Ordinal) || AssetPath.Contains("..", StringComparison.Ordinal))
+        if (!StoreBannerAsset.IsReviewedPath(AssetPath))
             return false;
         if (AssetSource == StoreBannerAssetSource.CanadaDealsOriginal) return true;
 

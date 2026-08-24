@@ -1,0 +1,39 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { useWishlist } from "./WishlistContext";
+
+export function WishlistCardButton({ productId, productTitle, returnTo }: { productId: string; productTitle: string; returnTo: string }) {
+  const wishlist = useWishlist();
+  const [message, setMessage] = useState("");
+  const saved = wishlist.isSaved(productId);
+  const pending = wishlist.isPending(productId);
+
+  if (wishlist.loading) {
+    return <button className="card-wishlist-button" type="button" disabled aria-label={`Loading Wishlist state for ${productTitle}`}>♡ <span>Save</span></button>;
+  }
+
+  if (wishlist.authenticated === false) {
+    return <Link className="card-wishlist-button" href={`/account/sign-in?returnTo=${encodeURIComponent(returnTo)}`} aria-label={`Sign in to save ${productTitle} to your Wishlist`}>♡ <span>Save</span></Link>;
+  }
+
+  if (wishlist.authenticated !== true) {
+    return <button className="card-wishlist-button" type="button" disabled aria-label={`Wishlist unavailable for ${productTitle}`}>♡ <span>Save</span></button>;
+  }
+
+  async function toggle() {
+    setMessage("");
+    try {
+      const nowSaved = await wishlist.toggle(productId);
+      setMessage(nowSaved ? "Saved to your Wishlist." : "Removed from your Wishlist.");
+    } catch {
+      setMessage("Wishlist could not be updated. Try again.");
+    }
+  }
+
+  return <>
+    <button className="card-wishlist-button" type="button" disabled={pending} aria-pressed={saved} aria-label={`${saved ? "Remove" : "Save"} ${productTitle} ${saved ? "from" : "to"} your Wishlist`} onClick={toggle}>{saved ? "♥" : "♡"} <span>{pending ? "Wait" : saved ? "Saved" : "Save"}</span></button>
+    <span className="sr-only" role="status" aria-live="polite">{message}</span>
+  </>;
+}

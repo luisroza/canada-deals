@@ -18,15 +18,15 @@ Validate that Canadian shoppers can find relevant promotions quickly, trust the 
 | Category deal feed | Shoppers need a focused starting point | Validates the core discovery loop | A visitor can browse current offers with category and freshness context |
 | Search | Shoppers often begin with a planned product | Captures high-intent demand | Search returns relevant products and does not require an account |
 | Filters | Broad feeds create noise | Keeps discovery simple | Results can be narrowed by category and store only |
-| Store banners | Shoppers often start from a trusted retailer | Adds a visual store-first path | Every eligible catalog store has an original, accessible banner; discovery-only stores open their GreatDeals feed and approved active stores use the safe backend store handoff |
+| Store banners | Shoppers often start from a trusted retailer | Adds a visual store-first path | Every enabled eligible store appears in one admin-ordered carousel with no more than four banners visible at once; discovery-only stores open their GreatDeals feed and approved active stores use the safe backend store handoff |
 | Deal card | Users need a fast scan-and-click surface | Core UI for click testing | Card prioritizes store, visual product area, title, current CAD price, timestamp, status, and affiliate CTA when approved |
 | Product page | A deal feed alone cannot confirm the exact item | Supports trust and conversion | Page shows current offer context, safe comparisons, seller/condition/availability/shipping/region facts, disclosure, wishlist action, and report action |
 | Freshness and confidence | Stale or weak data destroys trust | Differentiation depends on it | Each offer has a visible last-checked/freshness state and identity-confidence rule |
 | Safe same-product comparison | Users otherwise open several retailer sites | Main cross-retailer value | Comparisons appear only when identity/variant confidence passes a defined threshold |
-| Wishlist | Shoppers need a lightweight return path | Low-cost retention test | A signed-in user can save and remove products without alerts or target prices |
+| Wishlist | Shoppers need a lightweight return path | Low-cost retention test | A signed-in user can save from Deal Cards or Product Pages, see a synchronized count, organize the list locally, and remove products without alerts or target prices |
 | Affiliate/outbound measurement | Business viability needs qualified traffic | Must be measurable from day one | Retailer handoff is trackable and affiliate disclosure is visible |
 | Stale/incorrect report | Automated data will be imperfect | Creates a correction loop | User can report a stale price or wrong product |
-| Owner operations | Offers, banners, and reports require a safe correction path | Keeps public data manageable without a large CMS | One role-protected owner can draft/publish/deactivate offers, manage reviewed banners, resolve reports, and inspect audit; public users cannot discover or access these operations |
+| Owner operations | Offers, banners, and reports require a safe correction path | Keeps public data manageable without a large CMS | One role-protected owner can draft/publish/deactivate offers, select the homepage carousel, upload bounded reviewed raster artwork, manage rights-gated banners, resolve reports, and inspect audit; public users cannot discover or access these operations |
 
 ## Priority bands
 
@@ -36,7 +36,7 @@ Deal feed, search, filters, evidence-rich deal cards, product pages, freshness s
 
 ### P1 - High-priority retention experiment
 
-Wishlist persistence only. Price tracking, target-price alerts, and weekly digests are removed from the current product scope.
+Wishlist persistence and usability only: card-level save, synchronized count, revisit, local search/filter/sort, and removal. Price tracking, target-price alerts, and weekly digests are removed from the current product scope.
 
 ## Major assumptions
 
@@ -69,6 +69,8 @@ Wishlist persistence only. Price tracking, target-price alerts, and weekly diges
 - A product is not presented as a comparison match when variant, seller, condition, or pack size is ambiguous.
 - Product price-history charts, historical-low claims, and target-price alerts are not exposed.
 - Store banners never invent a direct retailer destination. Until a persisted provider-approved store-level affiliate destination exists, they open the store-filtered GreatDeals feed. Approved store destinations use `/go/store/{retailerKey}`; product CTAs continue through `/go/{listingId}`.
+- The owner controls carousel membership through one explicit active selection and controls sequence through Carousel position. A store without an active configured profile never appears implicitly. The public rail remains one row, shows at most four banners at desktop width, and progressively exposes fewer banners per viewport on smaller screens without limiting the total enabled set.
+- Owner administration can create and manage Category and Store records. New records begin inactive; slug/store key are immutable; deactivation is audited and reversible; no linked Product, offer, Wishlist, banner, affiliate, or history data is deleted. Inactive categories and stores fail closed across public discovery and handoff.
 
 ## Success criteria
 

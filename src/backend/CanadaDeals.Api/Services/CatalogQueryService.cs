@@ -27,8 +27,8 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         if (categoryKeys.Length > 0)
         {
             var existing = await db.Categories
-                .Where(x => categoryKeys.Contains(x.Slug) && db.RetailerListings.Any(listing =>
-                    listing.IsEnabled && listing.Product.CategoryId == x.Id &&
+                .Where(x => x.IsEnabled && categoryKeys.Contains(x.Slug) && db.RetailerListings.Any(listing =>
+                    listing.IsEnabled && listing.Retailer.IsEnabled && listing.Product.CategoryId == x.Id &&
                     listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                     listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
                 .Select(x => x.Slug)
@@ -41,8 +41,8 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         if (retailerKeys.Length > 0)
         {
             var existing = await db.Retailers
-                .Where(x => retailerKeys.Contains(x.Key) && db.RetailerListings.Any(listing =>
-                    listing.IsEnabled && listing.RetailerId == x.Id &&
+                .Where(x => x.IsEnabled && retailerKeys.Contains(x.Key) && db.RetailerListings.Any(listing =>
+                    listing.IsEnabled && listing.Product.Category.IsEnabled && listing.RetailerId == x.Id &&
                     listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                     listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
                 .Select(x => x.Key)
@@ -69,7 +69,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         var availability = DiscoveryQueryRequest.Values(request.Availability);
 
         var query = db.RetailerListings.AsNoTracking()
-            .Where(x => x.IsEnabled && x.CurrentPriceAmount != null &&
+            .Where(x => x.IsEnabled && x.Retailer.IsEnabled && x.Product.Category.IsEnabled && x.CurrentPriceAmount != null &&
                         x.CurrentPriceCurrency == PriceAlert.SupportedCurrency &&
                         x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                         x.MerchantPolicy.RequiredAttribution != TestOnlyAttribution);
@@ -188,7 +188,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                 .Include(x => x.Retailer)
                 .Include(x => x.MerchantPolicy)
                 .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
-                .Where(x => x.IsEnabled && productIds.Contains(x.ProductId) &&
+                .Where(x => x.IsEnabled && x.Retailer.IsEnabled && x.Product.Category.IsEnabled && productIds.Contains(x.ProductId) &&
                             x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                             x.MerchantPolicy.RequiredAttribution != TestOnlyAttribution)
                 .ToListAsync(cancellationToken);
@@ -199,14 +199,16 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             .ToList();
 
         var categories = await db.Categories.AsNoTracking().OrderBy(x => x.Name)
+            .Where(x => x.IsEnabled)
             .Where(x => db.RetailerListings.Any(listing =>
-                listing.IsEnabled && listing.Product.CategoryId == x.Id &&
+                listing.IsEnabled && listing.Retailer.IsEnabled && listing.Product.CategoryId == x.Id &&
                 listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                 listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
             .Select(x => new DiscoveryFacetOption(x.Slug, x.Name)).ToListAsync(cancellationToken);
         var retailers = await db.Retailers.AsNoTracking().OrderBy(x => x.Name)
+            .Where(x => x.IsEnabled)
             .Where(x => db.RetailerListings.Any(listing =>
-                listing.IsEnabled && listing.RetailerId == x.Id &&
+                listing.IsEnabled && listing.Product.Category.IsEnabled && listing.RetailerId == x.Id &&
                 listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                 listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
             .Select(x => new DiscoveryFacetOption(x.Key, x.Name)).ToListAsync(cancellationToken);
@@ -295,7 +297,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             .AsNoTracking()
             .Include(x => x.Brand)
             .Include(x => x.Category)
-            .SingleOrDefaultAsync(x => x.Slug == slug, cancellationToken);
+            .SingleOrDefaultAsync(x => x.Slug == slug && x.Category.IsEnabled, cancellationToken);
 
         if (product is null) return null;
 
@@ -304,7 +306,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             .Include(x => x.Retailer)
             .Include(x => x.MerchantPolicy)
             .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
-            .Where(x => x.IsEnabled && x.ProductId == product.Id &&
+            .Where(x => x.IsEnabled && x.Retailer.IsEnabled && x.ProductId == product.Id &&
                         x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                         x.MerchantPolicy.RequiredAttribution != TestOnlyAttribution)
             .OrderByDescending(x => x.SourceObservedAt)
@@ -346,7 +348,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             from observation in db.PriceObservations.AsNoTracking()
             join listing in db.RetailerListings.AsNoTracking() on observation.RetailerListingId equals listing.Id
             join policy in db.MerchantPolicies.AsNoTracking() on listing.MerchantPolicyId equals policy.Id
-            where listing.IsEnabled && listing.ProductId == product.Id
+            where listing.IsEnabled && listing.Retailer.IsEnabled && listing.Product.Category.IsEnabled && listing.ProductId == product.Id
                 && (listing.MatchState == MatchState.AutoMatched || listing.MatchState == MatchState.Confirmed)
                 && listing.Condition == ProductCondition.New
                 && listing.IsMarketplaceSeller != true
@@ -418,7 +420,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             .Include(x => x.Retailer)
             .Include(x => x.MerchantPolicy)
             .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
-            .Where(x => x.IsEnabled && productIds.Contains(x.ProductId) &&
+            .Where(x => x.IsEnabled && x.Retailer.IsEnabled && x.Product.Category.IsEnabled && productIds.Contains(x.ProductId) &&
                         x.CurrentPriceAmount != null &&
                         x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed)
             .OrderByDescending(x => x.SourceObservedAt)

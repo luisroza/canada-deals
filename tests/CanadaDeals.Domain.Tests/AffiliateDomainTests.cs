@@ -1,5 +1,6 @@
 using CanadaDeals.Domain.Affiliates;
 using CanadaDeals.Domain.Common;
+using CanadaDeals.Domain.Retailers;
 
 namespace CanadaDeals.Domain.Tests;
 
@@ -86,6 +87,21 @@ public sealed class AffiliateDomainTests
         profile.Disable();
 
         Assert.False(profile.IsDisplayable(DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public void Store_banner_accepts_only_built_in_or_persisted_reviewed_asset_paths()
+    {
+        var uploadedPath = $"{StoreBannerAsset.PublicPathPrefix}{Guid.NewGuid():D}";
+        var banner = StoreBannerProfile.CreateOriginal(
+            Guid.NewGuid(), "Shop technology", "Browse current offers", uploadedPath, 10);
+
+        Assert.Equal(uploadedPath, banner.AssetPath);
+        Assert.True(StoreBannerAsset.IsReviewedPath(uploadedPath));
+        Assert.Throws<ArgumentException>(() => StoreBannerProfile.CreateOriginal(
+            Guid.NewGuid(), "Shop technology", "Browse current offers", "/api/v1/store-banner-assets/not-a-guid", 10));
+        Assert.Throws<ArgumentException>(() => StoreBannerProfile.CreateOriginal(
+            Guid.NewGuid(), "Shop technology", "Browse current offers", "https://untrusted.example/banner.png", 10));
     }
 
     [Fact]

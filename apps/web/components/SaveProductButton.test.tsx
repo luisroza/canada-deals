@@ -1,15 +1,22 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SaveProductButton } from "./SaveProductButton";
+import { WishlistProvider } from "./WishlistContext";
+
+vi.mock("next/navigation", () => ({ usePathname: () => "/products/fixture-television" }));
 
 const product = { productId: "product-1", productTitle: "Fixture television", returnTo: "/products/fixture-television" };
 
 describe("SaveProductButton", () => {
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
+  function renderButton() {
+    return render(<WishlistProvider><SaveProductButton {...product} /></WishlistProvider>);
+  }
+
   it("explains the account boundary without hiding public product context", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ isAuthenticated: false, email: null }) }));
-    render(<SaveProductButton {...product} />);
+    renderButton();
 
     fireEvent.click(await screen.findByRole("button", { name: "Save product" }));
 
@@ -26,7 +33,7 @@ describe("SaveProductButton", () => {
       return Promise.resolve({ ok: true, status: 201, json: async () => ({ productId: "product-1", isSaved: true }) });
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<SaveProductButton {...product} />);
+    renderButton();
 
     fireEvent.click(await screen.findByRole("button", { name: "Save product" }));
 
@@ -42,7 +49,7 @@ describe("SaveProductButton", () => {
       return Promise.resolve({ ok: true, status: 204, json: async () => null });
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<SaveProductButton {...product} />);
+    renderButton();
 
     fireEvent.click(await screen.findByRole("button", { name: "Saved — remove" }));
 
@@ -52,9 +59,9 @@ describe("SaveProductButton", () => {
 
   it("keeps the public page usable when session loading fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 503 }));
-    render(<SaveProductButton {...product} />);
+    renderButton();
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Public product details remain available");
-    await waitFor(() => expect(screen.getByRole("button", { name: "Save product" })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save product" })).toBeDisabled());
   });
 });

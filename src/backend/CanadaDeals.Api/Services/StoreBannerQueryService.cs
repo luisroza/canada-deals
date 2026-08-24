@@ -50,7 +50,7 @@ public sealed class StoreBannerQueryService(DealsDbContext db, TimeProvider cloc
         foreach (var retailer in retailers)
         {
             profiles.TryGetValue(retailer.Id, out var profile);
-            if (profile is not null && !profile.IsDisplayable(now)) continue;
+            if (profile is not { } configuredProfile || !configuredProfile.IsDisplayable(now)) continue;
 
             var destination = destinations.FirstOrDefault(candidate =>
                 candidate.RetailerId == retailer.Id &&
@@ -66,25 +66,25 @@ public sealed class StoreBannerQueryService(DealsDbContext db, TimeProvider cloc
                     capability.MerchantPolicy is not null &&
                     capability.CanGenerateAffiliateLink(capability.MerchantPolicy))));
             var active = allowedRetailerIds.Contains(retailer.Id) && destination is not null;
-            var usesConfiguredAsset = profile?.CanUseConfiguredAsset(now) == true;
-            var assetPath = usesConfiguredAsset ? profile!.AssetPath! : FallbackAsset;
+            var usesConfiguredAsset = configuredProfile.CanUseConfiguredAsset(now);
+            var assetPath = usesConfiguredAsset ? configuredProfile.AssetPath! : FallbackAsset;
             var assetSource = usesConfiguredAsset
-                ? profile!.AssetSource
+                ? configuredProfile.AssetSource
                 : StoreBannerAssetSource.CanadaDealsOriginal;
             var brandAssetPolicy = usesConfiguredAsset && assetSource == StoreBannerAssetSource.MerchantApprovedAffiliateAsset
-                ? profile!.BrandAssetPolicy
+                ? configuredProfile.BrandAssetPolicy
                 : PolicyPermission.Unknown;
 
             var escapedRetailerKey = Uri.EscapeDataString(retailer.Key);
 
             result.Add((
-                profile?.BannerOrder ?? int.MaxValue,
+                configuredProfile.BannerOrder,
                 retailer.Name,
                 new StoreBannerResponse(
                     retailer.Key,
                     retailer.Name,
-                    profile?.Title ?? $"Shop {retailer.Name}",
-                    profile?.Subtitle ?? "Browse current offers",
+                    configuredProfile.Title,
+                    configuredProfile.Subtitle,
                     assetPath,
                     assetSource.ToString().ToUpperInvariant(),
                     brandAssetPolicy.ToString().ToUpperInvariant(),
