@@ -20,6 +20,8 @@ export type DealCard = {
   hasSafeComparison: boolean;
   detailsPath: string;
   handoffPath: string | null;
+  handoffUrl: string | null;
+  handoffMode: "INTERNAL_REDIRECT" | "DIRECT_PROVIDER" | "NONE";
   disclosure: string;
   productImage: ProductImageData | null;
 };
@@ -43,6 +45,8 @@ export type RetailerOffer = {
   shippingContext: string | null;
   observedAt: string | null;
   handoffPath: string | null;
+  handoffUrl: string | null;
+  handoffMode: "INTERNAL_REDIRECT" | "DIRECT_PROVIDER" | "NONE";
   disclosure: string;
   isSafeComparison: boolean;
 };
@@ -157,6 +161,10 @@ const apiBase = resolveApiBase(process.env.API_BASE_URL, process.env.NODE_ENV, t
 
 export function publicHandoffPath(path: string) {
   return path;
+}
+
+export function publicHandoffHref(handoffPath: string | null, handoffUrl: string | null) {
+  return handoffUrl ?? handoffPath;
 }
 
 export async function getDeals(params: DiscoveryParams = {}): Promise<DiscoveryResponse> {

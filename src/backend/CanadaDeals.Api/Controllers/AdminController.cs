@@ -1,15 +1,19 @@
 using System.Security.Claims;
+using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using CanadaDeals.Api.Contracts;
 using CanadaDeals.Api.Security;
 using CanadaDeals.Api.Services;
 using CanadaDeals.Domain.Administration;
+using CanadaDeals.Domain.Affiliates;
 using CanadaDeals.Domain.Catalog;
 using CanadaDeals.Domain.Common;
 using CanadaDeals.Domain.Policies;
 using CanadaDeals.Domain.Reporting;
 using CanadaDeals.Domain.Retailers;
 using CanadaDeals.Infrastructure.Persistence;
+using CanadaDeals.Infrastructure.Affiliates;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -21,14 +25,70 @@ namespace CanadaDeals.Api.Controllers;
 [Route("api/v1/admin")]
 [Authorize(Policy = AdminAccess.Policy)]
 [EnableRateLimiting("admin")]
-public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogger<AdminController> logger) : ControllerBase
+public sealed class AdminController(DealsDbContext db, TimeProvider clock, OwnerProvidedAffiliateLinkInspector affiliateLinkInspector, IAmazonShortLinkResolver amazonShortLinkResolver, ILogger<AdminController> logger) : ControllerBase
 {
     private const string TestOnlyAttribution = "TEST_ONLY";
     private static readonly Regex SlugPattern = new("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex AmazonPartnerTagPattern = new("^[A-Za-z0-9][A-Za-z0-9-]{2,99}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     [HttpGet("session")]
     public ActionResult<AdminSessionResponse> Session() =>
         Ok(new AdminSessionResponse(true, true, User.Identity?.Name));
+
+    [HttpPost("affiliate-links/inspect")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<AdminAffiliateLinkInspectionResponse>> InspectAffiliateLink(
+        InspectAdminAffiliateLinkRequest request,
+        CancellationToken cancellationToken)
+    {
+        OwnerProvidedAffiliateLinkInspection inspection;
+        try { inspection = affiliateLinkInspector.Inspect(request.Url); }
+        catch (ArgumentException exception)
+        {
+            ModelState.AddModelError(nameof(request.Url), exception.Message);
+            return ValidationProblem(ModelState);
+        }
+
+        if (string.Equals(inspection.TrackingHost, "amzn.to", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var destination = await amazonShortLinkResolver.ResolveAsync(request.Url, cancellationToken);
+                inspection = affiliateLinkInspector.InspectResolvedShortLink(request.Url, destination);
+            }
+            catch (AmazonShortLinkResolutionException exception)
+            {
+                ModelState.AddModelError(nameof(request.Url), exception.Message);
+                return ValidationProblem(ModelState);
+            }
+        }
+
+        var amazonRetailerKeys = new[] { "amazon", "amazon-ca", "amazon-canada" };
+        var retailer = await db.Retailers.AsNoTracking()
+            .Where(candidate => amazonRetailerKeys.Contains(candidate.Key) || candidate.Name == "Amazon.ca" || candidate.Name == "Amazon Canada")
+            .OrderByDescending(candidate => candidate.IsEnabled)
+            .FirstOrDefaultAsync(cancellationToken);
+        var warnings = inspection.Warnings.ToList();
+        if (retailer is null) warnings.Add("Amazon Canada is not configured as a store yet.");
+        else if (!retailer.IsEnabled) warnings.Add("The matching Amazon Canada store is currently inactive.");
+        var brandCandidate = await BuildBrandCandidateAsync(inspection.ResolvedProductUrl ?? request.Url, cancellationToken);
+
+        return Ok(new AdminAffiliateLinkInspectionResponse(
+            inspection.Provider == AffiliateProviderType.AmazonCreators ? "AMAZON_CREATORS" : inspection.Provider.ToString().ToUpperInvariant(),
+            inspection.HandoffMode == AffiliateHandoffMode.DirectProvider ? "DIRECT_PROVIDER" : "INTERNAL_REDIRECT",
+            inspection.Status,
+            inspection.TrackingHost,
+            inspection.DestinationHost,
+            inspection.ResolvedProductUrl,
+            inspection.ExternalProductId,
+            inspection.CanonicalProductUrl,
+            inspection.PartnerTag,
+            retailer?.Id,
+            retailer?.Name,
+            brandCandidate,
+            clock.GetUtcNow(),
+            warnings));
+    }
 
     [HttpGet("dashboard")]
     public async Task<ActionResult<AdminDashboardResponse>> Dashboard(CancellationToken cancellationToken)
@@ -39,6 +99,7 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
             .Include(listing => listing.Product).ThenInclude(product => product.Category)
             .Include(listing => listing.Retailer)
             .Include(listing => listing.MerchantPolicy)
+            .Include(listing => listing.AffiliateLinks).ThenInclude(link => link.AffiliateProgram)
             .OrderByDescending(listing => listing.FetchedAt)
             .Take(100)
             .ToListAsync(cancellationToken);
@@ -239,7 +300,12 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
 
         db.AdminAuditEvents.Add(Audit(statusChanged ? (request.IsEnabled ? "ACTIVATE" : "DEACTIVATE") : "UPDATE", "Brand", brand.Id,
             $"Updated brand '{brand.Slug}'. Reason: {Normalize(request.ChangeReason) ?? "Routine catalog update"}."));
-        await db.SaveChangesAsync(cancellationToken);
+        try { await db.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateException exception)
+        {
+            logger.LogWarning(exception, "Owner admin brand update conflicted for normalized identity {NormalizedKey}.", brand.NormalizedKey);
+            return Conflict(new ProblemDetails { Title = "Brand already exists", Detail = "Another brand already uses this normalized name." });
+        }
         return NoContent();
     }
 
@@ -401,13 +467,21 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
             product.Id, context.Retailer.Id, request.ExternalListingId.Trim(), request.OriginalTitle.Trim(), request.ProductUrl.Trim(),
             context.Policy.Id, context.MatchState, request.ObservedAt, request.FetchedAt, request.CurrentPrice, "CAD", FreshnessState.Recent,
             context.Policy.CanPublishCurrentPrice ? EvidenceState.Partial : EvidenceState.Unavailable, HistoryAvailability.Unavailable,
-            request.VariantAttributes, request.ExternalIdentifiers, Normalize(request.RetailerSku), Normalize(request.ApprovedAffiliateDestinationReference),
+            request.VariantAttributes, request.ExternalIdentifiers, Normalize(request.RetailerSku), context.OwnerProvidedLink?.DestinationUrl ?? Normalize(request.ApprovedAffiliateDestinationReference),
             Normalize(request.Seller), request.IsMarketplaceSeller, context.Condition, request.PackQuantity, Normalize(request.BundleContents),
             Normalize(request.RegionAvailabilityContext), context.Availability, Normalize(request.ShippingContext), request.OfferValidUntil);
         listing.SetEnabled(request.IsEnabled);
 
+        if (context.BrandWasCreated) db.Brands.Add(context.Brand);
         if (context.Product is null) db.Products.Add(product);
         db.RetailerListings.Add(listing);
+        SyncOwnerProvidedAffiliateLink(listing, context.OwnerProvidedLink, request.ChangeReason);
+        if (context.BrandWasCreated)
+            db.AdminAuditEvents.Add(Audit("CREATE", "Brand", context.Brand.Id,
+                $"Created and activated brand '{context.Brand.Slug}' after explicit confirmation while saving an offer."));
+        else if (context.BrandWasActivated)
+            db.AdminAuditEvents.Add(Audit("ACTIVATE", "Brand", context.Brand.Id,
+                $"Reactivated existing brand '{context.Brand.Slug}' after explicit confirmation while saving an offer."));
         db.AdminAuditEvents.Add(Audit("CREATE", "RetailerListing", listing.Id,
             context.Product is null
                 ? request.IsEnabled ? "Created a new Product and published its administrative offer." : "Created a new Product with an administrative offer draft."
@@ -419,11 +493,11 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
         catch (DbUpdateException exception)
         {
             logger.LogWarning(exception, "Owner admin offer creation conflicted with an existing record.");
-            return Conflict(new ProblemDetails { Title = "Offer already exists", Detail = "The product slug or retailer listing ID is already in use." });
+            return Conflict(new ProblemDetails { Title = "Offer or brand already exists", Detail = "The Product, retailer listing, or normalized brand identity is already in use. Validate the link again to reuse the existing record." });
         }
 
         logger.LogInformation("Owner admin {UserId} created Listing {ListingId}.", ActorId(), listing.Id);
-        return Created($"/api/v1/admin/offers/{listing.Id}", new { listingId = listing.Id, productId = product.Id, previewPath = $"/products/{product.Slug}" });
+        return Created($"/api/v1/admin/offers/{listing.Id}", new { listingId = listing.Id, productId = product.Id, brandId = context.Brand.Id, previewPath = $"/products/{product.Slug}" });
     }
 
     [HttpPut("offers/{listingId:guid}")]
@@ -435,6 +509,7 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
             .Include(item => item.Product).ThenInclude(product => product.Category)
             .Include(item => item.Retailer)
             .Include(item => item.MerchantPolicy)
+            .Include(item => item.AffiliateLinks).ThenInclude(link => link.AffiliateProgram)
             .SingleOrDefaultAsync(item => item.Id == listingId, cancellationToken);
         if (listing is null) return NotFound();
 
@@ -451,10 +526,11 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
             Normalize(request.ModelNumber), Normalize(request.ManufacturerPartNumber), Normalize(request.Gtin), request.VariantAttributes);
         listing.UpdateAdministrativeDetails(
             request.OriginalTitle, request.ProductUrl, request.CurrentPrice, request.ObservedAt, request.RetailerSku,
-            request.ApprovedAffiliateDestinationReference, request.Seller, request.IsMarketplaceSeller, context.Condition,
+            context.OwnerProvidedLink?.DestinationUrl ?? request.ApprovedAffiliateDestinationReference, request.Seller, request.IsMarketplaceSeller, context.Condition,
             request.PackQuantity, request.BundleContents, request.VariantAttributes, request.ExternalIdentifiers, context.Availability,
             request.RegionAvailabilityContext, request.ShippingContext, request.IsEnabled, request.FetchedAt, request.OfferValidUntil);
         listing.SetAdministrativeMatchState(context.MatchState);
+        SyncOwnerProvidedAffiliateLink(listing, context.OwnerProvidedLink, request.ChangeReason);
         db.AdminAuditEvents.Add(Audit("UPDATE", "RetailerListing", listing.Id,
             $"Updated administrative offer. Reason: {Normalize(request.ChangeReason) ?? "Routine editorial update"}."));
 
@@ -760,11 +836,11 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
         // Reusing a Product locks its identity. Editing an existing offer may still update
         // the Product's mutable identity fields while preserving its immutable slug.
         var reusedProduct = existing is null ? product : null;
-        var brand = reusedProduct?.Brand ?? await db.Brands.SingleOrDefaultAsync(item => item.Id == request.BrandId, cancellationToken);
+        var brandResolution = await ResolveOfferBrandAsync(request, existing, reusedProduct, cancellationToken);
+        var brand = brandResolution?.Brand;
         var category = reusedProduct?.Category ?? await db.Categories.SingleOrDefaultAsync(item => item.Id == request.CategoryId, cancellationToken);
         var retailer = await db.Retailers.SingleOrDefaultAsync(item => item.Id == request.RetailerId, cancellationToken);
         var policy = await db.MerchantPolicies.SingleOrDefaultAsync(item => item.Id == request.MerchantPolicyId, cancellationToken);
-        if (brand is null || !brand.IsEnabled) ModelState.AddModelError(nameof(request.BrandId), "Choose an enabled brand.");
         if (category is null || !category.IsEnabled) ModelState.AddModelError(nameof(request.CategoryId), "Choose an enabled category.");
         if (retailer is null || !retailer.IsEnabled) ModelState.AddModelError(nameof(request.RetailerId), "Choose an enabled retailer.");
         if (policy is null) ModelState.AddModelError(nameof(request.MerchantPolicyId), "Choose an existing merchant policy.");
@@ -778,7 +854,7 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
         }
         else if (product is not null)
         {
-            if (!string.Equals(product.Slug, requestedSlug, StringComparison.Ordinal) || product.BrandId != request.BrandId || product.CategoryId != request.CategoryId)
+            if (!string.Equals(product.Slug, requestedSlug, StringComparison.Ordinal) || product.BrandId != brand?.Id || product.CategoryId != request.CategoryId)
                 ModelState.AddModelError(nameof(request.ProductId), "The selected Product identity must be used without changing its slug, brand, or category.");
         }
         else if (await db.Products.AnyAsync(item => item.Slug == requestedSlug, cancellationToken))
@@ -790,13 +866,229 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
         if (!string.IsNullOrWhiteSpace(request.ApprovedAffiliateDestinationReference) && policy?.CanUseAffiliateLinks != true)
             ModelState.AddModelError(nameof(request.ApprovedAffiliateDestinationReference), "The selected merchant policy does not permit affiliate links.");
 
-        return ModelState.IsValid && brand is not null && category is not null && retailer is not null && policy is not null
-            ? new OfferValidationContext(product, brand, category, retailer, policy, condition, availability, matchState)
+        OwnerProvidedAffiliateLinkPlan? ownerProvidedLink = null;
+        if (retailer is not null && policy is not null)
+            ownerProvidedLink = await ValidateOwnerProvidedAffiliateLinkAsync(request, retailer, policy, existing, cancellationToken);
+
+        return ModelState.IsValid && brandResolution is not null && brand is not null && category is not null && retailer is not null && policy is not null
+            ? new OfferValidationContext(product, brand, brandResolution.WasCreated, brandResolution.WasActivated, category, retailer, policy, condition, availability, matchState, ownerProvidedLink)
             : null;
+    }
+
+    private async Task<BrandResolution?> ResolveOfferBrandAsync(
+        UpsertAdminOfferRequest request,
+        RetailerListing? existing,
+        Product? reusedProduct,
+        CancellationToken cancellationToken)
+    {
+        if (reusedProduct is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(request.NewBrandName) || request.ConfirmBrandCreation)
+                ModelState.AddModelError(nameof(request.NewBrandName), "An existing Product keeps its canonical brand.");
+            return new BrandResolution(reusedProduct.Brand, false, false);
+        }
+
+        if (request.BrandId.HasValue)
+        {
+            if (!string.IsNullOrWhiteSpace(request.NewBrandName) || request.ConfirmBrandCreation)
+                ModelState.AddModelError(nameof(request.NewBrandName), "Choose an existing brand or confirm a new brand, not both.");
+            var selected = await db.Brands.SingleOrDefaultAsync(item => item.Id == request.BrandId.Value, cancellationToken);
+            if (selected is null || !selected.IsEnabled)
+            {
+                ModelState.AddModelError(nameof(request.BrandId), "Choose an enabled brand.");
+                return null;
+            }
+            return new BrandResolution(selected, false, false);
+        }
+
+        if (existing is not null)
+        {
+            ModelState.AddModelError(nameof(request.BrandId), "Choose the existing Product brand.");
+            return null;
+        }
+
+        var name = Normalize(request.NewBrandName);
+        var slug = Normalize(request.NewBrandSlug);
+        if (name is null || slug is null)
+        {
+            ModelState.AddModelError(nameof(request.BrandId), "Select an existing brand or review a proposed new brand.");
+            return null;
+        }
+        if (!request.ConfirmBrandCreation)
+        {
+            ModelState.AddModelError(nameof(request.ConfirmBrandCreation), "Confirm the proposed brand before saving the offer.");
+            return null;
+        }
+        if (!SlugPattern.IsMatch(slug))
+        {
+            ModelState.AddModelError(nameof(request.NewBrandSlug), "Use lowercase letters, numbers, and single hyphens for the brand slug.");
+            return null;
+        }
+
+        Brand proposed;
+        try { proposed = Brand.Create(name, slug, enabled: true); }
+        catch (ArgumentException exception)
+        {
+            ModelState.AddModelError(exception.ParamName ?? nameof(request.NewBrandName), exception.Message);
+            return null;
+        }
+
+        var matching = await db.Brands.SingleOrDefaultAsync(item => item.NormalizedKey == proposed.NormalizedKey, cancellationToken);
+        if (matching is null) return new BrandResolution(proposed, true, false);
+        if (matching.IsEnabled) return new BrandResolution(matching, false, false);
+        matching.SetEnabled(true);
+        return new BrandResolution(matching, false, true);
+    }
+
+    private async Task<OwnerProvidedAffiliateLinkPlan?> ValidateOwnerProvidedAffiliateLinkAsync(
+        UpsertAdminOfferRequest request,
+        Retailer retailer,
+        MerchantPolicy policy,
+        RetailerListing? existing,
+        CancellationToken cancellationToken)
+    {
+        var existingOwnerLink = existing?.AffiliateLinks
+            .Where(link => link.AcquisitionMode == AffiliateLinkAcquisitionMode.OwnerProvided)
+            .OrderByDescending(link => link.CreatedAt)
+            .FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(request.AffiliateTrackingUrl))
+        {
+            if (existingOwnerLink is not null && string.IsNullOrWhiteSpace(request.ChangeReason))
+                ModelState.AddModelError(nameof(request.ChangeReason), "A reason is required when removing an owner-provided retailer link.");
+            return null;
+        }
+
+        OwnerProvidedAffiliateLinkInspection inspection;
+        try { inspection = affiliateLinkInspector.Inspect(request.AffiliateTrackingUrl); }
+        catch (ArgumentException exception)
+        {
+            ModelState.AddModelError(nameof(request.AffiliateTrackingUrl), exception.Message);
+            return null;
+        }
+
+        var amazonStore = retailer.Key is "amazon" or "amazon-ca" or "amazon-canada" ||
+                          retailer.Name.Equals("Amazon.ca", StringComparison.OrdinalIgnoreCase) ||
+                          retailer.Name.Equals("Amazon Canada", StringComparison.OrdinalIgnoreCase);
+        if (!amazonStore)
+            ModelState.AddModelError(nameof(request.RetailerId), "An Amazon owner-provided link must be associated with the Amazon Canada store.");
+
+        var asin = OwnerProvidedAffiliateLinkInspector.AmazonAsin(request.ProductUrl);
+        if (asin is null)
+            ModelState.AddModelError(nameof(request.ProductUrl), "Use the canonical Amazon.ca Product page containing /dp/{ASIN}.");
+        else if (!string.Equals(request.ExternalListingId?.Trim(), asin, StringComparison.OrdinalIgnoreCase))
+            ModelState.AddModelError(nameof(request.ExternalListingId), "For an Amazon link, the external listing ID must be the 10-character ASIN from the Product page.");
+
+        var partnerTag = request.AffiliatePartnerTag?.Trim();
+        if (string.IsNullOrWhiteSpace(partnerTag) || !AmazonPartnerTagPattern.IsMatch(partnerTag))
+            ModelState.AddModelError(nameof(request.AffiliatePartnerTag), "Enter the Canadian Amazon Partner Tag associated with this link.");
+        else if (!string.Equals(inspection.TrackingHost, "amzn.to", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(inspection.PartnerTag))
+            ModelState.AddModelError(nameof(request.AffiliateTrackingUrl), "This Amazon URL is not tagged as an affiliate link. Generate the finished link in Amazon Associates/SiteStripe instead of entering a Partner Tag separately.");
+        else if (!string.IsNullOrWhiteSpace(inspection.PartnerTag) && !string.Equals(inspection.PartnerTag, partnerTag, StringComparison.OrdinalIgnoreCase))
+            ModelState.AddModelError(nameof(request.AffiliatePartnerTag), "The Partner Tag does not match the tag visible in the Amazon link.");
+
+        if (!request.AffiliateRelationshipConfirmed)
+            ModelState.AddModelError(nameof(request.AffiliateRelationshipConfirmed), "Confirm that the link belongs to the approved account and GreatDeals.ca is registered for its use.");
+        var evidence = request.AffiliateRelationshipEvidenceReference?.Trim();
+        if (string.IsNullOrWhiteSpace(evidence))
+            ModelState.AddModelError(nameof(request.AffiliateRelationshipEvidenceReference), "Add a redacted relationship evidence reference.");
+        if (!policy.CanUseAffiliateLinks)
+            ModelState.AddModelError(nameof(request.MerchantPolicyId), "The selected merchant policy does not permit retailer links.");
+
+        if (request.IsEnabled)
+        {
+            if (!policy.SourceKey.StartsWith("amazon-creators", StringComparison.OrdinalIgnoreCase))
+                ModelState.AddModelError(nameof(request.IsEnabled), "Amazon offers require a verified amazon-creators Merchant Policy before publication. Save this offer as a draft.");
+            var disclosure = $"{policy.RequiredAttribution} {policy.DisclosureText}";
+            if (!disclosure.Contains("Amazon Associate", StringComparison.OrdinalIgnoreCase))
+                ModelState.AddModelError(nameof(request.IsEnabled), "The Amazon Merchant Policy must include the required Amazon Associate disclosure before publication.");
+        }
+
+        var program = await db.AffiliatePrograms
+            .SingleOrDefaultAsync(candidate => candidate.RetailerId == retailer.Id && candidate.Provider == AffiliateProviderType.AmazonCreators, cancellationToken);
+        if (program?.Status == AffiliateProgramStatus.Active && !string.Equals(program.ProviderProgramId, partnerTag, StringComparison.OrdinalIgnoreCase))
+            ModelState.AddModelError(nameof(request.AffiliatePartnerTag), "This store already has a different active Amazon Partner Tag. Review the program configuration instead of replacing it from an offer.");
+
+        return ModelState.IsValid && asin is not null && partnerTag is not null && evidence is not null
+            ? new OwnerProvidedAffiliateLinkPlan(request.AffiliateTrackingUrl, request.ProductUrl.Trim(), asin, partnerTag, evidence, program)
+            : null;
+    }
+
+    private void SyncOwnerProvidedAffiliateLink(RetailerListing listing, OwnerProvidedAffiliateLinkPlan? plan, string? reason)
+    {
+        var existingOwnerLinks = listing.AffiliateLinks
+            .Where(link => link.AcquisitionMode == AffiliateLinkAcquisitionMode.OwnerProvided)
+            .ToList();
+        if (plan is null)
+        {
+            foreach (var link in existingOwnerLinks.Where(link => link.Status != AffiliateLinkStatus.Disabled))
+                link.Disable(Normalize(reason) ?? "OWNER_REMOVED");
+            return;
+        }
+
+        var now = clock.GetUtcNow();
+        var program = plan.Program;
+        if (program is null)
+        {
+            program = AffiliateProgram.Create(
+                listing.RetailerId,
+                AffiliateProviderType.AmazonCreators,
+                AffiliateProgramStatus.Active,
+                now,
+                providerProgramId: plan.PartnerTag,
+                allowsDeepLinking: true,
+                destinationDomains: ["amazon.ca"],
+                trackingDomains: ["amzn.to", "amazon.ca"],
+                relationshipEvidenceReference: plan.RelationshipEvidenceReference,
+                relationshipValidatedAt: now);
+            db.AffiliatePrograms.Add(program);
+        }
+        else if (program.Status != AffiliateProgramStatus.Active)
+        {
+            program.ActivateOwnerProvidedAmazon(
+                plan.PartnerTag,
+                ["amazon.ca"],
+                ["amzn.to", "amazon.ca"],
+                plan.RelationshipEvidenceReference,
+                now);
+        }
+
+        var unchanged = existingOwnerLinks.FirstOrDefault(link =>
+            link.Status == AffiliateLinkStatus.Active &&
+            link.Provider == AffiliateProviderType.AmazonCreators &&
+            link.HandoffMode == AffiliateHandoffMode.DirectProvider &&
+            string.Equals(link.TrackingUrl, plan.TrackingUrl, StringComparison.Ordinal) &&
+            string.Equals(link.DestinationUrl, plan.DestinationUrl, StringComparison.Ordinal));
+        foreach (var link in existingOwnerLinks.Where(link => link != unchanged && link.Status != AffiliateLinkStatus.Disabled))
+            link.Disable("OWNER_REPLACED");
+        if (unchanged is not null) return;
+
+        db.AffiliateLinks.Add(AffiliateLink.CreateOwnerProvidedActive(
+            listing.Id,
+            program.Id,
+            AffiliateProviderType.AmazonCreators,
+            plan.TrackingUrl,
+            plan.DestinationUrl,
+            now,
+            now.AddDays(30),
+            providerReference: "OWNER_PROVIDED_AMAZON_LINK"));
     }
 
     private AdminOfferResponse ToOfferResponse(RetailerListing listing, DateTimeOffset now)
     {
+        var affiliateLink = listing.AffiliateLinks
+            .OrderByDescending(link => link.AcquisitionMode == AffiliateLinkAcquisitionMode.OwnerProvided)
+            .ThenByDescending(link => link.Status == AffiliateLinkStatus.Active)
+            .ThenByDescending(link => link.CreatedAt)
+            .FirstOrDefault();
+        var affiliateReady = affiliateLink is not null && affiliateLink.Status == AffiliateLinkStatus.Active && affiliateLink.IsUsable(now) &&
+                             (affiliateLink.HandoffMode == AffiliateHandoffMode.DirectProvider
+                                 ? affiliateLink.AffiliateProgram.CanAcceptOwnerProvidedLinks()
+                                 : affiliateLink.AffiliateProgram.CanGenerateLinks());
+        var affiliateReadiness = affiliateLink is null ? "No retailer link is attached."
+            : affiliateReady ? affiliateLink.HandoffMode == AffiliateHandoffMode.DirectProvider
+                ? "Owner-provided Amazon link is ready for direct handoff."
+                : "Provider-generated link is ready for protected handoff."
+            : $"Retailer link is {affiliateLink.Status.ToString().ToLowerInvariant()} or its program is not ready.";
         var expired = listing.OfferValidUntil.HasValue && listing.OfferValidUntil <= now;
         var publicEligible = listing.IsEnabled && !expired && listing.Retailer.IsEnabled && listing.Product.Brand.IsEnabled && listing.Product.Category.IsEnabled && listing.MerchantPolicy.CanPublishCurrentPrice &&
                              !string.Equals(listing.MerchantPolicy.RequiredAttribution, TestOnlyAttribution, StringComparison.OrdinalIgnoreCase);
@@ -808,6 +1100,11 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
             listing.Product.CategoryId, listing.Product.Category.Name, listing.Product.ModelNumber, listing.Product.ManufacturerPartNumber, listing.Product.Gtin,
             listing.Product.VariantAttributes, listing.RetailerId, listing.Retailer.Name, listing.MerchantPolicyId, listing.MerchantPolicy.SourceKey,
             listing.ExternalListingId, listing.RetailerSku, listing.OriginalTitle, listing.ProductUrl, listing.ApprovedAffiliateDestinationReference,
+            affiliateLink?.AcquisitionMode == AffiliateLinkAcquisitionMode.OwnerProvided ? affiliateLink.TrackingUrl : null,
+            affiliateLink?.Provider == AffiliateProviderType.AmazonCreators ? "AMAZON_CREATORS" : affiliateLink?.Provider.ToString().ToUpperInvariant(),
+            affiliateLink?.HandoffMode == AffiliateHandoffMode.DirectProvider ? "DIRECT_PROVIDER" : affiliateLink is null ? null : "INTERNAL_REDIRECT",
+            affiliateLink?.Status.ToString().ToUpperInvariant(), affiliateReadiness,
+            affiliateLink?.AffiliateProgram.ProviderProgramId, affiliateLink?.AffiliateProgram.RelationshipEvidenceReference,
             listing.Seller, listing.IsMarketplaceSeller, listing.Condition.ToString().ToUpperInvariant(), listing.PackQuantity, listing.BundleContents,
             listing.RegionAvailabilityContext, listing.OnlineAvailability.ToString().ToUpperInvariant(), listing.ShippingContext, listing.ExternalIdentifiers,
             listing.SourceObservedAt, listing.FetchedAt, listing.OfferValidUntil, listing.CurrentPriceAmount, listing.CurrentPriceCurrency ?? "CAD", listing.MatchState.ToString().ToUpperInvariant(),
@@ -864,6 +1161,65 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
             ModelState.AddModelError(field, "Use at most 40 key/value entries; keys are limited to 80 and values to 300 characters.");
     }
 
+    private async Task<AdminBrandCandidateResponse?> BuildBrandCandidateAsync(string sourceUrl, CancellationToken cancellationToken)
+    {
+        var title = ProductTitleFromRetailerUrl(sourceUrl);
+        if (title is null) return null;
+        var titleKey = Brand.NormalizeKey(title);
+        var brands = await db.Brands.AsNoTracking().ToListAsync(cancellationToken);
+        var matched = brands
+            .Where(brand => titleKey == brand.NormalizedKey || titleKey.StartsWith($"{brand.NormalizedKey} ", StringComparison.Ordinal))
+            .OrderByDescending(brand => brand.NormalizedKey.Length)
+            .FirstOrDefault();
+        if (matched is not null)
+        {
+            return new AdminBrandCandidateResponse(
+                matched.Name,
+                matched.Slug,
+                matched.NormalizedKey,
+                "CATALOG_URL_PREFIX",
+                "EXACT",
+                matched.IsEnabled ? "MATCHED_EXISTING" : "MATCHED_INACTIVE",
+                matched.Id,
+                matched.Name,
+                matched.IsEnabled);
+        }
+
+        var candidate = title.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();
+        var rejected = new[] { "amazon", "best", "generic", "new", "product", "unbranded", "unknown" };
+        if (candidate is null || candidate.Length is < 2 or > 80 || rejected.Contains(candidate, StringComparer.OrdinalIgnoreCase)) return null;
+        var normalizedKey = Brand.NormalizeKey(candidate);
+        var slug = SlugFromBrandName(candidate);
+        if (normalizedKey.Length == 0 || slug.Length == 0) return null;
+        return new AdminBrandCandidateResponse(candidate, slug, normalizedKey, "URL_PATH", "LOW", "NEW_CANDIDATE", null, null, null);
+    }
+
+    private static string? ProductTitleFromRetailerUrl(string value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)) return null;
+        var parts = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var marker = Array.FindIndex(parts, part => part.Equals("dp", StringComparison.OrdinalIgnoreCase) || part.Equals("product", StringComparison.OrdinalIgnoreCase));
+        if (marker < 1) return null;
+        var candidate = Uri.UnescapeDataString(parts[marker - 1]);
+        candidate = Regex.Replace(candidate, "[-_]+", " ");
+        candidate = Regex.Replace(candidate, "\\s+", " ").Trim();
+        return candidate.Length is >= 4 and <= 240 && !Regex.IsMatch(candidate, "^[A-Z0-9]{10}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
+            ? candidate
+            : null;
+    }
+
+    private static string SlugFromBrandName(string value)
+    {
+        var decomposed = value.Normalize(NormalizationForm.FormD);
+        var ascii = new StringBuilder(decomposed.Length);
+        foreach (var character in decomposed)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark) continue;
+            ascii.Append(character);
+        }
+        return Regex.Replace(ascii.ToString().ToLowerInvariant(), "[^a-z0-9]+", "-").Trim('-');
+    }
+
     private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static bool IsSupportedBannerImage(string contentType, ReadOnlySpan<byte> bytes) => contentType switch
@@ -877,10 +1233,23 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, ILogg
     private sealed record OfferValidationContext(
         Product? Product,
         Brand Brand,
+        bool BrandWasCreated,
+        bool BrandWasActivated,
         Category Category,
         Retailer Retailer,
         MerchantPolicy Policy,
         ProductCondition Condition,
         OnlineAvailabilityState Availability,
-        MatchState MatchState);
+        MatchState MatchState,
+        OwnerProvidedAffiliateLinkPlan? OwnerProvidedLink);
+
+    private sealed record BrandResolution(Brand Brand, bool WasCreated, bool WasActivated);
+
+    private sealed record OwnerProvidedAffiliateLinkPlan(
+        string TrackingUrl,
+        string DestinationUrl,
+        string Asin,
+        string PartnerTag,
+        string RelationshipEvidenceReference,
+        AffiliateProgram? Program);
 }

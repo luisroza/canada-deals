@@ -9,7 +9,7 @@ The scores below are screening judgements, not approvals. Two high-quality appro
 |---|---|---|---|---|---:|---|
 | Best Buy Canada | strong electronics | official page identifies Impact; Canada Deals approval **ABSENT** | feed/API **UNKNOWN** | medium; terms/license review | 72 | **Impact adapter implemented — awaiting publisher approval/credentials** |
 | Home Depot Canada | strong home improvement/tools | official page identifies Commission Junction; Canada Deals approval **ABSENT** | feed/API **UNKNOWN** | medium; terms/license review | 70 | **CJ adapter implemented — awaiting publisher approval/credentials** |
-| Amazon.ca | broad electronics/home/tools | Associates Canada + Creators API direction; Canada Deals eligibility **UNKNOWN** | official API exists, not authorized here | high; strict policy and comparison rules | 66 | **Gated; no adapter** |
+| Amazon.ca | broad electronics/home/tools | owner-provided Special Link boundary implemented; Canada Deals eligibility still requires operator evidence | official API exists, not authorized here | high; strict policy and comparison rules | 66 | **Direct link supported; Product data/API gated** |
 | Walmart Canada | broad general merchandise | current Walmart.ca page points to Rakuten; Canada Deals approval/link rights **ABSENT** | merchant feed/API **UNKNOWN** | medium/high | 60 | **Gated / unverified for Canada Deals** |
 | Canadian Tire | strong Canadian relevance/tools | current program/network **UNKNOWN** | **UNKNOWN** | **UNKNOWN** | 48 | Phase 2 research |
 | Staples Canada | electronics/home office | current program/network **UNKNOWN** | **UNKNOWN** | **UNKNOWN** | 45 | Phase 2 |
@@ -31,7 +31,7 @@ No live Rakuten discovery was authorized in Vertical Slice 9, so this document r
 
 ### Amazon.ca
 
-Use official Associates/Creators API or another written approved path only. Do not scrape or alter provider-vended links. Treat price/availability display, timestamp, comparison with other retailers, image caching, historical price storage, and mobile use as policy-controlled. Do not build a permanent historical archive from Amazon content without written review.
+Use official Associates/Creators API or another written approved path only. Do not scrape or alter provider-vended or owner-created Special Links. The owner-provided direct-link path stores the exact link and deliberately does not resolve `amzn.to`; it requires manual canonical page, ASIN, Partner Tag, relationship evidence, and an Amazon-specific Merchant Policy. Treat price/availability display, timestamp, comparison with other retailers, image caching, historical price storage, and mobile use as independently policy-controlled. Do not build a permanent historical archive from Amazon content without written review.
 
 ### Best Buy Canada
 

@@ -19,7 +19,7 @@ export function OfferCard({ offer, related = false }: { offer: RetailerOffer; re
       <p className="offer-meta">{offer.evidenceState.toLowerCase()} evidence · {offer.historyState.toLowerCase()} history</p>
       {!related && offer.freshnessState === "STALE" && <p className="stale-guidance"><strong>Price may have changed.</strong> Verify the current amount and availability at the retailer.</p>}
       {!related && <RetailerAction offer={offer} />}
-      {!related && offer.handoffPath && <p className="disclosure">{offer.disclosure}</p>}
+      {!related && (offer.handoffPath || offer.handoffUrl) && <p className="disclosure">{offer.disclosure}</p>}
     </article>
   );
 }

@@ -3,6 +3,7 @@ using CanadaDeals.Domain.Administration;
 using CanadaDeals.Domain.Affiliates;
 using CanadaDeals.Domain.Alerts;
 using CanadaDeals.Domain.Catalog;
+using CanadaDeals.Domain.Common;
 using CanadaDeals.Domain.Integrations;
 using CanadaDeals.Domain.Policies;
 using CanadaDeals.Domain.Reporting;
@@ -68,9 +69,11 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.Slug).IsUnique();
+            entity.HasIndex(x => x.NormalizedKey).IsUnique();
             entity.HasIndex(x => new { x.IsEnabled, x.Name });
             entity.Property(x => x.Name).HasMaxLength(120).IsRequired();
             entity.Property(x => x.Slug).HasMaxLength(140).IsRequired();
+            entity.Property(x => x.NormalizedKey).HasMaxLength(140).IsRequired();
             entity.Property(x => x.IsEnabled).HasDefaultValue(true);
         });
 
@@ -212,6 +215,11 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
             entity.Property(x => x.DestinationUrl).HasMaxLength(2000).IsRequired();
             entity.Property(x => x.ProviderReference).HasMaxLength(240);
             entity.Property(x => x.FailureReason).HasMaxLength(160);
+            entity.Property(x => x.AcquisitionMode).HasDefaultValue(AffiliateLinkAcquisitionMode.ProviderGenerated);
+            entity.Property(x => x.HandoffMode).HasDefaultValue(AffiliateHandoffMode.InternalRedirect);
+            entity.ToTable(table => table.HasCheckConstraint(
+                "CK_AffiliateLinks_OwnerProvidedDirectHandoff",
+                "(\"AcquisitionMode\" = 0 AND \"HandoffMode\" = 0) OR (\"AcquisitionMode\" = 1 AND \"HandoffMode\" = 1 AND \"Provider\" = 3)"));
             entity.HasOne(x => x.RetailerListing).WithMany(x => x.AffiliateLinks)
                 .HasForeignKey(x => x.RetailerListingId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.AffiliateProgram).WithMany()

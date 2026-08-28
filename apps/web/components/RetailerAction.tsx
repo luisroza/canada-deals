@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { RetailerOffer } from "../lib/api";
-import { publicHandoffPath } from "../lib/api";
+import { publicHandoffHref } from "../lib/api";
 
 export function retailerActionLabel(offer: Pick<RetailerOffer, "freshnessState" | "retailer">) {
   return offer.freshnessState === "STALE"
@@ -22,13 +22,14 @@ export function RetailerAction({ offer, stickyOnMobile = false }: { offer: Retai
     return () => observer.disconnect();
   }, [stickyOnMobile]);
 
-  if (!offer.handoffPath) return null;
-  const href = publicHandoffPath(offer.handoffPath);
+  const href = publicHandoffHref(offer.handoffPath, offer.handoffUrl);
+  if (!href) return null;
+  const rel = offer.handoffMode === "DIRECT_PROVIDER" ? "sponsored noopener" : "sponsored";
 
   return <>
-    <a ref={sourceRef} className="button button-primary" href={href}>{label}</a>
+    <a ref={sourceRef} className="button button-primary" href={href} rel={rel}>{label}</a>
     {stickyOnMobile && showSticky && <div className="mobile-retailer-bar" role="region" aria-label="Retailer action">
-      <a className="button button-primary" href={href}>Check retailer price</a>
+      <a className="button button-primary" href={href} rel={rel}>Check retailer price</a>
     </div>}
   </>;
 }

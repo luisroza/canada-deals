@@ -82,6 +82,18 @@ public enum AffiliateLinkStatus
     Disabled = 3
 }
 
+public enum AffiliateLinkAcquisitionMode
+{
+    ProviderGenerated = 0,
+    OwnerProvided = 1
+}
+
+public enum AffiliateHandoffMode
+{
+    InternalRedirect = 0,
+    DirectProvider = 1
+}
+
 public enum StoreBannerAssetSource
 {
     CanadaDealsOriginal = 0,

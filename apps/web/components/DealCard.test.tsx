@@ -27,6 +27,8 @@ const baseDeal = {
   hasSafeComparison: true,
   detailsPath: "/products/northstar-55-qled-tv",
   handoffPath: "/go/a",
+  handoffUrl: null,
+  handoffMode: "INTERNAL_REDIRECT" as const,
   disclosure: "Demo fixture data.",
   productImage: { url: "/api/v1/product-images/image-a", width: 800, height: 800 },
 };
@@ -52,10 +54,18 @@ describe("DealCard", () => {
   });
 
   it("renders stale evidence and a missing retailer destination honestly", () => {
-    render(<DealCard deal={{ ...baseDeal, freshnessState: "STALE", evidenceState: "UNAVAILABLE", handoffPath: null }} />);
+    render(<DealCard deal={{ ...baseDeal, freshnessState: "STALE", evidenceState: "UNAVAILABLE", handoffPath: null, handoffMode: "NONE" }} />);
     expect(screen.getByText(/May be stale.*Reference unavailable/)).toBeInTheDocument();
     expect(screen.getByText("Retailer link unavailable")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /check retailer price/i })).not.toBeInTheDocument();
+  });
+
+  it("preserves an owner-provided Amazon link for direct handoff", () => {
+    render(<DealCard deal={{ ...baseDeal, retailer: "Amazon.ca", handoffPath: null, handoffUrl: "https://amzn.to/example", handoffMode: "DIRECT_PROVIDER" }} />);
+    const retailerLink = screen.getByRole("link", { name: "Check retailer price at Amazon.ca" });
+    expect(retailerLink).toHaveAttribute("href", "https://amzn.to/example");
+    expect(retailerLink).toHaveAttribute("rel", "sponsored noopener");
+    expect(screen.getByText("Paid link")).toBeInTheDocument();
   });
 
   it("offers a card-level Wishlist path that preserves the current discovery context", async () => {

@@ -43,7 +43,10 @@ If a password has ever been pasted into chat or another durable message, treat i
 - Prefer draft/deactivation over deletion.
 - Do not enable an offer until its Merchant Policy permits current-price publication.
 - Never type a retailer discount or reference price; those remain evidence-derived.
-- Do not paste tracking URLs into offers or banners. Affiliate handoff is created only by approved provider records.
+- Paste a finished tracking URL only in the Offer link-intake step. Amazon links are preserved exactly and require the approved Associates relationship, Partner Tag, evidence, canonical Product page/ASIN, Amazon Merchant Policy, and disclosure. Owner-triggered validation resolves only bounded `amzn.to` redirect headers to an HTTPS Amazon.ca destination and never downloads the Product page. Banners and non-Amazon providers continue to use approved provider records.
+- A normal Amazon Product-page URL without `tag=` is not an affiliate link. Generate the finished URL in Associates/SiteStripe; the panel will not accept a separately typed Partner Tag as a substitute for a missing tag on a long URL.
+- Link analysis fills only facts available in the pasted URL or an existing approved catalog record. Price and Amazon-hosted imagery require an authorized Creators API/content-rights path; do not copy them through automated page scraping.
+- A Brand inferred from descriptive URL text is a low-confidence candidate. Review its display name and slug, then explicitly confirm it before save. Validation alone creates nothing; the confirmed offer save reuses a normalized match or creates/reactivates the Brand atomically and records the action in Audit.
 - Use only reviewed first-party banner assets or documented merchant-approved assets with valid placement and dates.
 - Add a concise reason when changing match state, deactivating content, or resolving a report.
 - Review the Audit area after sensitive changes.

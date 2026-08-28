@@ -32,6 +32,7 @@ Priority meanings: **P0** required for the core MVP decision loop; **P1** retent
 | UX-023 | Sponsored placement | Understand paid content if introduced | P3 | Any future sponsored module is labeled and separated from organic evidence/ranking; excluded from MVP. |
 | UX-024 | Community and voting | Share opinions or vote on deals | P3 | Explicitly outside MVP; no comment, reputation, or community affordance appears in core flows. |
 | UX-025 | Native app / push / extension | Access deals outside responsive web | P3 | Explicitly outside MVP; no app-install or push request interrupts the core web decision loop. |
+| UX-026 | Google end-user sign-in | Reach the Wishlist with less account friction | P2 | Proposed only: Google appears at account/Wishlist boundaries, preserves context and pending save, keeps email/password available, requests only identity/email, handles mobile/accessibility/error states, and never authenticates owner administration. Requires ADR-013 and Human Architecture / Security approval. |
 
 ## P0 release slice
 
@@ -43,7 +44,7 @@ UX-016 through UX-019 add the return loop: Save → Target Price → Alert → R
 
 ## P2 and explicit exclusions
 
-Weekly digest is P2, as approved at the Human Product Checkpoint. Community, cashback/rewards, native app, push notifications, browser extension, AI shopping agent, complex personalization, paid ranking, mass programmatic SEO, French-complete launch, and broad retailer/category promises remain outside MVP.
+Weekly digest is P2, as approved at the Human Product Checkpoint. Google end-user sign-in is also recorded as a P2 proposal but is not approved for implementation. Community, cashback/rewards, native app, push notifications, browser extension, AI shopping agent, complex personalization, paid ranking, mass programmatic SEO, French-complete launch, and broad retailer/category promises remain outside MVP.
 
 ## Usability validation sequence
 

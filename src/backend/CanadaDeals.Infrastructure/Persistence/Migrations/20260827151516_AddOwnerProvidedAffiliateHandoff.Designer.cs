@@ -3,6 +3,7 @@ using System;
 using CanadaDeals.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace CanadaDeals.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(DealsDbContext))]
-    partial class DealsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260827151516_AddOwnerProvidedAffiliateHandoff")]
+    partial class AddOwnerProvidedAffiliateHandoff
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -493,20 +496,12 @@ namespace CanadaDeals.Infrastructure.Persistence.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
 
-                    b.Property<string>("NormalizedKey")
-                        .IsRequired()
-                        .HasMaxLength(140)
-                        .HasColumnType("character varying(140)");
-
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(140)
                         .HasColumnType("character varying(140)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("NormalizedKey")
-                        .IsUnique();
 
                     b.HasIndex("Slug")
                         .IsUnique();

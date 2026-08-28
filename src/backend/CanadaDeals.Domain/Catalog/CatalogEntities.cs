@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using CanadaDeals.Domain.Common;
 using CanadaDeals.Domain.Search;
@@ -10,27 +12,53 @@ public sealed class Brand
     public Guid Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public string Slug { get; private set; } = string.Empty;
+    public string NormalizedKey { get; private set; } = string.Empty;
     public bool IsEnabled { get; private set; } = true;
 
     public static Brand Create(string name, string slug, bool enabled = true)
     {
         ValidateName(name);
         ValidateSlug(slug);
-        return new Brand { Id = Guid.NewGuid(), Name = name.Trim(), Slug = slug.Trim(), IsEnabled = enabled };
+        return new Brand { Id = Guid.NewGuid(), Name = name.Trim(), Slug = slug.Trim(), NormalizedKey = NormalizeKey(name), IsEnabled = enabled };
     }
 
     public void UpdateAdministrativeName(string name)
     {
         ValidateName(name);
         Name = name.Trim();
+        NormalizedKey = NormalizeKey(name);
     }
 
     public void SetEnabled(bool enabled) => IsEnabled = enabled;
+
+    public static string NormalizeKey(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var normalized = value.Replace("®", string.Empty, StringComparison.Ordinal)
+            .Replace("™", string.Empty, StringComparison.Ordinal)
+            .Replace("©", string.Empty, StringComparison.Ordinal)
+            .Normalize(NormalizationForm.FormKC);
+        var result = new StringBuilder(normalized.Length);
+        var pendingSpace = false;
+        foreach (var character in normalized)
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                if (pendingSpace && result.Length > 0) result.Append(' ');
+                result.Append(char.ToLower(character, CultureInfo.InvariantCulture));
+                pendingSpace = false;
+            }
+            else pendingSpace = true;
+        }
+        return result.ToString();
+    }
 
     private static void ValidateName(string name)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 120)
             throw new ArgumentException("A brand name of at most 120 characters is required.", nameof(name));
+        if (NormalizeKey(name).Length == 0)
+            throw new ArgumentException("The brand name must contain at least one letter or number.", nameof(name));
     }
 
     private static void ValidateSlug(string slug)

@@ -467,6 +467,9 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
     private DealCardResponse ToCard(RetailerListing listing, DateTimeOffset now, IReadOnlyList<RetailerListing> feed, decimal? referencePrice, ProductImageResponse? productImage)
     {
         var offer = ToOffer(listing, now);
+        var disclosure = offer.HandoffMode == "DIRECT_PROVIDER"
+            ? "Paid link. As an Amazon Associate I earn from qualifying purchases."
+            : listing.MerchantPolicy.DisclosureText;
         return new DealCardResponse(listing.Id, listing.ProductId, listing.Product.Slug, listing.Product.Title, listing.Product.Brand.Name,
             listing.Product.Category.Name, listing.Retailer.Name, listing.CurrentPriceAmount, listing.CurrentPriceCurrency ?? "CAD",
             offer.FreshnessState, offer.EvidenceState, offer.AvailabilityState, EvidenceExplanation(offer.EvidenceState), listing.SourceObservedAt,
@@ -475,7 +478,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                 ? Math.Round((referencePrice!.Value - listing.CurrentPriceAmount.Value) / referencePrice.Value * 100m, 1)
                 : null,
             feed.Any(x => x.ProductId == listing.ProductId && x.Id != listing.Id && ComparisonRules.IsSafeComparison(x)),
-            $"/products/{listing.Product.Slug}", HandoffPath(listing, now), listing.MerchantPolicy.DisclosureText, productImage);
+            $"/products/{listing.Product.Slug}", offer.HandoffPath, offer.HandoffUrl, offer.HandoffMode, disclosure, productImage);
     }
 
     private async Task<IReadOnlyDictionary<Guid, ProductImageResponse>> PublicImagesAsync(
@@ -503,11 +506,15 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
     {
         var freshness = FreshnessCalculator.Calculate(listing.SourceObservedAt, now);
         var evidence = EvidenceCalculator.Calculate(listing.MerchantPolicy, listing.History, listing.CurrentPriceAmount);
+        var handoff = Handoff(listing, now);
+        var disclosure = handoff.Mode == "DIRECT_PROVIDER"
+            ? "Paid link. As an Amazon Associate I earn from qualifying purchases."
+            : listing.MerchantPolicy.DisclosureText;
         return new RetailerOfferResponse(listing.Id, listing.Retailer.Name, listing.OriginalTitle, listing.CurrentPriceAmount,
             listing.CurrentPriceCurrency ?? "CAD", freshness.ToString().ToUpperInvariant(), evidence.ToString().ToUpperInvariant(),
             PublicMatchState(listing.MatchState), listing.History.ToString().ToUpperInvariant(), listing.OnlineAvailability.ToString().ToUpperInvariant(),
             listing.Seller, listing.Condition.ToString().ToUpperInvariant(), listing.RegionAvailabilityContext, listing.ShippingContext, listing.SourceObservedAt,
-            HandoffPath(listing, now), listing.MerchantPolicy.DisclosureText, ComparisonRules.IsSafeComparison(listing));
+            handoff.Path, handoff.Url, handoff.Mode, disclosure, ComparisonRules.IsSafeComparison(listing));
     }
 
     private static string PublicMatchState(MatchState matchState) => matchState switch
@@ -517,13 +524,29 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         _ => "No safe comparison available"
     };
 
-    private static string? HandoffPath(RetailerListing listing, DateTimeOffset now)
+    private static PublicHandoff Handoff(RetailerListing listing, DateTimeOffset now)
     {
-        if (!listing.MerchantPolicy.CanUseAffiliateLinks || string.IsNullOrWhiteSpace(listing.ApprovedAffiliateDestinationReference)) return null;
+        if (!listing.MerchantPolicy.CanUseAffiliateLinks || string.IsNullOrWhiteSpace(listing.ApprovedAffiliateDestinationReference)) return PublicHandoff.None;
+
+        var direct = listing.AffiliateLinks
+            .Where(link => link.Status == AffiliateLinkStatus.Active && link.IsUsable(now) &&
+                           link.AcquisitionMode == AffiliateLinkAcquisitionMode.OwnerProvided &&
+                           link.HandoffMode == AffiliateHandoffMode.DirectProvider &&
+                           link.Provider == AffiliateProviderType.AmazonCreators &&
+                           link.AffiliateProgram.CanAcceptOwnerProvidedLinks())
+            .OrderByDescending(link => link.LastValidatedAt)
+            .FirstOrDefault(link =>
+                AffiliateUrlPolicy.TryValidateHttps(listing.ApprovedAffiliateDestinationReference, link.AffiliateProgram.DestinationDomains, out var listingDestination) &&
+                AffiliateUrlPolicy.TryValidateHttps(link.DestinationUrl, link.AffiliateProgram.DestinationDomains, out var persistedDestination) &&
+                AffiliateUrlPolicy.DestinationsMatch(listingDestination!, persistedDestination!) &&
+                AffiliateUrlPolicy.TryValidateHttps(link.TrackingUrl, link.AffiliateProgram.TrackingDomains, out _));
+        if (direct is not null) return new PublicHandoff(null, direct.TrackingUrl, "DIRECT_PROVIDER");
 
         var hasApprovedLink = listing.AffiliateLinks.Any(link =>
             link.Status == AffiliateLinkStatus.Active &&
             link.IsUsable(now) &&
+            link.AcquisitionMode == AffiliateLinkAcquisitionMode.ProviderGenerated &&
+            link.HandoffMode == AffiliateHandoffMode.InternalRedirect &&
             link.AffiliateProgram.CanGenerateLinks() &&
             AffiliateUrlPolicy.TryValidateHttps(
                 listing.ApprovedAffiliateDestinationReference,
@@ -539,7 +562,12 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                 link.AffiliateProgram.TrackingDomains,
                 out _));
 
-        return hasApprovedLink ? $"/go/{listing.Id}" : null;
+        return hasApprovedLink ? new PublicHandoff($"/go/{listing.Id}", null, "INTERNAL_REDIRECT") : PublicHandoff.None;
+    }
+
+    private sealed record PublicHandoff(string? Path, string? Url, string Mode)
+    {
+        public static readonly PublicHandoff None = new(null, null, "NONE");
     }
 
     private static string EvidenceExplanation(string state) => state switch

@@ -12,6 +12,8 @@ export type AdminOffer = {
   modelNumber: string | null; manufacturerPartNumber: string | null; gtin: string | null; variantAttributes: Record<string, string>;
   retailerId: string; retailer: string; merchantPolicyId: string; merchantPolicy: string; externalListingId: string; retailerSku: string | null;
   originalTitle: string; productUrl: string; approvedAffiliateDestinationReference: string | null; seller: string | null; isMarketplaceSeller: boolean | null;
+  affiliateTrackingUrl: string | null; affiliateProvider: string | null; affiliateHandoffMode: string | null; affiliateLinkStatus: string | null;
+  affiliateLinkReadiness: string; affiliatePartnerTag: string | null; affiliateRelationshipEvidenceReference: string | null;
   conditionState: string; packQuantity: number | null; bundleContents: string | null; regionAvailabilityContext: string | null; availabilityState: string;
   shippingContext: string | null; externalIdentifiers: Record<string, string>; observedAt: string | null; fetchedAt: string | null; offerValidUntil: string | null; currentPrice: number | null;
   currency: string; matchState: string; evidenceState: string; historyState: string; isEnabled: boolean; isPubliclyEligible: boolean; readinessSummary: string; previewPath: string;
@@ -39,13 +41,29 @@ export type AdminDashboard = {
 
 export type AdminOfferInput = {
   productId: string | null;
-  slug: string; productTitle: string; brandId: string; categoryId: string; modelNumber: string | null; manufacturerPartNumber: string | null; gtin: string | null;
+  slug: string; productTitle: string; brandId: string | null; newBrandName: string | null; newBrandSlug: string | null; confirmBrandCreation: boolean;
+  categoryId: string; modelNumber: string | null; manufacturerPartNumber: string | null; gtin: string | null;
   variantAttributes: Record<string, string>; retailerId: string; merchantPolicyId: string; externalListingId: string; retailerSku: string | null;
   originalTitle: string; productUrl: string; approvedAffiliateDestinationReference: string | null; seller: string | null; isMarketplaceSeller: boolean | null;
+  affiliateTrackingUrl: string | null; affiliatePartnerTag: string | null; affiliateRelationshipEvidenceReference: string | null; affiliateRelationshipConfirmed: boolean;
   conditionState: string; packQuantity: number | null; bundleContents: string | null; regionAvailabilityContext: string | null; availabilityState: string;
   shippingContext: string | null; externalIdentifiers: Record<string, string>; currentPrice: number; observedAt: string; fetchedAt: string; offerValidUntil: string | null; matchState: string;
   isEnabled: boolean; changeReason: string | null;
 };
+
+export type AdminBrandCandidate = {
+  name: string; slug: string; normalizedKey: string; source: string; confidence: string; matchStatus: string;
+  matchedBrandId: string | null; matchedBrandName: string | null; matchedBrandIsEnabled: boolean | null;
+};
+
+export type AdminAffiliateLinkInspection = {
+  provider: string; handoffMode: string; status: string; trackingHost: string; destinationHost: string | null;
+  resolvedProductUrl: string | null; externalProductId: string | null; canonicalProductUrl: string | null; partnerTag: string | null;
+  matchedRetailerId: string | null; matchedRetailer: string | null; brandCandidate: AdminBrandCandidate | null; inspectedAt: string; warnings: string[];
+};
+
+export type AdminOfferCreated = { listingId: string; productId: string; brandId: string; previewPath: string };
+export type AdminBrandCreated = { brandId: string };
 
 export type AdminBannerInput = {
   title: string; subtitle: string; assetPath: string | null; assetSource: string; assetProvider: string | null; assetEvidenceReference: string | null;
@@ -86,9 +104,10 @@ export async function getAdminDashboard() {
   return response.json() as Promise<AdminDashboard>;
 }
 
-export function createAdminOffer(input: AdminOfferInput) { return mutation("/api/v1/admin/offers", "POST", input); }
+export function createAdminOffer(input: AdminOfferInput) { return mutation("/api/v1/admin/offers", "POST", input) as Promise<AdminOfferCreated>; }
 export function updateAdminOffer(listingId: string, input: AdminOfferInput) { return mutation(`/api/v1/admin/offers/${encodeURIComponent(listingId)}`, "PUT", input); }
-export function createAdminBrand(name: string, slug: string) { return mutation("/api/v1/admin/brands", "POST", { name, slug }); }
+export function inspectAdminAffiliateLink(url: string) { return mutation("/api/v1/admin/affiliate-links/inspect", "POST", { url }) as Promise<AdminAffiliateLinkInspection>; }
+export function createAdminBrand(name: string, slug: string) { return mutation("/api/v1/admin/brands", "POST", { name, slug }) as Promise<AdminBrandCreated>; }
 export function updateAdminBrand(brandId: string, name: string, isEnabled: boolean, changeReason: string | null) { return mutation(`/api/v1/admin/brands/${encodeURIComponent(brandId)}`, "PUT", { name, isEnabled, changeReason }); }
 export function createAdminCategory(name: string, slug: string) { return mutation("/api/v1/admin/categories", "POST", { name, slug }); }
 export function updateAdminCategory(categoryId: string, name: string, isEnabled: boolean, changeReason: string | null) { return mutation(`/api/v1/admin/categories/${encodeURIComponent(categoryId)}`, "PUT", { name, isEnabled, changeReason }); }

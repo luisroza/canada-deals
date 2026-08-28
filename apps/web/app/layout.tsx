@@ -34,7 +34,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <div className="catalog-bar"><div className="header-inner"><CatalogMenus categories={categories} retailers={retailers} /></div></div>
           </header>
           <main id="main-content" className="page-shell">{children}</main>
-          <footer><div className="header-inner">Prices reflect our latest source check. We may earn a commission from some retailer links.</div></footer>
+          <footer><div className="header-inner">Prices reflect our latest source check. We may earn a commission from some retailer links. As an Amazon Associate I earn from qualifying purchases.</div></footer>
           <MobileNav />
         </WishlistProvider>
       </body>

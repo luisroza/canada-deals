@@ -118,3 +118,4 @@
 | Native mobile app/push | P3 | Prove web retention first |
 | AI shopping assistant | P3 | Only after evidence pipeline is reliable |
 | Mass programmatic SEO | P3 | Avoid thin pages and index bloat |
+| Google sign-in for end-user Wishlist accounts | P2 | Reduce Wishlist account friction only after ADR-013, privacy, Architecture, and Security approval; email/password remains available and owner administration stays excluded |

@@ -58,6 +58,37 @@ public sealed class AffiliateDomainTests
     }
 
     [Fact]
+    public void Owner_provided_Amazon_link_is_preserved_for_direct_handoff()
+    {
+        var now = DateTimeOffset.UtcNow;
+        const string trackingUrl = "https://amzn.to/example-link";
+        var link = AffiliateLink.CreateOwnerProvidedActive(
+            Guid.NewGuid(), Guid.NewGuid(), AffiliateProviderType.AmazonCreators,
+            trackingUrl, "https://www.amazon.ca/dp/B0DMNJNFW8", now, now.AddDays(30));
+
+        Assert.Equal(trackingUrl, link.TrackingUrl);
+        Assert.Equal(AffiliateLinkAcquisitionMode.OwnerProvided, link.AcquisitionMode);
+        Assert.Equal(AffiliateHandoffMode.DirectProvider, link.HandoffMode);
+        Assert.Throws<ArgumentException>(() => AffiliateLink.CreateOwnerProvidedActive(
+            Guid.NewGuid(), Guid.NewGuid(), AffiliateProviderType.Impact,
+            trackingUrl, "https://www.amazon.ca/dp/B0DMNJNFW8", now, now.AddDays(30)));
+    }
+
+    [Fact]
+    public void Amazon_program_accepts_owner_provided_links_without_a_media_property()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var program = AffiliateProgram.Create(
+            Guid.NewGuid(), AffiliateProviderType.AmazonCreators, AffiliateProgramStatus.Active, now,
+            providerProgramId: "canadadeal-20", allowsDeepLinking: true,
+            destinationDomains: ["amazon.ca"], trackingDomains: ["amzn.to", "amazon.ca"],
+            relationshipEvidenceReference: "owner-attestation", relationshipValidatedAt: now);
+
+        Assert.True(program.CanAcceptOwnerProvidedLinks());
+        Assert.False(program.CanGenerateLinks());
+    }
+
+    [Fact]
     public void Store_destination_has_its_own_lifecycle_without_listing_identity_or_economics()
     {
         var now = DateTimeOffset.UtcNow;

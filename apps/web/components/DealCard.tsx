@@ -22,6 +22,7 @@ function humanFreshness(state: string) {
 }
 
 export function DealCard({ deal, returnTo = deal.detailsPath }: { deal: DealCardModel; returnTo?: string }) {
+  const handoffHref = deal.handoffUrl ?? deal.handoffPath;
   return (
     <article className="deal-card">
       <div className="deal-card-media">
@@ -35,7 +36,7 @@ export function DealCard({ deal, returnTo = deal.detailsPath }: { deal: DealCard
         {deal.supportedSavingsPercent !== null && deal.supportedSavingsPercent > 0 && <p className="deal-card-savings">{Math.round(deal.supportedSavingsPercent)}% below reference</p>}
         <p className={`deal-card-confidence${deal.freshnessState === "STALE" ? " confidence-warning" : ""}`}>{humanFreshness(deal.freshnessState)} <span aria-hidden="true">·</span> {humanEvidence(deal.evidenceState)}</p>
         <div className="deal-card-footer">
-          {deal.handoffPath ? <a className="button button-primary" href={deal.handoffPath} rel="sponsored" aria-label={`Check retailer price at ${deal.retailer}`}>Check retailer price <span aria-hidden="true">↗</span></a> : <p className="deal-card-link-unavailable">Retailer link unavailable</p>}
+          {handoffHref ? <><a className="button button-primary" href={handoffHref} rel={deal.handoffMode === "DIRECT_PROVIDER" ? "sponsored noopener" : "sponsored"} aria-label={`Check retailer price at ${deal.retailer}`}>Check retailer price <span aria-hidden="true">↗</span></a>{deal.handoffMode === "DIRECT_PROVIDER" && <small className="deal-card-paid-link">Paid link</small>}</> : <p className="deal-card-link-unavailable">Retailer link unavailable</p>}
         </div>
       </div>
     </article>

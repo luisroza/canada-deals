@@ -40,6 +40,19 @@ public sealed class CatalogAdministrationTests
         Assert.True(brand.IsEnabled);
     }
 
+    [Theory]
+    [InlineData("DeWalt", "dewalt")]
+    [InlineData("DEWALT®", "dewalt")]
+    [InlineData("  Amazon   Basics™ ", "amazon basics")]
+    [InlineData("B&O", "b o")]
+    public void Brand_identity_is_normalized_without_changing_its_display_name(string name, string expectedKey)
+    {
+        var brand = Brand.Create(name, "controlled-brand");
+
+        Assert.Equal(name.Trim(), brand.Name);
+        Assert.Equal(expectedKey, brand.NormalizedKey);
+    }
+
     [Fact]
     public void Retailer_listing_stops_being_publishable_at_its_optional_valid_until_time()
     {

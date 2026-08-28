@@ -192,14 +192,28 @@ test("category and store filters remain visible in the URL", async ({ page }) =>
   await page.goto("/");
   await page.getByLabel("Category").selectOption("home-improvement-tools");
   await page.getByLabel("Store", { exact: true }).selectOption("demo-home-tool");
+  await page.evaluate(() => window.scrollTo(0, 100));
+  const originalNavigation = await page.evaluate(() => performance.timeOrigin);
+  const originalScroll = await page.evaluate(() => window.scrollY);
   await page.getByRole("button", { name: "Show deals" }).click();
 
   await expect(page).toHaveURL(/category=home-improvement-tools/);
   await expect(page).toHaveURL(/retailer=demo-home-tool/);
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(originalNavigation);
+  expect(Math.abs(await page.evaluate(() => window.scrollY) - originalScroll)).toBeLessThanOrEqual(3);
   await expect(page.getByRole("link", { name: "MapleForge 20V Cordless Drill Kit", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Remove Category filter" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Remove Store filter" })).toBeVisible();
   await expect(page.getByLabel("Minimum price")).not.toBeVisible();
+
+  const filteredScroll = await page.evaluate(() => window.scrollY);
+  await page.getByRole("link", { name: "Clear" }).click();
+  await expect(page).not.toHaveURL(/category=|retailer=/);
+  await expect(page.getByLabel("Category", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("Store", { exact: true })).toHaveValue("");
+  await expect(page.getByRole("link", { name: "Clear" })).toHaveCount(0);
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(originalNavigation);
+  expect(Math.abs(await page.evaluate(() => window.scrollY) - filteredScroll)).toBeLessThanOrEqual(3);
 });
 
 test("browser back restores search and filter state", async ({ page }) => {

@@ -78,6 +78,8 @@ public sealed record DealCardResponse(
     bool HasSafeComparison,
     string DetailsPath,
     string? HandoffPath,
+    string? HandoffUrl,
+    string HandoffMode,
     string Disclosure,
     ProductImageResponse? ProductImage);
 
@@ -103,6 +105,8 @@ public sealed record RetailerOfferResponse(
     string? ShippingContext,
     DateTimeOffset? ObservedAt,
     string? HandoffPath,
+    string? HandoffUrl,
+    string HandoffMode,
     string Disclosure,
     bool IsSafeComparison);
 

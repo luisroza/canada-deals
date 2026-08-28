@@ -48,9 +48,11 @@ approved Best Buy listing -> controlled refresh -> ACTIVE persisted AffiliateLin
 
 ## Amazon.ca
 
-Status: **GATED**.
+Status: **OWNER-PROVIDED LINK PATH IMPLEMENTED; COMMERCIAL AND DATA RIGHTS GATED**.
 
-No Amazon adapter exists. Activation requires Amazon Associates Canada, a valid Canada marketplace Partner Tag, eligible/approved Creators API access, and a separate policy review. Creators API vends attributed links; current official guidance says not to alter their parameters. Product content, caching, comparison, image, history, and retention rules remain a separate high-risk data gate.
+No Amazon API adapter exists. The owner-only Offer editor can preserve a finished Amazon.ca Special Link exactly and publish it as a direct provider handoff only after the owner confirms the approved Canada Associates relationship and registered GreatDeals.ca property, supplies the Partner Tag and redacted evidence, maps the Amazon retailer and an Amazon-specific Merchant Policy, and provides a canonical Amazon.ca Product page plus ASIN. The inspector validates syntax locally and never follows an `amzn.to` short link. The application never appends, removes, or rewrites tracking parameters, and `/go/{listingId}` rejects this direct-link mode.
+
+This path activates only the handoff. Amazon Product title, price, availability, image, comparison, caching, history, and retention remain separately gated. Publish must fail closed unless the Merchant Policy authorizes every displayed field and carries the required Amazon Associate disclosure. Creators API eligibility is still required for any future automated Product-data or provider-generated-link adapter.
 
 ## Walmart Canada
 

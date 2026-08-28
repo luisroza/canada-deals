@@ -97,16 +97,49 @@ public sealed class AffiliateProgram
     }
 
     public bool CanGenerateLinks() =>
+        Provider != AffiliateProviderType.AmazonCreators &&
         Status == AffiliateProgramStatus.Active &&
         RelationshipValidatedAt.HasValue &&
         AllowsDeepLinking == true &&
         DestinationDomains.Count > 0 &&
         TrackingDomains.Count > 0;
 
+    public bool CanAcceptOwnerProvidedLinks() =>
+        Provider == AffiliateProviderType.AmazonCreators &&
+        Status == AffiliateProgramStatus.Active &&
+        !string.IsNullOrWhiteSpace(ProviderProgramId) &&
+        !string.IsNullOrWhiteSpace(RelationshipEvidenceReference) &&
+        RelationshipValidatedAt.HasValue &&
+        DestinationDomains.Count > 0 &&
+        TrackingDomains.Count > 0;
+
+    public void ActivateOwnerProvidedAmazon(
+        string partnerTag,
+        IEnumerable<string> destinationDomains,
+        IEnumerable<string> trackingDomains,
+        string relationshipEvidenceReference,
+        DateTimeOffset validatedAt)
+    {
+        if (Provider != AffiliateProviderType.AmazonCreators)
+            throw new InvalidOperationException("Only an Amazon program can accept an owner-provided Amazon link.");
+
+        ProviderProgramId = Normalize(partnerTag);
+        MediaPropertyId = null;
+        ProviderLinkReference = "OWNER_PROVIDED";
+        AllowsDeepLinking = true;
+        DestinationDomainsJson = SerializeDomains(destinationDomains);
+        TrackingDomainsJson = SerializeDomains(trackingDomains);
+        RelationshipEvidenceReference = Normalize(relationshipEvidenceReference);
+        RelationshipValidatedAt = validatedAt;
+        UpdatedAt = validatedAt;
+        EnsureActivationIsComplete();
+        Status = AffiliateProgramStatus.Active;
+    }
+
     private void EnsureActivationIsComplete()
     {
         if (string.IsNullOrWhiteSpace(ProviderProgramId) ||
-            (Provider != AffiliateProviderType.Rakuten && string.IsNullOrWhiteSpace(MediaPropertyId)) ||
+            (Provider is not AffiliateProviderType.Rakuten and not AffiliateProviderType.AmazonCreators && string.IsNullOrWhiteSpace(MediaPropertyId)) ||
             string.IsNullOrWhiteSpace(RelationshipEvidenceReference) ||
             !RelationshipValidatedAt.HasValue ||
             AllowsDeepLinking != true ||
@@ -139,6 +172,8 @@ public sealed class AffiliateLink
     public Guid AffiliateProgramId { get; private set; }
     public AffiliateProgram AffiliateProgram { get; private set; } = null!;
     public AffiliateProviderType Provider { get; private set; }
+    public AffiliateLinkAcquisitionMode AcquisitionMode { get; private set; }
+    public AffiliateHandoffMode HandoffMode { get; private set; }
     public string TrackingUrl { get; private set; } = string.Empty;
     public string DestinationUrl { get; private set; } = string.Empty;
     public string? ProviderReference { get; private set; }
@@ -169,7 +204,42 @@ public sealed class AffiliateLink
         return new AffiliateLink
         {
             Id = Guid.NewGuid(), RetailerListingId = listingId, AffiliateProgramId = programId, Provider = provider,
+            AcquisitionMode = AffiliateLinkAcquisitionMode.ProviderGenerated, HandoffMode = AffiliateHandoffMode.InternalRedirect,
             TrackingUrl = trackingUrl, DestinationUrl = destinationUrl, ProviderReference = string.IsNullOrWhiteSpace(providerReference) ? null : providerReference.Trim(),
+            CreatedAt = now, LastValidatedAt = now, RevalidateAt = revalidateAt, ExpiresAt = expiresAt,
+            Status = AffiliateLinkStatus.Active
+        };
+    }
+
+    public static AffiliateLink CreateOwnerProvidedActive(
+        Guid listingId,
+        Guid programId,
+        AffiliateProviderType provider,
+        string trackingUrl,
+        string destinationUrl,
+        DateTimeOffset now,
+        DateTimeOffset revalidateAt,
+        DateTimeOffset? expiresAt = null,
+        string? providerReference = null)
+    {
+        if (provider != AffiliateProviderType.AmazonCreators)
+            throw new ArgumentException("Direct owner-provided handoff is currently supported only for Amazon.", nameof(provider));
+        if (trackingUrl != trackingUrl.Trim() || destinationUrl != destinationUrl.Trim())
+            throw new ArgumentException("Owner-provided URLs must not contain leading or trailing whitespace.");
+        if (!Uri.TryCreate(trackingUrl, UriKind.Absolute, out var tracking) || tracking.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(tracking.UserInfo) || tracking.Port != 443)
+            throw new ArgumentException("The owner-provided tracking URL must be an absolute HTTPS URL on port 443.", nameof(trackingUrl));
+        if (!Uri.TryCreate(destinationUrl, UriKind.Absolute, out var destination) || destination.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(destination.UserInfo) || destination.Port != 443)
+            throw new ArgumentException("The approved destination must be an absolute HTTPS URL on port 443.", nameof(destinationUrl));
+        if (listingId == Guid.Empty || programId == Guid.Empty) throw new ArgumentException("Listing and program are required.");
+        if (revalidateAt <= now) throw new ArgumentOutOfRangeException(nameof(revalidateAt));
+        if (expiresAt.HasValue && expiresAt <= now) throw new ArgumentOutOfRangeException(nameof(expiresAt));
+
+        return new AffiliateLink
+        {
+            Id = Guid.NewGuid(), RetailerListingId = listingId, AffiliateProgramId = programId, Provider = provider,
+            AcquisitionMode = AffiliateLinkAcquisitionMode.OwnerProvided, HandoffMode = AffiliateHandoffMode.DirectProvider,
+            TrackingUrl = trackingUrl, DestinationUrl = destinationUrl,
+            ProviderReference = string.IsNullOrWhiteSpace(providerReference) ? "OWNER_PROVIDED" : providerReference.Trim(),
             CreatedAt = now, LastValidatedAt = now, RevalidateAt = revalidateAt, ExpiresAt = expiresAt,
             Status = AffiliateLinkStatus.Active
         };
@@ -190,6 +260,7 @@ public sealed class AffiliateLink
         return new AffiliateLink
         {
             Id = Guid.NewGuid(), RetailerListingId = listingId, AffiliateProgramId = programId, Provider = provider,
+            AcquisitionMode = AffiliateLinkAcquisitionMode.ProviderGenerated, HandoffMode = AffiliateHandoffMode.InternalRedirect,
             DestinationUrl = destinationUrl, TrackingUrl = string.Empty, CreatedAt = now, LastValidatedAt = now,
             RevalidateAt = revalidateAt, Status = AffiliateLinkStatus.Invalid, FailureReason = failureReason.Trim()
         };

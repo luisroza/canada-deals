@@ -55,7 +55,7 @@ Cloudflare DNS/TLS/CDN baseline
         imports, normalization, matching, freshness, alerts, retries, reconciliation
 ```
 
-The public UI never trusts a client-provided destination URL. The API resolves an allowlisted `RetailerListing` to an approved affiliate destination and records a privacy-conscious click event before redirecting.
+The public UI never trusts an arbitrary destination URL. Provider-generated Impact, CJ, and Rakuten links resolve an allowlisted `RetailerListing` through `/go/{listingId}` and record a privacy-conscious click event before redirecting. ADR-010 defines one constrained exception: an owner-provided Amazon.ca Special Link is validated, stored exactly, and returned as a direct browser destination because its parameters must not be rewritten; it never enters `/go` and does not imply Product-data rights.
 
 ## Approved public routing contract
 
@@ -85,6 +85,8 @@ The backend remains one bounded application with explicit modules:
 - **Administration:** owner-only reversible Brand/Category/Store lifecycle, canonical Product reuse, editorial offers and banners, source policy, connector health, moderation of match decisions, import retry, and audit trail. Brand/category/store deactivation and optional offer expiry are evaluated by public queries and handoffs rather than cascading destructive updates or requiring an expiry job.
 
 The Next.js application should mirror these user-facing capabilities but should not duplicate domain rules. The API remains authoritative for product identity, price state, eligibility, alerts, disclosures, and redirect safety.
+
+Owner Brand intake follows ADR-012. URL inspection is read-only and returns only a review candidate or an exact normalized catalog match. `Brands.NormalizedKey` is the unique semantic identity guard; a confirmed new or inactive Brand is created/reactivated in the same PostgreSQL unit of work as the Product, retailer listing, affiliate-link state, and audit records. Existing Products keep their canonical Brand. Provider aliases and source mappings can extend this boundary later without replacing the modular monolith or adding infrastructure.
 
 ## Approved technology decisions
 

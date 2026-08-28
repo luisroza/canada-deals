@@ -7,6 +7,10 @@ using CanadaDeals.Infrastructure.Identity;
 using CanadaDeals.Infrastructure.Persistence;
 using CanadaDeals.Domain.Reporting;
 using CanadaDeals.Domain.Retailers;
+using CanadaDeals.Domain.Catalog;
+using CanadaDeals.Domain.Policies;
+using CanadaDeals.Domain.Common;
+using CanadaDeals.Domain.Affiliates;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -144,6 +148,119 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
     }
 
     [RequiresPostgresFact]
+    public async Task Owner_can_resolve_and_inspect_Amazon_Canada_short_links()
+    {
+        var client = await CreateAuthenticatedAsync(admin: true);
+        using var shortLink = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/affiliate-links/inspect", new { url = "https://amzn.to/example" });
+        Assert.Equal(HttpStatusCode.OK, shortLink.StatusCode);
+        using var shortJson = JsonDocument.Parse(await shortLink.Content.ReadAsStringAsync());
+        Assert.Equal("READY", shortJson.RootElement.GetProperty("status").GetString());
+        Assert.Equal("DIRECT_PROVIDER", shortJson.RootElement.GetProperty("handoffMode").GetString());
+        Assert.Equal("B0DMNJNFW8", shortJson.RootElement.GetProperty("externalProductId").GetString());
+        Assert.Equal("https://www.amazon.ca/dp/B0DMNJNFW8", shortJson.RootElement.GetProperty("canonicalProductUrl").GetString());
+        Assert.Contains("Levoit-Smart-Humidifiers", shortJson.RootElement.GetProperty("resolvedProductUrl").GetString());
+        Assert.Equal("canadadeal-20", shortJson.RootElement.GetProperty("partnerTag").GetString());
+        var brandCandidate = shortJson.RootElement.GetProperty("brandCandidate");
+        Assert.Equal("Levoit", brandCandidate.GetProperty("name").GetString());
+        Assert.Equal("levoit", brandCandidate.GetProperty("normalizedKey").GetString());
+        Assert.Equal("URL_PATH", brandCandidate.GetProperty("source").GetString());
+        Assert.Equal("LOW", brandCandidate.GetProperty("confidence").GetString());
+        Assert.Equal("NEW_CANDIDATE", brandCandidate.GetProperty("matchStatus").GetString());
+
+        using var nonCanadian = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/affiliate-links/inspect", new { url = "https://amzn.to/non-canada" });
+        Assert.Equal(HttpStatusCode.BadRequest, nonCanadian.StatusCode);
+        Assert.Contains("not Amazon Canada", await nonCanadian.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+
+        using var fullLink = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/affiliate-links/inspect", new { url = "https://www.amazon.ca/example/dp/B0DMNJNFW8?tag=canadadeal-20" });
+        Assert.Equal(HttpStatusCode.OK, fullLink.StatusCode);
+        using var fullJson = JsonDocument.Parse(await fullLink.Content.ReadAsStringAsync());
+        Assert.Equal("READY", fullJson.RootElement.GetProperty("status").GetString());
+        Assert.Equal("B0DMNJNFW8", fullJson.RootElement.GetProperty("externalProductId").GetString());
+        Assert.Equal("https://www.amazon.ca/dp/B0DMNJNFW8", fullJson.RootElement.GetProperty("canonicalProductUrl").GetString());
+
+        using var productPage = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/affiliate-links/inspect", new { url = "https://www.amazon.ca/example/dp/B0DMNJNFW8" });
+        Assert.Equal(HttpStatusCode.OK, productPage.StatusCode);
+        using var productPageJson = JsonDocument.Parse(await productPage.Content.ReadAsStringAsync());
+        Assert.Equal("NEEDS_REVIEW", productPageJson.RootElement.GetProperty("status").GetString());
+        Assert.Contains(productPageJson.RootElement.GetProperty("warnings").EnumerateArray(), warning =>
+            warning.GetString()!.Contains("not a finished affiliate link", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [RequiresPostgresFact]
+    public async Task Owner_provided_Amazon_link_is_persisted_exactly_and_exposed_as_direct_handoff()
+    {
+        var client = await CreateAuthenticatedAsync(admin: true);
+        Guid retailerId;
+        Guid policyId;
+        await using (var setup = fixture.Services.CreateAsyncScope())
+        {
+            var db = setup.ServiceProvider.GetRequiredService<DealsDbContext>();
+            var retailer = await db.Retailers.SingleOrDefaultAsync(item => item.Key == "amazon-ca");
+            if (retailer is null)
+            {
+                retailer = Retailer.Create("amazon-ca", "Amazon.ca");
+                db.Retailers.Add(retailer);
+            }
+            var policy = await db.MerchantPolicies.SingleOrDefaultAsync(item => item.SourceKey == "amazon-creators-api");
+            if (policy is null)
+            {
+                policy = MerchantPolicy.Create(
+                    "amazon-creators-api", PolicyPermission.Allowed, PolicyPermission.Denied,
+                    PolicyPermission.Denied, PolicyPermission.Allowed, 24, "NO_CROSS_RETAILER_COMPARISON",
+                    "As an Amazon Associate I earn from qualifying purchases.",
+                    "Paid link. As an Amazon Associate I earn from qualifying purchases.",
+                    0, "Controlled integration fixture", DateTimeOffset.UtcNow, PolicyPermission.Allowed);
+                db.MerchantPolicies.Add(policy);
+            }
+            await db.SaveChangesAsync();
+            retailerId = retailer.Id;
+            policyId = policy.Id;
+        }
+
+        const string trackingUrl = "https://www.amazon.ca/example/dp/B0DMNJNFW8?tag=canadadeal-20";
+        var slug = $"amazon-owner-link-{Guid.NewGuid():N}";
+        var input = JsonSerializer.SerializeToNode(await OfferInputAsync(slug, enabled: true))!.AsObject();
+        input["retailerId"] = retailerId;
+        input["merchantPolicyId"] = policyId;
+        input["externalListingId"] = "B0DMNJNFW8";
+        input["productUrl"] = "https://www.amazon.ca/dp/B0DMNJNFW8";
+        input["approvedAffiliateDestinationReference"] = null;
+        input["affiliateTrackingUrl"] = trackingUrl;
+        input["affiliatePartnerTag"] = "canadadeal-20";
+        input["affiliateRelationshipEvidenceReference"] = "OWNER_APPROVED_ACCOUNT_FIXTURE";
+        input["affiliateRelationshipConfirmed"] = true;
+
+        var untaggedInput = JsonSerializer.SerializeToNode(input)!.AsObject();
+        untaggedInput["affiliateTrackingUrl"] = "https://www.amazon.ca/example/dp/B0DMNJNFW8";
+        using var untagged = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", untaggedInput);
+        Assert.Equal(HttpStatusCode.BadRequest, untagged.StatusCode);
+        Assert.Contains("not tagged as an affiliate link", await untagged.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+
+        using var created = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", input);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var createdJson = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var listingId = createdJson.RootElement.GetProperty("listingId").GetGuid();
+
+        using var product = await client.GetAsync($"/api/v1/products/{slug}");
+        Assert.Equal(HttpStatusCode.OK, product.StatusCode);
+        using var productJson = JsonDocument.Parse(await product.Content.ReadAsStringAsync());
+        var offer = productJson.RootElement.GetProperty("primaryOffer");
+        Assert.Equal(JsonValueKind.Null, offer.GetProperty("handoffPath").ValueKind);
+        Assert.Equal(trackingUrl, offer.GetProperty("handoffUrl").GetString());
+        Assert.Equal("DIRECT_PROVIDER", offer.GetProperty("handoffMode").GetString());
+
+        using var internalRedirect = await client.GetAsync($"/go/{listingId}");
+        Assert.Equal(HttpStatusCode.NotFound, internalRedirect.StatusCode);
+
+        await using var verification = fixture.Services.CreateAsyncScope();
+        var verificationDb = verification.ServiceProvider.GetRequiredService<DealsDbContext>();
+        var link = await verificationDb.AffiliateLinks.SingleAsync(item => item.RetailerListingId == listingId);
+        Assert.Equal(trackingUrl, link.TrackingUrl);
+        Assert.Equal(AffiliateLinkAcquisitionMode.OwnerProvided, link.AcquisitionMode);
+        Assert.Equal(AffiliateHandoffMode.DirectProvider, link.HandoffMode);
+    }
+
+    [RequiresPostgresFact]
     public async Task Owner_can_create_and_reversibly_disable_an_offer_with_audit()
     {
         var client = await CreateAuthenticatedAsync(admin: true);
@@ -237,6 +354,52 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
         var db = verification.ServiceProvider.GetRequiredService<DealsDbContext>();
         Assert.True(await db.Products.AnyAsync(product => product.BrandId == brandId));
         Assert.True(await db.AdminAuditEvents.AnyAsync(item => item.EntityId == brandId && item.Action == "DEACTIVATE"));
+    }
+
+    [RequiresPostgresFact]
+    public async Task Confirmed_new_brand_is_created_with_the_offer_and_normalized_variants_are_reused()
+    {
+        var client = await CreateAuthenticatedAsync(admin: true);
+        var rejectedName = $"Unconfirmed Brand {Guid.NewGuid():N}";
+        var rejected = JsonSerializer.SerializeToNode(await OfferInputAsync($"unconfirmed-brand-{Guid.NewGuid():N}", enabled: false))!.AsObject();
+        rejected["brandId"] = null;
+        rejected["newBrandName"] = rejectedName;
+        rejected["newBrandSlug"] = $"unconfirmed-brand-{Guid.NewGuid():N}";
+        rejected["confirmBrandCreation"] = false;
+        using var rejectedResponse = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", rejected);
+        Assert.Equal(HttpStatusCode.BadRequest, rejectedResponse.StatusCode);
+
+        var suffix = Guid.NewGuid().ToString("N");
+        var displayName = $"Atomic Brand {suffix}";
+        var normalizedKey = Brand.NormalizeKey(displayName);
+        var first = JsonSerializer.SerializeToNode(await OfferInputAsync($"atomic-brand-product-{suffix}", enabled: true))!.AsObject();
+        first["brandId"] = null;
+        first["newBrandName"] = $"{displayName}®";
+        first["newBrandSlug"] = $"atomic-brand-{suffix}";
+        first["confirmBrandCreation"] = true;
+        using var firstResponse = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", first);
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+        using var firstJson = JsonDocument.Parse(await firstResponse.Content.ReadAsStringAsync());
+        var brandId = firstJson.RootElement.GetProperty("brandId").GetGuid();
+
+        var second = JsonSerializer.SerializeToNode(await OfferInputAsync($"atomic-brand-second-{suffix}", enabled: false))!.AsObject();
+        second["brandId"] = null;
+        second["newBrandName"] = displayName.ToUpperInvariant();
+        second["newBrandSlug"] = $"duplicate-brand-{suffix}";
+        second["confirmBrandCreation"] = true;
+        using var secondResponse = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", second);
+        Assert.Equal(HttpStatusCode.Created, secondResponse.StatusCode);
+        using var secondJson = JsonDocument.Parse(await secondResponse.Content.ReadAsStringAsync());
+        Assert.Equal(brandId, secondJson.RootElement.GetProperty("brandId").GetGuid());
+
+        await using var verification = fixture.Services.CreateAsyncScope();
+        var db = verification.ServiceProvider.GetRequiredService<DealsDbContext>();
+        var brand = await db.Brands.SingleAsync(item => item.NormalizedKey == normalizedKey);
+        Assert.Equal(brandId, brand.Id);
+        Assert.True(brand.IsEnabled);
+        Assert.Equal(2, await db.Products.CountAsync(product => product.BrandId == brandId));
+        Assert.True(await db.AdminAuditEvents.AnyAsync(item => item.EntityId == brandId && item.EntityType == "Brand" && item.Action == "CREATE"));
+        Assert.False(await db.Brands.AnyAsync(item => item.NormalizedKey == Brand.NormalizeKey(rejectedName)));
     }
 
     [RequiresPostgresFact]

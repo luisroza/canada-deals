@@ -91,6 +91,8 @@ public sealed class AffiliateController(DealsDbContext db, IConfiguration config
             string.IsNullOrWhiteSpace(listing.ApprovedAffiliateDestinationReference)) return NotFound();
         var link = listing.AffiliateLinks
             .Where(candidate => candidate.Status == AffiliateLinkStatus.Active && candidate.IsUsable(now) &&
+                                candidate.AcquisitionMode == AffiliateLinkAcquisitionMode.ProviderGenerated &&
+                                candidate.HandoffMode == AffiliateHandoffMode.InternalRedirect &&
                                 candidate.AffiliateProgram.Status == AffiliateProgramStatus.Active)
             .OrderByDescending(candidate => candidate.LastValidatedAt)
             .FirstOrDefault();

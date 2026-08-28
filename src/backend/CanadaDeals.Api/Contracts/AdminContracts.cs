@@ -5,6 +5,36 @@ namespace CanadaDeals.Api.Contracts;
 
 public sealed record AdminSessionResponse(bool IsAuthenticated, bool IsAdmin, string? Email);
 
+public sealed record InspectAdminAffiliateLinkRequest(
+    [Required, MaxLength(2000)] string Url);
+
+public sealed record AdminBrandCandidateResponse(
+    string Name,
+    string Slug,
+    string NormalizedKey,
+    string Source,
+    string Confidence,
+    string MatchStatus,
+    Guid? MatchedBrandId,
+    string? MatchedBrandName,
+    bool? MatchedBrandIsEnabled);
+
+public sealed record AdminAffiliateLinkInspectionResponse(
+    string Provider,
+    string HandoffMode,
+    string Status,
+    string TrackingHost,
+    string? DestinationHost,
+    string? ResolvedProductUrl,
+    string? ExternalProductId,
+    string? CanonicalProductUrl,
+    string? PartnerTag,
+    Guid? MatchedRetailerId,
+    string? MatchedRetailer,
+    AdminBrandCandidateResponse? BrandCandidate,
+    DateTimeOffset InspectedAt,
+    IReadOnlyList<string> Warnings);
+
 public sealed record AdminReferenceOption(Guid Id, string Key, string Label, bool IsEnabled = true);
 
 public sealed record AdminBrandManagementResponse(
@@ -85,6 +115,13 @@ public sealed record AdminOfferResponse(
     string OriginalTitle,
     string ProductUrl,
     string? ApprovedAffiliateDestinationReference,
+    string? AffiliateTrackingUrl,
+    string? AffiliateProvider,
+    string? AffiliateHandoffMode,
+    string? AffiliateLinkStatus,
+    string AffiliateLinkReadiness,
+    string? AffiliatePartnerTag,
+    string? AffiliateRelationshipEvidenceReference,
     string? Seller,
     bool? IsMarketplaceSeller,
     string ConditionState,
@@ -231,7 +268,10 @@ public sealed record UpsertAdminOfferRequest(
     Guid? ProductId,
     [Required, MaxLength(140)] string Slug,
     [Required, MaxLength(240)] string ProductTitle,
-    Guid BrandId,
+    Guid? BrandId,
+    [MaxLength(120)] string? NewBrandName,
+    [MaxLength(140)] string? NewBrandSlug,
+    bool ConfirmBrandCreation,
     Guid CategoryId,
     [MaxLength(120)] string? ModelNumber,
     [MaxLength(120)] string? ManufacturerPartNumber,
@@ -244,6 +284,10 @@ public sealed record UpsertAdminOfferRequest(
     [Required, MaxLength(300)] string OriginalTitle,
     [Required, MaxLength(1000)] string ProductUrl,
     [MaxLength(1000)] string? ApprovedAffiliateDestinationReference,
+    [MaxLength(2000)] string? AffiliateTrackingUrl,
+    [MaxLength(100)] string? AffiliatePartnerTag,
+    [MaxLength(1000)] string? AffiliateRelationshipEvidenceReference,
+    bool AffiliateRelationshipConfirmed,
     [MaxLength(240)] string? Seller,
     bool? IsMarketplaceSeller,
     [Required, MaxLength(30)] string ConditionState,

@@ -125,6 +125,16 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<CatalogQueryService>();
 builder.Services.AddScoped<StoreBannerQueryService>();
+builder.Services.AddSingleton<OwnerProvidedAffiliateLinkInspector>();
+builder.Services.AddHttpClient<IAmazonShortLinkResolver, AmazonShortLinkResolver>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(6);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("GreatDeals.ca-LinkValidator/1.0");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("postgresql");
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {

@@ -36,8 +36,17 @@ The migration chain is:
 11. `20260820185739_AddStoreAffiliateBanners`
 12. `20260820191750_AddStoreBannerAssetRightsMetadata`
 13. `20260824132853_AddOwnerAdminPanel`
+14. `20260824150108_AddStoreBannerAssetLibrary`
+15. `20260824152343_AddAdminCategoryAndRetailerManagement`
+16. `20260824162651_AddProductImagePublishing`
+17. `20260824163140_EnforceSingleActiveProductImage`
+18. `20260824212134_AddAdminCatalogWorkflow`
+19. `20260827151516_AddOwnerProvidedAffiliateHandoff`
+20. `20260828134355_AddNormalizedBrandIdentity`
 
 No earlier migration was modified retroactively.
+
+`AddNormalizedBrandIdentity` backfills `Brands.NormalizedKey` from the display name, stops with a clear migration error if existing rows collapse to the same identity, and adds a unique index. Runtime normalization removes trademark/copyright marks before Unicode compatibility normalization, folds case, collapses non-alphanumeric separators, and keeps the original display name and immutable slug unchanged. Confirmed Offer intake therefore reuses semantic variants such as `DeWalt`, `DEWALT`, and `DeWalt®` instead of creating another Brand.
 
 `AddOwnerAdminPanel` adds `RetailerListings.IsEnabled` with a safe `TRUE` backfill/default so an offer can be drafted or reversibly deactivated without disabling its retailer or deleting history. Public discovery, Product detail, store eligibility, and listing affiliate handoff all exclude disabled listings. It also adds `AdminAuditEvents`, linked restrictively to the Identity actor, with action/entity/summary/time indexes and no password, token, IP address, or raw authorization data.
 

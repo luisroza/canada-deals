@@ -12,6 +12,7 @@ import {
   createAdminOffer,
   createAdminRetailer,
   getAdminDashboard,
+  inspectAdminAffiliateLink,
   updateAdminBannerSelection,
   updateAdminBanner,
   updateAdminBrand,
@@ -25,6 +26,7 @@ import {
   type AdminBannerInput,
   type AdminBrand,
   type AdminDashboard,
+  type AdminAffiliateLinkInspection,
   type AdminCategory,
   type AdminOffer,
   type AdminOfferInput,
@@ -32,9 +34,16 @@ import {
 } from "../lib/admin";
 
 type AccessState = "loading" | "authorized" | "signed-out" | "forbidden" | "unavailable";
-type Section = "overview" | "offers" | "brands" | "categories" | "stores" | "banners" | "reports" | "audit";
+type Section = "overview" | "offers" | "catalog" | "stores" | "banners" | "reports" | "audit";
 type OfferForm = Omit<AdminOfferInput, "currentPrice" | "packQuantity" | "observedAt" | "fetchedAt" | "offerValidUntil" | "variantAttributes" | "externalIdentifiers"> & {
   currentPrice: string; packQuantity: string; observedAt: string; fetchedAt: string; offerValidUntil: string; variantAttributes: string; externalIdentifiers: string;
+};
+type NewProductImageDraft = {
+  file: File | null;
+  rightsEvidenceReference: string;
+  effectiveAt: string;
+  expiresAt: string;
+  activate: boolean;
 };
 
 const builtInAssets = [
@@ -57,14 +66,33 @@ function localDateTime(value?: string | null) {
 function clean(value: string) { return value.trim() || null; }
 function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 function jsonText(value: Record<string, string>) { return JSON.stringify(value, null, 2); }
+export function suggestProductTitleFromRetailerUrl(value: string) {
+  try {
+    const uri = new URL(value);
+    const parts = uri.pathname.split("/").filter(Boolean);
+    const productMarker = parts.findIndex(part => part.toLowerCase() === "dp" || part.toLowerCase() === "product");
+    if (productMarker < 1) return null;
+    const candidate = decodeURIComponent(parts[productMarker - 1]).replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+    if (candidate.length < 4 || /^[A-Z0-9]{10}$/i.test(candidate)) return null;
+    return candidate.slice(0, 240);
+  } catch { return null; }
+}
+
+function emptyProductImageDraft(): NewProductImageDraft {
+  return { file: null, rightsEvidenceReference: "Owner-created or licensed asset reviewed by the account owner", effectiveAt: "", expiresAt: "", activate: true };
+}
 
 function offerToForm(offer: AdminOffer): OfferForm {
   return {
-    productId: offer.productId, slug: offer.slug, productTitle: offer.productTitle, brandId: offer.brandId, categoryId: offer.categoryId,
+    productId: offer.productId, slug: offer.slug, productTitle: offer.productTitle, brandId: offer.brandId,
+    newBrandName: null, newBrandSlug: null, confirmBrandCreation: false, categoryId: offer.categoryId,
     modelNumber: offer.modelNumber, manufacturerPartNumber: offer.manufacturerPartNumber, gtin: offer.gtin,
     variantAttributes: jsonText(offer.variantAttributes), retailerId: offer.retailerId, merchantPolicyId: offer.merchantPolicyId,
     externalListingId: offer.externalListingId, retailerSku: offer.retailerSku, originalTitle: offer.originalTitle,
     productUrl: offer.productUrl, approvedAffiliateDestinationReference: offer.approvedAffiliateDestinationReference,
+    affiliateTrackingUrl: offer.affiliateTrackingUrl, affiliatePartnerTag: offer.affiliatePartnerTag,
+    affiliateRelationshipEvidenceReference: offer.affiliateRelationshipEvidenceReference,
+    affiliateRelationshipConfirmed: offer.affiliateLinkStatus === "ACTIVE",
     seller: offer.seller, isMarketplaceSeller: offer.isMarketplaceSeller, conditionState: offer.conditionState,
     packQuantity: offer.packQuantity?.toString() ?? "", bundleContents: offer.bundleContents,
     regionAvailabilityContext: offer.regionAvailabilityContext, availabilityState: offer.availabilityState,
@@ -78,13 +106,15 @@ function offerToForm(offer: AdminOffer): OfferForm {
 function emptyOffer(dashboard: AdminDashboard): OfferForm {
   const now = localDateTime();
   return {
-    productId: null, slug: "", productTitle: "", brandId: dashboard.brands.find(item => item.isEnabled)?.id ?? "", categoryId: dashboard.categories.find(item => item.isEnabled)?.id ?? "",
+    productId: null, slug: "", productTitle: "", brandId: null, newBrandName: null, newBrandSlug: null, confirmBrandCreation: false,
+    categoryId: dashboard.categories.find(item => item.isEnabled)?.id ?? "",
     modelNumber: null, manufacturerPartNumber: null, gtin: null, variantAttributes: "{}",
     retailerId: dashboard.retailers.find(item => item.isEnabled)?.id ?? "", merchantPolicyId: dashboard.policies[0]?.id ?? "",
     externalListingId: "", retailerSku: null, originalTitle: "", productUrl: "", approvedAffiliateDestinationReference: null,
-    seller: null, isMarketplaceSeller: false, conditionState: "NEW", packQuantity: "1", bundleContents: null,
-    regionAvailabilityContext: "Canada", availabilityState: "AVAILABLE", shippingContext: null, externalIdentifiers: "{}",
-    currentPrice: "", observedAt: now, fetchedAt: now, offerValidUntil: "", matchState: "CONFIRMED", isEnabled: false, changeReason: null,
+    affiliateTrackingUrl: null, affiliatePartnerTag: null, affiliateRelationshipEvidenceReference: null, affiliateRelationshipConfirmed: false,
+    seller: null, isMarketplaceSeller: false, conditionState: "UNKNOWN", packQuantity: "1", bundleContents: null,
+    regionAvailabilityContext: "Canada", availabilityState: "UNKNOWN", shippingContext: null, externalIdentifiers: "{}",
+    currentPrice: "", observedAt: now, fetchedAt: now, offerValidUntil: "", matchState: "MANUALREVIEW", isEnabled: false, changeReason: null,
   };
 }
 
@@ -135,7 +165,7 @@ export function AdminPanel() {
       </header>
       <div className="admin-layout">
         <nav className="admin-nav" aria-label="Administration">
-          {(["overview", "offers", "brands", "categories", "stores", "banners", "reports", "audit"] as Section[]).map(item => (
+          {(["overview", "offers", "catalog", "stores", "banners", "reports", "audit"] as Section[]).map(item => (
             <button key={item} type="button" aria-current={section === item ? "page" : undefined} onClick={() => { setSection(item); setMessage(null); setError(null); }}>
               {item[0].toUpperCase() + item.slice(1)}
             </button>
@@ -146,8 +176,7 @@ export function AdminPanel() {
           {error && <p className="field-error admin-error" role="alert">{error}</p>}
           {section === "overview" && <Overview dashboard={dashboard} navigate={setSection} />}
           {section === "offers" && <Offers dashboard={dashboard} refresh={load} notify={setMessage} reportError={setError} />}
-          {section === "brands" && <Brands dashboard={dashboard} refresh={load} notify={setMessage} reportError={setError} />}
-          {section === "categories" && <Categories dashboard={dashboard} refresh={load} notify={setMessage} reportError={setError} />}
+          {section === "catalog" && <CatalogSettings dashboard={dashboard} refresh={load} notify={setMessage} reportError={setError} />}
           {section === "stores" && <Stores dashboard={dashboard} refresh={load} notify={setMessage} reportError={setError} />}
           {section === "banners" && <Banners dashboard={dashboard} refresh={load} notify={setMessage} reportError={setError} />}
           {section === "reports" && <Reports dashboard={dashboard} refresh={load} notify={setMessage} reportError={setError} />}
@@ -222,6 +251,19 @@ function Overview({ dashboard, navigate }: { dashboard: AdminDashboard; navigate
 }
 
 type EntityFilter = "all" | "active" | "inactive" | "public" | "empty";
+
+function CatalogSettings({ dashboard, refresh, notify, reportError }: { dashboard: AdminDashboard; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
+  const [area, setArea] = useState<"categories" | "brands">("categories");
+  return <>
+    <div className="admin-catalog-tabs" role="tablist" aria-label="Catalog settings">
+      <button role="tab" aria-selected={area === "categories"} type="button" onClick={() => setArea("categories")}><strong>Categories</strong><span>Public discovery structure</span></button>
+      <button role="tab" aria-selected={area === "brands"} type="button" onClick={() => setArea("brands")}><strong>Brands</strong><span>Advanced Product identity</span></button>
+    </div>
+    {area === "categories"
+      ? <Categories dashboard={dashboard} refresh={refresh} notify={notify} reportError={reportError} />
+      : <Brands dashboard={dashboard} refresh={refresh} notify={notify} reportError={reportError} />}
+  </>;
+}
 
 function Brands({ dashboard, refresh, notify, reportError }: { dashboard: AdminDashboard; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
   const [selected, setSelected] = useState<AdminBrand | "new" | null>(null);
@@ -338,34 +380,81 @@ function EntityToolbar({ search, setSearch, filter, setFilter, placeholder, incl
 function Offers({ dashboard, refresh, notify, reportError }: { dashboard: AdminDashboard; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
   const [selected, setSelected] = useState<AdminOffer | "new" | null>(null);
   const [form, setForm] = useState<OfferForm | null>(null);
+  const [newProductImage, setNewProductImage] = useState<NewProductImageDraft>(emptyProductImageDraft);
   const [pending, setPending] = useState(false);
   const [filter, setFilter] = useState("");
 
   const visible = useMemo(() => dashboard.offers.filter(offer => `${offer.productTitle} ${offer.retailer} ${offer.externalListingId}`.toLowerCase().includes(filter.toLowerCase())), [dashboard.offers, filter]);
 
-  function open(value: AdminOffer | "new") { setSelected(value); setForm(value === "new" ? emptyOffer(dashboard) : offerToForm(value)); notify(null); reportError(null); }
+  function open(value: AdminOffer | "new") { setSelected(value); setForm(value === "new" ? emptyOffer(dashboard) : offerToForm(value)); setNewProductImage(emptyProductImageDraft()); notify(null); reportError(null); }
   function field<K extends keyof OfferForm>(key: K, value: OfferForm[K]) { setForm(current => current ? { ...current, [key]: value } : current); }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!form) return; setPending(true); notify(null); reportError(null);
     try {
+      const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+      const requestedEnabled = submitter?.value === "publish" ? true : submitter?.value === "draft" ? false : form.isEnabled;
+      const confirmedNewBrand = Boolean(form.newBrandName?.trim() && form.newBrandSlug?.trim() && form.confirmBrandCreation);
+      if (!form.brandId && !confirmedNewBrand) throw new Error("Select an existing brand or confirm the proposed new brand before saving the offer.");
+      if (selected === "new" && newProductImage.file && !newProductImage.rightsEvidenceReference.trim())
+        throw new Error("Add the image rights evidence reference before saving the offer.");
       const variants = JSON.parse(form.variantAttributes || "{}") as Record<string, string>;
       const identifiers = JSON.parse(form.externalIdentifiers || "{}") as Record<string, string>;
       const input: AdminOfferInput = {
-        ...form, modelNumber: clean(form.modelNumber ?? ""), manufacturerPartNumber: clean(form.manufacturerPartNumber ?? ""), gtin: clean(form.gtin ?? ""),
+        ...form, brandId: form.brandId || null, newBrandName: clean(form.newBrandName ?? ""), newBrandSlug: clean(form.newBrandSlug ?? ""),
+        modelNumber: clean(form.modelNumber ?? ""), manufacturerPartNumber: clean(form.manufacturerPartNumber ?? ""), gtin: clean(form.gtin ?? ""),
         retailerSku: clean(form.retailerSku ?? ""), approvedAffiliateDestinationReference: clean(form.approvedAffiliateDestinationReference ?? ""), seller: clean(form.seller ?? ""),
+        affiliateTrackingUrl: clean(form.affiliateTrackingUrl ?? ""), affiliatePartnerTag: clean(form.affiliatePartnerTag ?? ""),
+        affiliateRelationshipEvidenceReference: clean(form.affiliateRelationshipEvidenceReference ?? ""), isEnabled: requestedEnabled,
         packQuantity: form.packQuantity ? Number(form.packQuantity) : null, bundleContents: clean(form.bundleContents ?? ""), regionAvailabilityContext: clean(form.regionAvailabilityContext ?? ""),
         shippingContext: clean(form.shippingContext ?? ""), currentPrice: Number(form.currentPrice), observedAt: new Date(form.observedAt).toISOString(), fetchedAt: new Date(form.fetchedAt).toISOString(),
         offerValidUntil: form.offerValidUntil ? new Date(form.offerValidUntil).toISOString() : null,
         variantAttributes: variants, externalIdentifiers: identifiers, changeReason: clean(form.changeReason ?? ""),
       };
-      if (selected === "new") await createAdminOffer(input); else if (selected) await updateAdminOffer(selected.listingId, input);
-      await refresh(); setSelected(null); setForm(null); notify(selected === "new" ? "Offer saved. Drafts remain hidden until enabled." : "Offer updated and audited.");
+      if (selected === "new") {
+        const hasNewImage = Boolean(newProductImage.file);
+        const created = await createAdminOffer(hasNewImage ? { ...input, isEnabled: false } : input);
+        if (newProductImage.file) {
+          try {
+            await uploadAdminProductImage(created.productId, {
+              file: newProductImage.file,
+              rightsEvidenceReference: newProductImage.rightsEvidenceReference.trim(),
+              allowedPlacements: "DEAL_CARD,PRODUCT_PAGE,WISHLIST",
+              effectiveAt: clean(newProductImage.effectiveAt),
+              expiresAt: clean(newProductImage.expiresAt),
+              activate: newProductImage.activate,
+            });
+          } catch (imageError) {
+            await refresh(); setSelected(null); setForm(null); setNewProductImage(emptyProductImageDraft());
+            reportError(`The offer was saved as a draft, but the image could not be attached: ${imageError instanceof Error ? imageError.message : "image upload failed"}`);
+            return;
+          }
+          if (requestedEnabled) {
+            try {
+              await updateAdminOffer(created.listingId, {
+                ...input,
+                productId: created.productId,
+                brandId: created.brandId,
+                newBrandName: null,
+                newBrandSlug: null,
+                confirmBrandCreation: false,
+                isEnabled: true,
+                changeReason: input.changeReason ?? "Published after reviewed Product image upload.",
+              });
+            } catch (publishError) {
+              await refresh(); setSelected(null); setForm(null); setNewProductImage(emptyProductImageDraft());
+              reportError(`The offer and image were saved as a draft, but publishing failed: ${publishError instanceof Error ? publishError.message : "publication failed"}`);
+              return;
+            }
+          }
+        }
+      } else if (selected) await updateAdminOffer(selected.listingId, input);
+      await refresh(); setSelected(null); setForm(null); notify(requestedEnabled ? "Offer published and available in public discovery." : "Draft saved. This offer is not public.");
     } catch (caught) { reportError(caught instanceof SyntaxError ? "Variant attributes and external identifiers must be valid JSON objects." : caught instanceof Error ? caught.message : "Offer could not be saved."); }
     finally { setPending(false); }
   }
 
-  if (form) return <OfferEditor dashboard={dashboard} selected={selected} form={form} field={field} save={save} cancel={() => { setSelected(null); setForm(null); }} pending={pending} refresh={refresh} notify={notify} reportError={reportError} />;
+  if (form) return <OfferEditor dashboard={dashboard} selected={selected} form={form} field={field} save={save} cancel={() => { setSelected(null); setForm(null); setNewProductImage(emptyProductImageDraft()); }} pending={pending} refresh={refresh} notify={notify} reportError={reportError} openExisting={open} newProductImage={newProductImage} setNewProductImage={setNewProductImage} />;
 
   return <>
     <div className="admin-heading"><div><p className="eyebrow">Catalog operations</p><h1>Offers</h1><p>Create drafts, review readiness, publish, or reversibly deactivate.</p></div><button className="button button-primary" type="button" onClick={() => open("new")}>Add offer</button></div>
@@ -378,14 +467,21 @@ function Offers({ dashboard, refresh, notify, reportError }: { dashboard: AdminD
   </>;
 }
 
-function OfferEditor({ dashboard, selected, form, field, save, cancel, pending, refresh, notify, reportError }: { dashboard: AdminDashboard; selected: AdminOffer | "new" | null; form: OfferForm; field: <K extends keyof OfferForm>(key: K, value: OfferForm[K]) => void; save: (event: FormEvent<HTMLFormElement>) => Promise<void>; cancel: () => void; pending: boolean; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
+function OfferEditor({ dashboard, selected, form, field, save, cancel, pending, refresh, notify, reportError, openExisting, newProductImage, setNewProductImage }: { dashboard: AdminDashboard; selected: AdminOffer | "new" | null; form: OfferForm; field: <K extends keyof OfferForm>(key: K, value: OfferForm[K]) => void; save: (event: FormEvent<HTMLFormElement>) => Promise<void>; cancel: () => void; pending: boolean; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void; openExisting: (value: AdminOffer | "new") => void; newProductImage: NewProductImageDraft; setNewProductImage: (value: NewProductImageDraft) => void }) {
+  const [brandCreatorOpen, setBrandCreatorOpen] = useState(false);
   const existing = selected !== "new" && selected !== null;
   const reusingProduct = selected === "new" && form.productId !== null;
+  const linkReady = Boolean(form.affiliateTrackingUrl?.trim() && form.affiliatePartnerTag?.trim() && form.affiliateRelationshipEvidenceReference?.trim() && form.affiliateRelationshipConfirmed);
+  const hasReviewedBrand = Boolean(form.brandId || (form.newBrandName?.trim() && form.newBrandSlug?.trim() && form.confirmBrandCreation));
+  const cardReady = Boolean(form.productTitle.trim() && hasReviewedBrand && form.categoryId && form.productUrl.trim() && form.externalListingId.trim() && Number(form.currentPrice) > 0);
+  const currentStep = !linkReady ? 1 : !cardReady ? 2 : 3;
+  const previewImage = form.productId ? dashboard.productImages.find(image => image.productId === form.productId && image.isPubliclyVisible) : null;
+  const publishBlockedByPendingImage = selected === "new" && Boolean(newProductImage.file) && !newProductImage.activate;
 
   function useProduct(productId: string | null) {
     if (!productId) {
       field("productId", null); field("slug", ""); field("productTitle", "");
-      field("brandId", dashboard.brands.find(item => item.isEnabled)?.id ?? "");
+      field("brandId", null); field("newBrandName", null); field("newBrandSlug", null); field("confirmBrandCreation", false);
       field("categoryId", dashboard.categories.find(item => item.isEnabled)?.id ?? "");
       field("modelNumber", null); field("manufacturerPartNumber", null); field("gtin", null); field("variantAttributes", "{}");
       return;
@@ -393,31 +489,35 @@ function OfferEditor({ dashboard, selected, form, field, save, cancel, pending, 
     const product = dashboard.products.find(item => item.id === productId);
     if (!product) return;
     field("productId", product.id); field("slug", product.slug); field("productTitle", product.title); field("brandId", product.brandId);
+    field("newBrandName", null); field("newBrandSlug", null); field("confirmBrandCreation", false);
     field("categoryId", product.categoryId); field("modelNumber", product.modelNumber); field("manufacturerPartNumber", product.manufacturerPartNumber);
     field("gtin", product.gtin); field("variantAttributes", jsonText(product.variantAttributes));
     if (!form.originalTitle) field("originalTitle", product.title);
   }
 
   return <form className="admin-editor" onSubmit={save} noValidate>
-    <div className="admin-heading"><div><p className="eyebrow">{existing ? "Edit offer" : "New offer"}</p><h1>{form.productTitle || "Untitled offer"}</h1><p>{existing ? selected.readinessSummary : "New offers start as drafts."}</p></div><div className="admin-heading-actions">{existing && <Link className="button button-secondary" href={selected.previewPath} target="_blank">Public preview</Link>}<button className="button button-secondary" type="button" onClick={cancel}>Cancel</button><button className="button button-primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Save offer"}</button></div></div>
+    <div className="admin-heading"><div><p className="eyebrow">{existing ? "Edit offer" : "New offer"}</p><h1>{form.productTitle || "Untitled offer"}</h1><p>{existing ? selected.readinessSummary : "Analyze the retailer link, review the public card, then save a draft or publish."}</p></div><div className="admin-heading-actions">{existing && <Link className="button button-secondary" href={selected.previewPath} target="_blank">Public preview</Link>}<button className="button button-secondary" type="button" onClick={cancel}>Cancel</button><button className="button button-secondary" name="publicationAction" value="draft" type="submit" disabled={pending}>{pending ? "Saving…" : existing && form.isEnabled ? "Unpublish to draft" : "Save draft"}</button><button className="button button-primary" name="publicationAction" value="publish" type="submit" disabled={pending || publishBlockedByPendingImage} title={publishBlockedByPendingImage ? "Activate the reviewed image before publishing, or save the offer as a draft." : undefined}>{pending ? "Saving…" : existing && form.isEnabled ? "Save published changes" : "Publish offer"}</button></div></div>
+    <ol className="admin-offer-progress" aria-label="Offer workflow"><li className={currentStep === 1 ? "is-current" : "is-complete"} aria-current={currentStep === 1 ? "step" : undefined}><span>1</span>Validate and fill</li><li className={currentStep === 2 ? "is-current" : currentStep > 2 ? "is-complete" : undefined} aria-current={currentStep === 2 ? "step" : undefined}><span>2</span>Review card</li><li className={currentStep === 3 ? "is-current" : undefined} aria-current={currentStep === 3 ? "step" : undefined}><span>3</span>Publish</li></ol>
     <div className="admin-editor-grid"><div className="admin-form-stack">
-      {selected === "new" && <section className="admin-card"><h2>Choose the Product</h2><div className="admin-choice-grid" role="radiogroup" aria-label="Product creation mode"><label><input type="radio" name="product-mode" checked={!reusingProduct} onChange={() => useProduct(null)} /><span><strong>Create a new Product</strong><small>Use when this Product does not exist in the catalog.</small></span></label><label><input type="radio" name="product-mode" checked={reusingProduct} onChange={() => useProduct(dashboard.products[0]?.id ?? null)} /><span><strong>Add an offer to an existing Product</strong><small>Use for another store listing of the same confirmed Product.</small></span></label></div>{reusingProduct && <label className="admin-product-picker">Existing Product<select value={form.productId ?? ""} onChange={event => useProduct(event.target.value)}>{dashboard.products.map(product => <option key={product.id} value={product.id}>{product.title} · {product.brand}{product.modelNumber ? ` · ${product.modelNumber}` : ""}</option>)}</select></label>}</section>}
-      <details open><summary>Product essentials</summary><div className="admin-form-grid">
+      <AffiliateLinkIntake dashboard={dashboard} selected={selected} form={form} field={field} reportError={reportError} openExisting={openExisting} />
+      {selected === "new" && <section className="admin-card admin-product-choice"><h2>Choose the Product</h2><div className="admin-choice-grid" role="radiogroup" aria-label="Product creation mode"><label><input type="radio" name="product-mode" checked={!reusingProduct} onChange={() => useProduct(null)} /><span><strong>Create a new Product</strong><small>Use when this Product does not exist in the catalog.</small></span></label><label><input type="radio" name="product-mode" checked={reusingProduct} onChange={() => useProduct(dashboard.products[0]?.id ?? null)} /><span><strong>Add an offer to an existing Product</strong><small>Use for another store listing of the same confirmed Product.</small></span></label></div>{reusingProduct && <label className="admin-product-picker">Existing Product<select value={form.productId ?? ""} onChange={event => useProduct(event.target.value)}>{dashboard.products.map(product => <option key={product.id} value={product.id}>{product.title} · {product.brand}{product.modelNumber ? ` · ${product.modelNumber}` : ""}</option>)}</select></label>}</section>}
+      <details open className="admin-product-essentials"><summary>Product essentials</summary><div className="admin-form-grid">
         <label className="span-2">Product title<input required maxLength={240} readOnly={reusingProduct} value={form.productTitle} onChange={e => { field("productTitle", e.target.value); if (!existing && !form.productId) field("slug", slugify(e.target.value)); }} /></label>
         <label>Slug<input required pattern="[a-z0-9-]+" readOnly={existing || reusingProduct} value={form.slug} onChange={e => field("slug", slugify(e.target.value))} /><span className="field-help">{existing || reusingProduct ? "Immutable for existing Products so saved and shared links keep working." : "Generated from the title; lowercase letters, numbers, and hyphens."}</span></label>
-        <label>Brand<select disabled={reusingProduct} value={form.brandId} onChange={e => field("brandId", e.target.value)}>{dashboard.brands.filter(item => item.isEnabled || item.id === form.brandId).map(item => <option key={item.id} value={item.id}>{item.label}{item.isEnabled ? "" : " (inactive)"}</option>)}</select></label>
+        <div className="admin-field-group"><label htmlFor="offer-brand">Brand</label><div className="admin-inline-select"><select id="offer-brand" required disabled={reusingProduct} value={form.brandId ?? ""} onChange={e => { field("brandId", e.target.value || null); field("newBrandName", null); field("newBrandSlug", null); field("confirmBrandCreation", false); setBrandCreatorOpen(false); }}><option value="" disabled>Select a brand</option>{dashboard.brands.filter(item => item.isEnabled || item.id === form.brandId).map(item => <option key={item.id} value={item.id}>{item.label}{item.isEnabled ? "" : " (inactive)"}</option>)}</select>{!reusingProduct && !form.newBrandName && <button className="button button-secondary" type="button" onClick={() => { setBrandCreatorOpen(value => !value); reportError(null); }}>{brandCreatorOpen ? "Close" : "Enter a new brand"}</button>}</div><span className="field-help">An exact catalog match is selected automatically. A new detected brand must be reviewed before it is created with the offer.</span></div>
         <label>Category<select disabled={reusingProduct} value={form.categoryId} onChange={e => field("categoryId", e.target.value)}>{dashboard.categories.filter(item => item.isEnabled || item.id === form.categoryId).map(item => <option key={item.id} value={item.id}>{item.label}{item.isEnabled ? "" : " (inactive)"}</option>)}</select></label>
         <label>Model number<input readOnly={reusingProduct} value={form.modelNumber ?? ""} onChange={e => field("modelNumber", e.target.value)} /></label>
+        {(brandCreatorOpen || form.newBrandName) && !reusingProduct && <div className="admin-inline-create span-2" role="group" aria-labelledby="inline-brand-heading"><div><strong id="inline-brand-heading">{form.newBrandName ? "New brand detected" : "Enter a new brand"}</strong><span>{form.newBrandName ? "Review the detected identity. No catalog record has been created yet." : "Enter the public brand name. It will be created only when this offer is saved."}</span></div><div className="admin-inline-create-fields"><label>New brand name<input autoFocus required maxLength={120} value={form.newBrandName ?? ""} onChange={event => { field("newBrandName", event.target.value); field("newBrandSlug", slugify(event.target.value)); field("brandId", null); field("confirmBrandCreation", false); }} /></label><label>Brand slug<input required maxLength={140} pattern="[a-z0-9-]+" value={form.newBrandSlug ?? ""} onChange={event => { field("newBrandSlug", slugify(event.target.value)); field("brandId", null); field("confirmBrandCreation", false); }} /></label></div><label className="admin-toggle"><input type="checkbox" checked={form.confirmBrandCreation} disabled={!form.newBrandName?.trim() || !form.newBrandSlug?.trim()} onChange={event => field("confirmBrandCreation", event.target.checked)} /><span>Create, activate, and use this brand when I save the offer</span></label><div className="admin-inline-create-actions"><button className="button button-text" type="button" onClick={() => { setBrandCreatorOpen(false); field("newBrandName", null); field("newBrandSlug", null); field("confirmBrandCreation", false); }}>Use an existing brand instead</button></div></div>}
       </div></details>
-      {form.productId ? <ProductImageEditor productId={form.productId} dashboard={dashboard} refresh={refresh} notify={notify} reportError={reportError} /> : <section className="admin-card admin-image-empty"><h2>Product image</h2><p>Save the new Product first, then reopen it to upload a reviewed image. Existing Products can reuse their current image immediately.</p></section>}
+      {form.productId ? <ProductImageEditor productId={form.productId} dashboard={dashboard} refresh={refresh} notify={notify} reportError={reportError} /> : <NewProductImageIntake value={newProductImage} onChange={setNewProductImage} />}
       <details open><summary>Offer essentials</summary><div className="admin-form-grid">
         <label>Store<select disabled={existing} value={form.retailerId} onChange={e => field("retailerId", e.target.value)}>{dashboard.retailers.filter(item => item.isEnabled || item.id === form.retailerId).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
         <label>Current price (CAD)<input required type="number" min="0.01" max="1000000" step="0.01" value={form.currentPrice} onChange={e => field("currentPrice", e.target.value)} /></label>
-        <label className="span-2">Retailer Product page<input required type="url" placeholder="https://" value={form.productUrl} onChange={e => field("productUrl", e.target.value)} /></label>
+        <label className="span-2">Canonical retailer Product page<input required type="url" placeholder="https://www.amazon.ca/dp/ASIN" value={form.productUrl} onChange={e => field("productUrl", e.target.value)} /><span className="field-help">Filled automatically when an Amazon.ca Product ID is found. Review before publishing.</span></label>
         <label>Availability<select value={form.availabilityState} onChange={e => field("availabilityState", e.target.value)}><option>AVAILABLE</option><option>UNAVAILABLE</option><option>UNKNOWN</option></select></label>
         <label>Observed at<input required type="datetime-local" value={form.observedAt} onChange={e => field("observedAt", e.target.value)} /></label>
         <label>Offer valid until (optional)<input type="datetime-local" value={form.offerValidUntil} onChange={e => field("offerValidUntil", e.target.value)} /><span className="field-help">When supplied by the retailer, the offer is automatically hidden after this time.</span></label>
-        <label>External listing ID<input required disabled={existing} value={form.externalListingId} onChange={e => field("externalListingId", e.target.value)} /></label>
+        <label>External Product ID<input required disabled={existing} value={form.externalListingId} onChange={e => field("externalListingId", e.target.value)} /><span className="field-help">Use the ASIN for Amazon, or the stable retailer listing ID for other stores.</span></label>
       </div></details>
       <details><summary>Advanced Product identity and matching</summary><div className="admin-form-grid">
         <label>MPN<input readOnly={reusingProduct} value={form.manufacturerPartNumber ?? ""} onChange={e => field("manufacturerPartNumber", e.target.value)} /></label>
@@ -431,7 +531,7 @@ function OfferEditor({ dashboard, selected, form, field, save, cancel, pending, 
         <label>Merchant policy<select disabled={existing} value={form.merchantPolicyId} onChange={e => field("merchantPolicyId", e.target.value)}>{dashboard.policies.map(item => <option key={item.id} value={item.id}>{item.sourceKey} · current price {item.priceStorage}</option>)}</select></label>
         <label>Retailer SKU<input value={form.retailerSku ?? ""} onChange={e => field("retailerSku", e.target.value)} /></label>
         <label className="span-2">Original retailer title<input required value={form.originalTitle} onChange={e => field("originalTitle", e.target.value)} /></label>
-        <label className="span-2">Approved retailer landing page<input type="url" placeholder="Optional HTTPS Product page approved for link generation" value={form.approvedAffiliateDestinationReference ?? ""} onChange={e => field("approvedAffiliateDestinationReference", e.target.value)} /><span className="field-help">Use the original retailer Product page. Do not paste a provider tracking URL; the backend generates the final handoff.</span></label>
+        <label className="span-2">Provider-generated link destination<input type="url" placeholder="Optional; used by Impact, CJ, and Rakuten" value={form.approvedAffiliateDestinationReference ?? ""} onChange={e => field("approvedAffiliateDestinationReference", e.target.value)} /><span className="field-help">Amazon owner-provided links use the canonical Product page above. This field remains for providers that generate a protected /go handoff.</span></label>
         <label>Seller<input value={form.seller ?? ""} onChange={e => field("seller", e.target.value)} /></label>
         <label>Marketplace seller<select value={form.isMarketplaceSeller === null ? "unknown" : String(form.isMarketplaceSeller)} onChange={e => field("isMarketplaceSeller", e.target.value === "unknown" ? null : e.target.value === "true")}><option value="false">No</option><option value="true">Yes</option><option value="unknown">Unknown</option></select></label>
         <label>Region<input value={form.regionAvailabilityContext ?? ""} onChange={e => field("regionAvailabilityContext", e.target.value)} /></label>
@@ -440,13 +540,119 @@ function OfferEditor({ dashboard, selected, form, field, save, cancel, pending, 
         <label className="span-2">External identifiers (JSON)<textarea rows={5} value={form.externalIdentifiers} onChange={e => field("externalIdentifiers", e.target.value)} /></label>
       </div></details>
     </div><aside className="admin-publication-card">
-      <h2>Publication</h2><label className="admin-toggle"><input type="checkbox" checked={form.isEnabled} onChange={e => field("isEnabled", e.target.checked)} /><span>Enable public discovery</span></label>
-      <p>Saving disabled creates a reversible draft. Enabling still requires an active brand, category, store, a valid time window, and an eligible Merchant Policy.</p>
+      <p className="eyebrow">Card preview — not public</p><div className="admin-offer-card-preview">{previewImage ? <img src={previewImage.previewPath} alt="" /> : <div aria-hidden="true">G</div>}<p>{dashboard.retailers.find(item => item.id === form.retailerId)?.label ?? "Retailer"}</p><strong>{form.productTitle || "Product title"}</strong><span>{form.currentPrice ? Number(form.currentPrice).toLocaleString("en-CA", { style: "currency", currency: "CAD" }) : "Current price"}</span><button type="button" disabled>Check retailer price</button></div>
+      <h2>Public readiness</h2><p><strong>{form.isEnabled ? "Currently published" : "Draft / not public"}</strong></p>
+      <p>Publication requires an active Product, store and Merchant Policy, reviewed price data, a valid time window, and an eligible retailer handoff.</p>
+      {existing && <p className="admin-link-readiness"><strong>Retailer link</strong><span>{selected.affiliateLinkReadiness}</span></p>}
       <label>Match decision<select value={form.matchState} onChange={e => field("matchState", e.target.value)}><option value="CONFIRMED">Same product confirmed</option><option value="POSSIBLEMATCHREVIEW">Review before comparing</option><option value="MANUALREVIEW">Manual review</option><option value="NOMATCH">No safe match</option></select></label>
       <label>Change reason<textarea rows={4} value={form.changeReason ?? ""} onChange={e => field("changeReason", e.target.value)} placeholder="Required when deactivating or changing match state" /></label>
-      <div className="admin-readonly"><strong>Derived, not editable</strong><span>Freshness from timestamps</span><span>Evidence from policy</span><span>Retailer handoff from approved active link</span><span>Reference price from permitted observations</span><span>Expired offers leave public discovery automatically</span></div>
+      <div className="admin-readonly"><strong>Derived, not editable</strong><span>Freshness from timestamps</span><span>Evidence from policy</span><span>Amazon handoff uses the exact owner-provided link</span><span>Other providers keep protected /go handoff</span><span>Expired offers leave public discovery automatically</span></div>
     </aside></div>
   </form>;
+}
+
+function AffiliateLinkIntake({ dashboard, selected, form, field, reportError, openExisting }: {
+  dashboard: AdminDashboard;
+  selected: AdminOffer | "new" | null;
+  form: OfferForm;
+  field: <K extends keyof OfferForm>(key: K, value: OfferForm[K]) => void;
+  reportError: (value: string | null) => void;
+  openExisting: (value: AdminOffer | "new") => void;
+}) {
+  const [inspection, setInspection] = useState<AdminAffiliateLinkInspection | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  const existingOffer = inspection?.externalProductId
+    ? dashboard.offers.find(offer => offer.retailerId === inspection.matchedRetailerId && offer.externalListingId.toUpperCase() === inspection.externalProductId?.toUpperCase())
+    : undefined;
+  const titleSuggestion = suggestProductTitleFromRetailerUrl(inspection?.resolvedProductUrl ?? form.affiliateTrackingUrl ?? "");
+
+  function applyInspection(result: AdminAffiliateLinkInspection) {
+    if (result.matchedRetailerId) field("retailerId", result.matchedRetailerId);
+    if (result.canonicalProductUrl) {
+      field("productUrl", result.canonicalProductUrl);
+      field("approvedAffiliateDestinationReference", result.canonicalProductUrl);
+    }
+    if (result.externalProductId) {
+      field("externalListingId", result.externalProductId);
+      if (form.externalIdentifiers.trim() === "{}") field("externalIdentifiers", jsonText({ asin: result.externalProductId }));
+    }
+    if (result.partnerTag) field("affiliatePartnerTag", result.partnerTag);
+    const suggestedTitle = suggestProductTitleFromRetailerUrl(result.resolvedProductUrl ?? form.affiliateTrackingUrl ?? "");
+    if (suggestedTitle && !form.productTitle.trim()) {
+      field("productTitle", suggestedTitle);
+      field("originalTitle", suggestedTitle);
+      field("slug", slugify(suggestedTitle));
+    }
+    if (!form.productId && result.brandCandidate) {
+      if (result.brandCandidate.matchStatus === "MATCHED_EXISTING" && result.brandCandidate.matchedBrandId && result.brandCandidate.matchedBrandIsEnabled) {
+        field("brandId", result.brandCandidate.matchedBrandId);
+        field("newBrandName", null); field("newBrandSlug", null); field("confirmBrandCreation", false);
+      } else {
+        field("brandId", null);
+        field("newBrandName", result.brandCandidate.name);
+        field("newBrandSlug", result.brandCandidate.slug);
+        field("confirmBrandCreation", false);
+      }
+    }
+  }
+
+  async function analyze() {
+    if (!form.affiliateTrackingUrl?.trim()) { reportError("Paste the retailer link you created in the provider account."); return; }
+    setAnalyzing(true); setInspection(null); setAnalysisError(null); reportError(null);
+    try {
+      const result = await inspectAdminAffiliateLink(form.affiliateTrackingUrl);
+      setInspection(result);
+      applyInspection(result);
+    }
+    catch (caught) {
+      const message = caught instanceof Error ? caught.message : "The retailer link could not be analyzed.";
+      setAnalysisError(message); reportError(message);
+    }
+    finally { setAnalyzing(false); }
+  }
+
+  function useDetails() {
+    if (!inspection) return;
+    applyInspection(inspection);
+  }
+
+  return <section className="admin-card admin-affiliate-intake" aria-labelledby="affiliate-link-heading">
+    <div className="admin-section-heading"><div><p className="eyebrow">Step 1</p><h2 id="affiliate-link-heading">Add offer from a retailer link</h2></div>{selected !== "new" && selected?.affiliateLinkStatus && <span className={`status-chip ${selected.affiliateLinkStatus === "ACTIVE" ? "status-ready" : ""}`}>{selected.affiliateLinkStatus}</span>}</div>
+    <p>Paste a link created through your approved retailer program. We inspect its format and show what still needs review. Nothing is published automatically.</p>
+    <div className="admin-affiliate-analyze-row"><label className="admin-affiliate-link-field">Retailer link<input type="url" maxLength={2000} placeholder="https://amzn.to/..." value={form.affiliateTrackingUrl ?? ""} onChange={event => { field("affiliateTrackingUrl", event.target.value); setInspection(null); setAnalysisError(null); }} /></label><button className="button button-secondary" type="button" disabled={analyzing || !form.affiliateTrackingUrl} onClick={() => void analyze()}>{analyzing ? "Validating…" : "Validate and fill"}</button><span className="field-help admin-affiliate-link-help">The original link is preserved. Amazon short links are resolved only far enough to validate an Amazon.ca destination and identify the Product; the Product page is not downloaded.</span></div>
+    {analyzing && <p role="status" aria-live="polite">Validating the provider destination and filling available Product identity…</p>}
+    {analysisError && <p className="admin-inline-error" role="alert">{analysisError}</p>}
+    {inspection && <div className={`admin-affiliate-result ${inspection.status === "READY" ? "is-ready" : "needs-review"}`} tabIndex={-1}>
+      <div className="admin-section-heading"><div><strong>{inspection.status === "READY" ? "Link recognized" : "Link recognized — review needed"}</strong><p>{existingOffer ? "This Product and offer already exist in the catalog." : "Store, Product ID, canonical URL, Partner Tag, and URL title suggestion are filled when available."}</p></div><span className="status-chip">{inspection.status.replaceAll("_", " ")}</span></div>
+      <dl><div><dt>Provider</dt><dd>{inspection.provider}</dd></div><div><dt>Handoff</dt><dd>{inspection.handoffMode.replaceAll("_", " ")}</dd></div><div><dt>Tracking host</dt><dd>{inspection.trackingHost}</dd></div><div><dt>Store</dt><dd>{inspection.matchedRetailer ?? "Not configured"}</dd></div><div><dt>Product ID</dt><dd>{inspection.externalProductId ?? "Enter ASIN manually"}</dd></div><div><dt>Brand</dt><dd>{inspection.brandCandidate?.matchedBrandName ?? inspection.brandCandidate?.name ?? "Review manually"}</dd></div><div><dt>Destination</dt><dd>{inspection.canonicalProductUrl ?? "Enter canonical Amazon.ca Product page"}</dd></div></dl>
+      <div className={`admin-autofill-status ${existingOffer || inspection.brandCandidate?.matchStatus === "MATCHED_EXISTING" ? "is-ready" : ""}`}><strong>{existingOffer ? "Complete catalog data found" : inspection.brandCandidate?.matchStatus === "MATCHED_EXISTING" ? "Existing brand matched" : inspection.brandCandidate ? "New brand candidate filled for review" : "Product identity filled from the URL"}</strong><p>{existingOffer ? "Name, classification, latest permitted price, and reviewed image can be reused from the existing record." : `${titleSuggestion ? "A title suggestion was filled from the URL. " : ""}${inspection.brandCandidate?.confidence === "LOW" ? "The brand candidate came only from URL text and must be confirmed before save. " : ""}Price and image are not present in an Amazon link. Enter reviewed values or configure an approved Creators API connector; GreatDeals.ca will not scrape the Product page.`}</p></div>
+      {inspection.warnings.length > 0 && <ul>{inspection.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>}
+      <div className="admin-affiliate-result-actions">{existingOffer ? <button className="button button-primary" type="button" onClick={() => openExisting(existingOffer)}>Open existing offer</button> : <button className="button button-primary" type="button" onClick={useDetails}>Reapply autofill</button>}<button className="button button-text" type="button" onClick={() => setInspection(null)}>Analyze another link</button></div>
+    </div>}
+    {form.affiliateTrackingUrl && <div className="admin-affiliate-confirmation">
+      <label>Amazon Partner Tag<input maxLength={100} placeholder="yourtag-20" value={form.affiliatePartnerTag ?? ""} onChange={event => field("affiliatePartnerTag", event.target.value)} /><span className="field-help">For amzn.to links, confirm the tag from your Amazon Associates Canada account.</span></label>
+      <label>Relationship evidence reference<textarea rows={3} maxLength={1000} placeholder="Redacted account approval or SiteStripe evidence reference" value={form.affiliateRelationshipEvidenceReference ?? ""} onChange={event => field("affiliateRelationshipEvidenceReference", event.target.value)} /></label>
+      <label className="admin-toggle"><input type="checkbox" checked={form.affiliateRelationshipConfirmed} onChange={event => field("affiliateRelationshipConfirmed", event.target.checked)} /><span>I confirm this link belongs to my approved account and GreatDeals.ca is registered for its use.</span></label>
+      <p className="field-help">This confirmation validates the commercial link only. Price, metadata and image rights remain controlled by the selected Merchant Policy.</p>
+    </div>}
+  </section>;
+}
+
+function NewProductImageIntake({ value, onChange }: { value: NewProductImageDraft; onChange: (value: NewProductImageDraft) => void }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!value.file) { setPreviewUrl(null); return; }
+    const next = URL.createObjectURL(value.file);
+    setPreviewUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [value.file]);
+
+  return <details open className="admin-new-product-image"><summary>Product image</summary><div className="admin-new-product-image-layout">
+    <div className="admin-new-image-preview">{previewUrl ? <img src={previewUrl} alt="Selected Product preview" /> : <div aria-hidden="true">Image</div>}<strong>{value.file?.name ?? "No image selected"}</strong><span>{value.file ? "This reviewed image will be attached immediately after the Product is created." : "Choose an owner-created or licensed image, or leave the neutral public fallback."}</span></div>
+    <div className="admin-new-image-fields"><label>Reviewed Product image<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => onChange({ ...value, file: event.target.files?.[0] ?? null })} /><span className="field-help">PNG, JPEG, or WebP · up to 1 MB · maximum 2400 × 2400. Amazon images require an approved API/content-rights path and are not copied from the Product page.</span></label><label>Rights evidence reference<textarea rows={3} maxLength={1000} value={value.rightsEvidenceReference} onChange={event => onChange({ ...value, rightsEvidenceReference: event.target.value })} /></label><div className="admin-form-grid admin-card-form-grid"><label>Effective at (optional)<input type="datetime-local" value={value.effectiveAt} onChange={event => onChange({ ...value, effectiveAt: event.target.value })} /></label><label>Expires at (optional)<input type="datetime-local" value={value.expiresAt} onChange={event => onChange({ ...value, expiresAt: event.target.value })} /></label></div><label className="admin-toggle"><input type="checkbox" checked={value.activate} onChange={event => onChange({ ...value, activate: event.target.checked })} /><span>Activate this image after the offer is saved</span></label></div>
+  </div></details>;
 }
 
 function ProductImageEditor({ productId, dashboard, refresh, notify, reportError }: { productId: string; dashboard: AdminDashboard; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
@@ -585,7 +791,7 @@ function Banners({ dashboard, refresh, notify, reportError }: { dashboard: Admin
   const publicCount = dashboard.banners.filter(banner => banner.isInPublicCarousel).length;
   const needsAttention = dashboard.banners.filter(banner => banner.isEnabled && (!banner.isInPublicCarousel || banner.publicArtworkState === "FALLBACK")).length;
   return <><div className="admin-heading"><div><p className="eyebrow">Homepage merchandising</p><h1>Store banners</h1><p><strong>{publicCount} public</strong> · {selectedCount} selected · maximum 4 visible per carousel page.</p><p>Select the configured banners that should participate. Public eligibility and artwork rights remain enforced by the backend.</p></div></div>
-    <section className="admin-carousel-selection" aria-labelledby="carousel-selection-heading"><div><h2 id="carousel-selection-heading">Carousel selection</h2><p>Choose active banners, then save the selection once. Unconfigured stores must be edited before activation.</p></div><div className="admin-selection-summary" aria-live="polite"><strong>{selectedCount}</strong><span>selected</span><strong>{publicCount}</strong><span>currently public</span><strong>{needsAttention}</strong><span>need attention</span></div>{removesBanner && <label>Change reason for removals<input maxLength={300} value={selectionReason} onChange={event => setSelectionReason(event.target.value)} placeholder="Why are these banners being removed?" /></label>}<button className="button button-primary" type="button" onClick={saveSelection} disabled={changedSelection.length === 0 || savingSelection}>{savingSelection ? "Saving selection…" : `Save active banners (${changedSelection.length} change${changedSelection.length === 1 ? "" : "s"})`}</button></section>
+    <section className={`admin-carousel-selection ${removesBanner ? "has-removals" : ""}`} aria-labelledby="carousel-selection-heading"><div className="admin-carousel-intro"><h2 id="carousel-selection-heading">Carousel selection</h2><p>Choose active banners, then save the selection once. Unconfigured stores must be edited before activation.</p></div><dl className="admin-selection-summary" aria-label="Carousel selection summary" aria-live="polite"><div><dt>Selected</dt><dd>{selectedCount}</dd></div><div><dt>Currently public</dt><dd>{publicCount}</dd></div><div><dt>Need attention</dt><dd>{needsAttention}</dd></div></dl>{removesBanner && <label className="admin-carousel-removal-reason">Change reason for removals<input maxLength={300} value={selectionReason} onChange={event => setSelectionReason(event.target.value)} placeholder="Why are these banners being removed?" /></label>}<button className="button button-primary admin-carousel-save" type="button" onClick={saveSelection} disabled={changedSelection.length === 0 || savingSelection}>{savingSelection ? "Saving selection…" : `Save active banners (${changedSelection.length} change${changedSelection.length === 1 ? "" : "s"})`}</button></section>
     <div className="admin-banner-filters" role="group" aria-label="Filter store banners">{(["all", "active", "inactive", "attention"] as const).map(value => <button type="button" key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "attention" ? "Needs attention" : value[0].toUpperCase() + value.slice(1)}</button>)}</div>
     <div className="admin-banner-grid">{visibleBanners.map(banner => <article className="admin-banner-card" key={banner.retailerId}><div className="admin-banner-preview" style={{ backgroundImage: `linear-gradient(90deg,rgba(4,31,22,.94),rgba(4,31,22,.38)),url(${banner.assetPath ?? builtInAssets[0].path})` }}><small>{banner.retailer}</small><strong>{banner.title}</strong><span>{banner.subtitle}</span></div><div className="admin-banner-card-body"><div className="admin-banner-card-status"><span className={`status-chip ${banner.isInPublicCarousel ? "status-ready" : banner.isEnabled ? "status-warning" : ""}`}>{banner.isInPublicCarousel ? `Public · position ${banner.publicPosition}` : banner.visibilityState}</span><span>{banner.publicArtworkState === "FALLBACK" ? "Fallback artwork" : banner.assetSource === "CANADADEALSORIGINAL" ? "GreatDeals original" : "Merchant-approved"}</span></div><label className="admin-toggle"><input type="checkbox" checked={selection[banner.retailerId] ?? false} disabled={!banner.profileId} onChange={event => setSelection(current => ({ ...current, [banner.retailerId]: event.target.checked }))} aria-describedby={`banner-reason-${banner.retailerId}`} /><span>Active in homepage carousel</span></label><p id={`banner-reason-${banner.retailerId}`}>{banner.publicEligibilityReason}</p><div className="admin-banner-card-actions"><span>Carousel position {banner.bannerOrder === 2147483647 ? "—" : banner.bannerOrder}</span><button className="button button-secondary" type="button" onClick={() => open(banner)}>Edit banner</button></div></div></article>)}</div>{visibleBanners.length === 0 && <p className="admin-empty">No banners match this filter.</p>}</>;
 }
