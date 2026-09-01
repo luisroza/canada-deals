@@ -411,6 +411,7 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
         using var firstJson = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
         var productId = firstJson.RootElement.GetProperty("productId").GetGuid();
+        var firstListingId = firstJson.RootElement.GetProperty("listingId").GetGuid();
 
         Guid secondRetailerId;
         await using (var scope = fixture.Services.CreateAsyncScope())
@@ -430,6 +431,8 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
         secondInput["currentPrice"] = 89.99m;
         using var second = await MutateAsync(client, HttpMethod.Post, "/api/v1/admin/offers", secondInput);
         Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+        using var secondJson = JsonDocument.Parse(await second.Content.ReadAsStringAsync());
+        var secondListingId = secondJson.RootElement.GetProperty("listingId").GetGuid();
 
         await using (var verification = fixture.Services.CreateAsyncScope())
         {
@@ -437,10 +440,22 @@ public sealed class AdminPanelIntegrationTests(ApiFixture fixture) : IClassFixtu
             Assert.Equal(1, await db.Products.CountAsync(item => item.Id == productId));
             Assert.Equal(2, await db.RetailerListings.CountAsync(item => item.ProductId == productId));
         }
-        using var publicProduct = await client.GetAsync($"/api/v1/products/{slug}");
-        Assert.Equal(HttpStatusCode.OK, publicProduct.StatusCode);
-        using var productJson = JsonDocument.Parse(await publicProduct.Content.ReadAsStringAsync());
-        Assert.Single(productJson.RootElement.GetProperty("safeComparisons").EnumerateArray());
+        using var feed = await client.GetAsync("/api/v1/deals?search=Admin%20Controlled%20Offer&pageSize=48");
+        Assert.Equal(HttpStatusCode.OK, feed.StatusCode);
+        using var feedJson = JsonDocument.Parse(await feed.Content.ReadAsStringAsync());
+        var productOffers = feedJson.RootElement.GetProperty("items").EnumerateArray()
+            .Where(item => item.GetProperty("productId").GetGuid() == productId)
+            .Select(item => item.GetProperty("listingId").GetGuid())
+            .ToArray();
+        Assert.Equal(2, productOffers.Length);
+        Assert.Contains(firstListingId, productOffers);
+        Assert.Contains(secondListingId, productOffers);
+
+        using var offerDetail = await client.GetAsync($"/api/v1/offers/{secondListingId}");
+        Assert.Equal(HttpStatusCode.OK, offerDetail.StatusCode);
+        using var offerJson = JsonDocument.Parse(await offerDetail.Content.ReadAsStringAsync());
+        Assert.Equal(secondListingId, offerJson.RootElement.GetProperty("primaryOffer").GetProperty("listingId").GetGuid());
+        Assert.False(offerJson.RootElement.TryGetProperty("safeComparisons", out _));
     }
 
     [RequiresPostgresFact]

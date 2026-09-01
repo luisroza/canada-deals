@@ -16,7 +16,7 @@ describe("GlobalSearch", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        items: [{ productId: "product-a", productTitle: "Northstar 55-inch QLED TV", brand: "Northstar", retailer: "Demo North", detailsPath: "/products/northstar-55-qled-tv" }],
+        items: [{ listingId: "listing-a", productId: "product-a", productTitle: "Northstar 55-inch QLED TV", brand: "Northstar", retailer: "Demo North", detailsPath: "/offers/listing-a" }],
         facets: { categories: [{ key: "electronics", label: "Electronics" }], retailers: [] },
       }),
     });
@@ -36,7 +36,7 @@ describe("GlobalSearch", () => {
   it("supports keyboard selection without hiding the normal search submission", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ items: [{ productId: "a", productTitle: "Fixture TV", brand: "Fixture", retailer: "Demo", detailsPath: "/products/fixture-tv" }], facets: { categories: [], retailers: [] } }),
+      json: async () => ({ items: [{ listingId: "listing-a", productId: "a", productTitle: "Fixture TV", brand: "Fixture", retailer: "Demo", detailsPath: "/offers/listing-a" }], facets: { categories: [], retailers: [] } }),
     }));
     render(<GlobalSearch />);
     const input = screen.getByRole("combobox");
@@ -44,6 +44,6 @@ describe("GlobalSearch", () => {
     await screen.findByRole("option", { name: /Fixture TV/ });
     fireEvent.keyDown(input, { key: "ArrowDown" });
     fireEvent.submit(input.closest("form")!);
-    expect(router.push).toHaveBeenCalledWith("/products/fixture-tv");
+    expect(router.push).toHaveBeenCalledWith("/offers/listing-a");
   });
 });

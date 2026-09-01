@@ -9,8 +9,12 @@ import { getDeals, type DiscoveryFacet } from "../lib/api";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Canada Deals - Evidence-led deal discovery",
-  description: "Compare Canadian online offers with visible price evidence, freshness, and safe product matching.",
+  title: "GreatDeals.ca",
+  description: "Discover Canadian online offers with clear deal prices, freshness, and product evidence.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: "/icon.svg",
+  },
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

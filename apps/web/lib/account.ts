@@ -1,4 +1,4 @@
-import type { SavedProduct } from "./api";
+import type { SavedOffer } from "./api";
 
 export type AccountSession = { isAuthenticated: boolean; email: string | null; emailConfirmed: boolean };
 
@@ -88,18 +88,18 @@ export function signOut() {
   return mutation<never>("/api/v1/account/logout", "POST");
 }
 
-export async function getSavedProducts(): Promise<SavedProduct[]> {
-  const response = await fetch("/api/v1/saved-products", { cache: "no-store", credentials: "same-origin" });
-  if (!response.ok) throw new AccountApiError("Saved products could not be loaded.", response.status);
-  return response.json() as Promise<SavedProduct[]>;
+export async function getSavedOffers(): Promise<SavedOffer[]> {
+  const response = await fetch("/api/v1/saved-offers", { cache: "no-store", credentials: "same-origin" });
+  if (!response.ok) throw new AccountApiError("Saved offers could not be loaded.", response.status);
+  return response.json() as Promise<SavedOffer[]>;
 }
 
-export function saveProduct(productId: string) {
-  return mutation<{ productId: string; isSaved: boolean }>(`/api/v1/saved-products/${encodeURIComponent(productId)}`, "PUT");
+export function saveOffer(listingId: string) {
+  return mutation<{ listingId: string; isSaved: boolean }>(`/api/v1/saved-offers/${encodeURIComponent(listingId)}`, "PUT");
 }
 
-export function unsaveProduct(productId: string) {
-  return mutation<never>(`/api/v1/saved-products/${encodeURIComponent(productId)}`, "DELETE");
+export function unsaveOffer(listingId: string) {
+  return mutation<never>(`/api/v1/saved-offers/${encodeURIComponent(listingId)}`, "DELETE");
 }
 
 /** @deprecated Price alerts are disabled in the current product. */

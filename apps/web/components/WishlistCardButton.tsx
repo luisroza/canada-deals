@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useState } from "react";
 import { useWishlist } from "./WishlistContext";
 
-export function WishlistCardButton({ productId, productTitle, returnTo }: { productId: string; productTitle: string; returnTo: string }) {
+export function WishlistCardButton({ listingId, productTitle, returnTo }: { listingId: string; productTitle: string; returnTo: string }) {
   const wishlist = useWishlist();
   const [message, setMessage] = useState("");
-  const saved = wishlist.isSaved(productId);
-  const pending = wishlist.isPending(productId);
+  const saved = wishlist.isSaved(listingId);
+  const pending = wishlist.isPending(listingId);
 
   if (wishlist.loading) {
     return <button className="card-wishlist-button" type="button" disabled aria-label={`Save — loading Wishlist state for ${productTitle}`}><span className="card-wishlist-icon" aria-hidden="true">♡</span> <span className="card-wishlist-label">Save</span></button>;
@@ -25,7 +25,7 @@ export function WishlistCardButton({ productId, productTitle, returnTo }: { prod
   async function toggle() {
     setMessage("");
     try {
-      const nowSaved = await wishlist.toggle(productId);
+      const nowSaved = await wishlist.toggle(listingId);
       setMessage(nowSaved ? "Saved to your Wishlist." : "Removed from your Wishlist.");
     } catch {
       setMessage("Wishlist could not be updated. Try again.");

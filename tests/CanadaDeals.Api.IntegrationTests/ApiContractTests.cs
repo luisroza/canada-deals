@@ -48,9 +48,10 @@ public sealed class ApiContractTests(ApiFixture fixture) : IClassFixture<ApiFixt
     }
 
     [RequiresPostgresFact]
-    public async Task Product_detail_separates_possible_variant_from_safe_comparison()
+    public async Task Offer_detail_exposes_only_the_selected_individual_offer()
     {
-        using var response = await CreateClient().GetAsync("/api/v1/products/mapleforge-20v-drill-kit");
+        var listingId = await GetListingIdAsync("MapleForge 20V Cordless Drill Kit");
+        using var response = await CreateClient().GetAsync($"/api/v1/offers/{listingId}");
         response.EnsureSuccessStatusCode();
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
@@ -60,21 +61,22 @@ public sealed class ApiContractTests(ApiFixture fixture) : IClassFixture<ApiFixt
         Assert.Equal("Canada", json.RootElement.GetProperty("primaryOffer").GetProperty("regionAvailabilityContext").GetString());
         Assert.True(json.RootElement.GetProperty("primaryOffer").TryGetProperty("seller", out _));
         Assert.True(json.RootElement.GetProperty("primaryOffer").TryGetProperty("shippingContext", out _));
-        Assert.Empty(json.RootElement.GetProperty("safeComparisons").EnumerateArray());
-        Assert.NotEmpty(json.RootElement.GetProperty("relatedListingsForReview").EnumerateArray());
-        Assert.Equal("Review before comparing", json.RootElement.GetProperty("relatedListingsForReview")[0].GetProperty("matchState").GetString());
+        Assert.Equal(listingId, json.RootElement.GetProperty("primaryOffer").GetProperty("listingId").GetGuid());
+        Assert.False(json.RootElement.TryGetProperty("safeComparisons", out _));
+        Assert.False(json.RootElement.TryGetProperty("relatedListingsForReview", out _));
     }
 
     [RequiresPostgresFact]
-    public async Task Product_detail_exposes_unavailable_history_without_a_strong_claim()
+    public async Task Product_detail_does_not_embed_price_tracking_or_cross_store_comparisons()
     {
         using var response = await CreateClient().GetAsync("/api/v1/products/northstar-quiet-headphones");
         response.EnsureSuccessStatusCode();
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         Assert.Equal("UNAVAILABLE", json.RootElement.GetProperty("primaryOffer").GetProperty("historyState").GetString());
-        Assert.Contains("unavailable", json.RootElement.GetProperty("historySummary").GetString(), StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("all-time-low", json.RootElement.GetProperty("historySummary").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.False(json.RootElement.TryGetProperty("historySummary", out _));
+        Assert.False(json.RootElement.TryGetProperty("safeComparisons", out _));
+        Assert.False(json.RootElement.TryGetProperty("relatedListingsForReview", out _));
     }
 
     [RequiresPostgresFact]

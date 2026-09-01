@@ -8,17 +8,21 @@ Vertical Slice 9 adds no public Rakuten credential, discovery, import, or URL-ge
 
 ### `GET /api/v1/deals`
 
-Returns one fixture-backed canonical Product card per result with identity, brand, category, representative permitted retailer offer, current CAD price, online availability, freshness and observation time, evidence state/explanation, human-readable match state, history availability, supported reference price/savings when defensible, details, and a safe-handoff path only when an ACTIVE program and usable persisted AffiliateLink exist. Otherwise `handoffPath` is null and no broken CTA is exposed.
+Returns one card per publishable `RetailerListing`, including listing/Product identity, brand, category, retailer, current deal price, optional same-listing regular price and savings, availability, freshness, observation time, evidence, offer-identity state, detail path, and a safe handoff only when an approved destination exists. Multiple listings attached to one internal Product remain separate results.
 
 Supported query parameters are `search`, comma-separated `category` and `retailer`, `minPrice`, `maxPrice`, `hasReference`, comma-separated `freshness` (`recent`, `aging`, `stale`, `unknown`), `match` (`safe`, `review`, `none`), `availability` (`online`, `unavailable`, `unknown`), `sort` (`relevance`, `recent`, `savings`, `price-asc`), bounded `page`, and bounded `pageSize` (1–48). Filters are OR within one comma-separated dimension and AND across dimensions. Invalid values, unknown category/retailer keys, malformed numeric values, contradictory prices, and invalid page bounds return `400`.
 
-The unfiltered feed defaults to `recent`; a search with no explicit sort defaults to `relevance`. Relevance is deterministic and explainable: exact normalized model/MPN/GTIN, exact title, title prefix, PostgreSQL full-text rank, controlled `pg_trgm` word similarity, recency, then Product ID. It never uses affiliate economics, click behavior, save/alert state, or user data. `savings` is shown/sorted only when a permitted earlier observation is higher than the current price. Price-range filtering also requires a safe online same-product match.
+The unfiltered feed defaults to `recent`; a search with no explicit sort defaults to `relevance`. Relevance is deterministic and explainable: exact normalized model/MPN/GTIN, exact title, title prefix, PostgreSQL full-text rank, controlled `pg_trgm` word similarity, recency, then listing ID. It never uses commercial economics, click behavior, Wishlist state, or user data. `savings` is shown/sorted only when the same listing has an explicit higher regular price, matching currency, observation time, and evidence reference. No price from another listing or retailer enters the calculation.
 
 The response includes `count`, effective `sort`, page metadata, `hasNext`, and policy-safe category/retailer facets. `UNKNOWN` or denied merchant-policy data is excluded before search, filtering, ranking, cards, and facets.
 
+### `GET /api/v1/offers/{listingId}`
+
+Returns the selected listing with internal Product identity/attributes, its deal and optional regular price/savings, seller, condition, availability, region, shipping, observation time, evidence summary, image, and retailer handoff. It never returns comparison arrays or alternative listings.
+
 ### `GET /api/v1/products/{slug}`
 
-Returns canonical Product ID and slug, structured variant attributes, primary offer, safe same-product comparisons, possible related listings for review, history summary, and evidence summary. Each offer exposes source-proven seller, condition, online availability, regional context, shipping context, and observation time. Null source facts remain null so the UI can label them unknown; coupon, membership/payment eligibility, and retailer offer expiry are not inferred from an affiliate link or a current-price observation. Possible variants never enter `safeComparisons`.
+Compatibility resolver that returns one eligible listing projection for the legacy Product slug. The frontend redirects it to `/offers/{listingId}`. It is not a canonical public comparison contract.
 
 ### `GET /api/v1/products/{slug}/history?window=30d|90d`
 
@@ -40,21 +44,21 @@ The projection is backend-authoritative. It includes only permitted observations
 
 Register, login, and logout require anti-forgery validation. Register/login also use the `authentication` rate-limit policy. API authentication failures return `401` and authorization failures return `403`; cookie middleware never redirects API clients to HTML login pages.
 
-### Saved Product endpoints
+### Saved Offer endpoints
 
-- `GET /api/v1/saved-products` returns only the authenticated user's canonical products with title, current publishable price, currency, retailer context, evidence, freshness, history availability, saved timestamp, and public details path.
-- `PUT /api/v1/saved-products/{productId}` idempotently saves an existing canonical Product. First save returns `201`; an existing save returns `200` without duplication.
-- `DELETE /api/v1/saved-products/{productId}` idempotently removes only the current user's matching save and returns `204`.
+- `GET /api/v1/saved-offers` returns only the authenticated user's exact saved listings with Product/store context, deal/regular price projection, evidence, freshness, saved timestamp, and `/offers/{listingId}` detail path.
+- `PUT /api/v1/saved-offers/{listingId}` idempotently saves an existing retailer listing. First save returns `201`; an existing save returns `200` without duplication.
+- `DELETE /api/v1/saved-offers/{listingId}` idempotently removes only the current user's matching save and returns `204`.
 
-All three endpoints derive the User ID from the authenticated server session; no request accepts a User ID or SavedProduct database ID. PUT/DELETE require `X-CSRF-TOKEN`. Unknown Products return `404`; anonymous requests return `401`.
+All three endpoints derive the User ID from the authenticated server session; no request accepts a User ID or SavedOffer database ID. PUT/DELETE require `X-CSRF-TOKEN`. Unknown listings return `404`; anonymous requests return `401`. `/api/v1/saved-products` remains a temporary route alias but uses listing IDs and the Saved Offer response contract.
 
 ### Target Price Alert endpoints
 
 - `GET /api/v1/price-alerts` returns only the authenticated user's alert configurations with canonical Product context, CAD target, ACTIVE/DISABLED status, target version, consent evidence, and evaluation/trigger timestamps.
-- `PUT /api/v1/price-alerts/{productId}` idempotently creates or updates one canonical Product alert. Body: `{ "targetPrice": 399.99, "consentToEmail": true }`. First creation returns `201`; retry/update returns `200`. Creating an alert also ensures that Product is saved.
-- `DELETE /api/v1/price-alerts/{productId}` idempotently disables only the current user's alert and returns `204`; it does not remove the Saved Product.
+- `PUT /api/v1/price-alerts/{productId}` idempotently creates or updates one historical canonical Product alert configuration. It does not add any listing to the Wishlist.
+- `DELETE /api/v1/price-alerts/{productId}` idempotently disables only the current user's historical alert and returns `204`; it does not remove a Saved Offer.
 
-PUT/DELETE require authentication, confirmed email, anti-forgery validation, and the `price-alert-mutations` rate limit. User ID is always derived from the server principal. Targets are CAD, greater than zero, no more than 1,000,000, and limited to two decimals. Missing consent is rejected; no newsletter or Weekly Digest consent is inferred.
+These routes are retained for rollback/record compatibility but are disabled as a current product capability. No frontend control or worker enqueue exposes alerts. If enabled in a controlled environment, mutations retain their authentication, confirmed-email, anti-forgery, validation, and rate-limit protections.
 
 Development/Test-only authenticated diagnostics support deterministic E2E without external mail: `POST /api/internal/price-alert-evaluation/scenarios/{productId}`, `POST /api/internal/price-alert-evaluation/run`, `GET /api/internal/price-alert-evaluation/jobs/{jobId}`, and `GET /api/internal/price-alert-evaluation/deliveries`. `GET /api/internal/email-captures/latest?to=...` exposes the latest exact controlled HTML/text capture only in Development/Test. They are `404` outside Development/Test and never fetch retailer data.
 

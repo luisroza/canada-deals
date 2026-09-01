@@ -13,7 +13,7 @@ GreatDeals.ca should feel like a fast, visual deal-discovery product with calm t
 3. How fresh and trustworthy is the evidence?
 4. Where can I safely continue the purchase?
 
-The primary interaction is **browse → scan → verify → hand off**, with **wishlist → return** as the only account-based retention loop. Current price, check time, retailer context, match confidence, and disclosure remain visible at the moment of decision.
+The primary interaction is **browse → scan → verify one offer → hand off**, with **wishlist → return** as the only account-based retention loop. Deal price, evidence-backed regular price when available, check time, retailer context, identity confidence, and disclosure remain visible at the moment of decision. Offers are never compared across retailers.
 
 ## 2. Approved product basis
 
@@ -23,7 +23,7 @@ The primary interaction is **browse → scan → verify → hand off**, with **w
 - Secondary audience: expert deal hunters who can help stress-test quality.
 - Retailer priorities: Amazon.ca, Best Buy Canada, and Home Depot Canada; Walmart Canada remains a fallback candidate.
 - MVP platform: English-first responsive web.
-- P0: deal feed, search, category/store menus, category/store filters, store banners, compact Deal Card, Product Page, freshness, evidence/confidence, safe comparison, retailer handoff, disclosure, and stale/wrong reporting.
+- P0: deal feed, search, category/store menus, category/store filters, store banners, compact individual-offer Deal Card, Offer Page, freshness, evidence/confidence, same-listing regular/deal price context, retailer handoff, disclosure, and stale/wrong reporting.
 - P1: Wishlist persistence.
 - Removed: public price tracker/history, target-price alerts, alert navigation, and weekly digest.
 
@@ -35,7 +35,7 @@ Promobit was reviewed as a structural reference, not a visual identity to copy. 
 
 ### Evidence before enthusiasm
 
-The interface leads with current price, reference basis, observed time, retailer, and match confidence. Superlatives and promotional language are secondary.
+The interface leads with the offer's deal price, its own verified regular price when available, observed time, retailer, and identity confidence. Superlatives and promotional language are secondary.
 
 ### Freshness is a product feature
 
@@ -45,9 +45,9 @@ Every price claim has an understandable observation time and a clear stale/unkno
 
 Missing history, uncertain matching, unavailable shipping, and unverified savings use honest labels and useful next actions. No fake chart, fake discount, or implied certainty.
 
-### Compare only when safe
+### One offer, one decision
 
-The product identity comes before the price comparison. Similar-looking offers are not presented as equivalent unless the match is strong enough.
+Each listing is a complete independent offer. The UI never uses another retailer or listing as a price reference, never groups alternatives into a comparison table, and never hides one listing behind a representative Product card. Internal matching may support catalog hygiene, but it does not create a public comparison.
 
 ### Short path to a useful decision
 
@@ -61,7 +61,7 @@ Affiliate disclosure is visible near retailer actions. Commission status must no
 
 ### Primary: planned-purchase shopper
 
-Needs confidence before spending, often compares a small number of known products, and may return later. Success is a credible answer in under two minutes.
+Needs confidence before spending, often reviews a small number of known offers, and may return later. Success is a credible answer in under two minutes.
 
 ### Secondary: expert deal hunter
 
@@ -70,9 +70,9 @@ Scans more often, notices stale or weak evidence, and values history and alerts.
 ### Behavioural modes
 
 - **Explore:** browse a category or deal feed.
-- **Verify:** inspect evidence, freshness, history, and product identity.
-- **Compare:** view safe retailer alternatives for the same product.
-- **Return:** revisit saved products or respond to a target-price alert.
+- **Verify:** inspect one offer's evidence, freshness, regular/deal price context, and product identity.
+- **Continue:** open the retailer destination for that exact offer.
+- **Return:** revisit saved offers in the Wishlist.
 
 ## 5. Core journeys
 
@@ -80,31 +80,31 @@ Scans more often, notices stale or weak evidence, and values history and alerts.
 
 1. Visitor lands on a plain-language value proposition.
 2. Visitor searches, selects a category, or opens a featured deal.
-3. Feed immediately exposes price, reference, freshness, and evidence labels.
-4. Visitor opens a Product Page without creating an account.
-5. Visitor compares or continues to a retailer with disclosure.
+3. Feed immediately exposes deal price, verified regular price/savings when available, freshness, and evidence labels.
+4. Visitor opens an Offer Page without creating an account.
+5. Visitor continues to the retailer with disclosure.
 
 ### Journey B — verify a deal
 
 1. Open Deal Card.
 2. Confirm exact/variant match and retailer.
-3. Read current price, reference basis, savings wording, and observation time.
-4. Inspect history state: reliable, partial, or unavailable.
+3. Read the deal price, same-listing regular-price basis when available, savings wording, and observation time.
+4. Inspect seller, condition, availability, shipping, and evidence state.
 5. Choose retailer handoff or report stale/wrong information.
 
-### Journey C — compare safely
+### Journey C — inspect an individual offer
 
-1. Product Page identifies the canonical product and important attributes.
-2. Comparison panel groups same-product offers.
-3. Each retailer row shows price, observed time, availability context, shipping uncertainty, and CTA.
-4. Uncertain-match alternatives are separated and never merged into the primary comparison.
+1. Offer Page identifies the product and the selected retailer listing.
+2. The decision summary shows only that listing's deal price and its own supported regular price/savings.
+3. Offer facts show observed time, availability context, seller/condition, shipping uncertainty, and CTA.
+4. Other listings for the same internal Product are not rendered as comparisons or alternatives.
 
 ### Journey D — wishlist
 
 1. Visitor selects Save to wishlist.
 2. If signed out, the UI explains the minimum account step and preserves context.
-3. A signed-in shopper can save directly from a Deal Card or Product Page; card state and the navigation count stay synchronized from one Wishlist load per navigation.
-4. The shopper can search the Wishlist, narrow it by category or store, sort by saved date/current price/name/store, revisit a current offer, or remove the product.
+3. A signed-in shopper can save the exact listing directly from a Deal Card or Offer Page; card state and the navigation count stay synchronized from one Wishlist load per navigation.
+4. The shopper can search the Wishlist, narrow it by category or store, sort by saved date/current price/name/store, revisit the exact offer, or remove it.
 5. Loading, signed-out, empty, no-match, mutation-error, and load-error/retry states are mutually exclusive and announced accessibly.
 6. No target price, alert consent, or promotional notification is requested.
 
@@ -121,7 +121,7 @@ Primary routes:
 - Home
 - Deals
 - Search results
-- Product Page
+- Offer Page
 - Wishlist
 - Account / preferences
 - Report confirmation
@@ -138,215 +138,78 @@ The homepage hierarchy is:
 2. **Global search:** product/model suggestions in the sticky header.
 3. **Store banners:** a one-row responsive carousel of all enabled eligible stores using original GreatDeals artwork, accessible HTML retailer text, and visibly distinct affiliate/discovery-only states. Desktop exposes no more than four banners at once; tablet and mobile expose fewer, preserve a next-item cue, and support touch scrolling plus explicit Previous/Next controls.
 4. **Quick filters:** category and store only.
-5. **Feed modes:** latest, best supported savings, and lowest price.
-6. **Compact deal grid:** retailer, visual area, title, current price, check time, Wishlist toggle, and CTA.
+5. **Feed modes:** latest, largest supported same-offer savings, and lowest deal price.
+6. **Compact deal grid:** one card per retailer listing with retailer, visual area, title, deal price, optional verified regular price/savings, check time, Wishlist toggle, and CTA.
 7. **Optional return path:** wishlist, without forcing account creation during discovery.
 
 On mobile, the search and first useful card must appear before educational content. Promotional modules cannot displace the main search task.
 
 ## 8. Deals feed and filters
 
-The feed supports category, retailer, price range, discount/reference availability, freshness, match confidence, and availability-context filters. Filters show active counts, can be cleared individually, and preserve results when a user returns from a Product Page.
-
-Sort choices:
-
-- Most recently checked
-- Largest supported savings
-- Lowest current price
-
-The initial MVP default is **Most recently checked** because it is transparent, deterministic, and reinforces freshness. “Best evidence” may be tested later, but is not the initial default and must not be presented as an opaque “Recommended” or “Best Deals” ranking.
+The public feed exposes category and store filters only. Filter and sort changes update results in place, retain scroll when possible, synchronize browser history, and provide a working Clear action. Sort choices are Latest, Best savings, and Lowest price. Best savings compares the deal price only with the verified regular price on the same listing.
 
 ## 9. Deal Card specification
 
-### Standard card
+Order: product image, retailer, product title, deal price, optional regular price and savings, one freshness/evidence line, Wishlist toggle, and one retailer action. One listing always produces one card; cards are keyed and linked by listing ID. Clicking the non-interactive card surface opens the internal Offer Page in the current tab, while Wishlist remains independent and **Check retailer price** uses only the protected retailer handoff and opens the retailer in a new tab. The card does not show another retailer, a comparison reference, history, or a “best store” claim.
 
-Order: product image, category/retailer, product title and identifying variant, current price, reference/evidence label or “No verified reference,” savings statement only when supported, freshness label, public product-match state, and actions.
+Supported price states are:
 
-Actions: View details, Compare retailers when safe, Save, and Report stale/wrong in an overflow menu.
-
-### Compact card
-
-Used in dense lists and mobile. Retains title, current price, retailer, freshness, and one evidence label. It must not hide the observation time behind a hover interaction.
-
-### Featured card
-
-May add a short reason such as “Recently checked” or “Strong historical evidence.” Never use “unbeatable,” “guaranteed,” or a large savings badge without supporting evidence.
-
-### Card states
-
-- Verified current price + reliable reference.
-- Current price only; no verified reference.
-- Partial history.
-- Stale observation.
-- Review before comparing.
-- No safe comparison.
-- Expired or unavailable retailer offer.
-- Loading, empty, and error.
-
-Each state has a visible label, one-sentence explanation, and a next action.
+- Deal price plus a higher verified regular price from the same listing.
+- Deal price only when regular-price evidence is absent or invalid.
+- Price unavailable.
+- Stale, scheduled, expired, or unavailable offer.
 
 ## 10. Trust, evidence, and freshness language
 
-Use a consistent evidence block:
+Use “Deal price” for the current promotional amount and “Regular price” only for the same retailer listing. Show savings only when the regular amount is greater than the deal amount and has a source reference plus observation time. Freshness labels remain Just checked, Checked today, Checked recently, May be stale, and Check time unavailable. Internal matching status may be summarized as offer identity verified, under review, or unavailable; it must not imply comparison eligibility.
 
-> Current price: $X CAD
-> Observed: 2 hours ago
-> Reference: observed history / retailer reference / unavailable
-> Product match: Same product confirmed
+## 11. Offer Page
 
-Freshness labels: Just checked, Checked today, Checked recently, May be stale, and Last observation unavailable. The exact timestamp is available in the detail view.
+The canonical public detail route is `/offers/{listingId}`. Above the fold: product identity and image, selected retailer, deal price, optional regular price/savings, freshness/evidence, primary retailer CTA, and Save offer. Below the fold: seller, condition, availability, region, shipping, product attributes, source evidence, and report stale/wrong. No comparison table, related-listing panel, price-history chart, target-price action, or alternative retailer row is rendered.
 
-Public product-match states are human-readable and distinct from internal confidence signals:
+The legacy Product slug route may resolve an eligible listing and redirect to its Offer Page; it is not a comparison surface.
 
-- **Same product confirmed:** included in the safe retailer comparison.
-- **Review before comparing:** a listing may differ by model, size, storage, seller, condition, pack size, bundle, generation, or another meaningful variant.
-- **No safe comparison available:** no listing is confidently equivalent and it is not included in the price comparison.
+## 12. Wishlist and account friction
 
-Do not expose implementation confidence percentages in the MVP.
+Wishlist persistence is keyed by listing ID. Saving one store's offer does not save another listing attached to the same internal Product. Signed-out visitors keep public access and receive a focused sign-in boundary that preserves the exact return path. The private list supports local search/category/store/sort and removal, without target prices or notifications.
 
-Savings copy follows evidence:
+## 13. Search and results
 
-- “$X below the observed reference” when supported.
-- “Current price” when no reference is available.
-- “Reference unavailable” when the comparison basis is incomplete.
+Search accepts product names, model numbers, brands, and category terms. Results retain the same one-listing-per-card contract and preserve the typed query. A result does not become a promotion merely because its price is low; regular-price savings require same-listing evidence.
 
-Do not show a percentage discount when the reference is unknown or when product identity is uncertain.
+## 14. Reporting stale or wrong information
 
-## 11. Product Page
+Report reasons are price changed, wrong product, retailer page unavailable, incorrect variant, expired offer, or other. The selected listing ID and source context are attached automatically. Confirmation does not promise an SLA.
 
-Above the fold:
+## 15. Mobile and responsive behavior
 
-1. Canonical product title and identifying attributes.
-2. Current CAD price and retailer context.
-3. Evidence/freshness/match summary.
-4. Primary retailer CTA with affiliate disclosure.
-5. Save and Target Price actions.
+- Content order is search, store carousel, category/store controls, feed, and individual offer cards.
+- One primary retailer action per card and Offer Page decision summary; every real retailer handoff opens in a new tab and communicates that behavior accessibly.
+- A mobile sticky action may repeat only the selected offer's retailer handoff.
+- Touch targets are at least 44 CSS pixels and no essential fact depends on hover, pointer precision, or color alone.
+- The carousel shows one mobile item per viewport with touch scrolling and explicit controls; it never lays all banners into one overflowing row.
 
-Below the fold:
+## 16. Accessibility and design system
 
-- retailer comparison,
-- price-history module,
-- evidence details,
-- product attributes and variant clarification,
-- report stale/wrong,
-- related products only when clearly labeled as alternatives, not same-product matches.
+Target WCAG 2.2 AA with semantic landmarks/headings, labeled controls, keyboard-complete flows, visible focus, sufficient contrast, reduced motion, and live announcements for result and Wishlist changes. Core components are App Shell, Search Bar, Category/Store Menus, Store Carousel, Deal Card, Deal/Regular Price Block, Evidence/Freshness Badge, Save Offer Button, Retailer Action, Offer Facts, Report Dialog, Empty/Loading/Error State, and Pagination.
 
-The page should answer “what is this?” before “how much could I save?”
+## 17. SEO and measurement
 
-## 12. Price history
+Public Offer Pages use stable listing routes, useful titles, canonical metadata, and indexable source-backed facts. Avoid thin pages, mass-generated claims, fake reviews, and discount claims that cannot be refreshed. Measure time to first useful offer, search-to-offer rate, retailer handoff, exact-offer Wishlist save/revisit/removal, report rate, stale rate, and accessibility defects. Cross-retailer comparison usage and alert creation are not product metrics.
 
-P0 requires the Product Page to render all price-history evidence states correctly. It does not require complete history for every MVP product. A product or retailer with insufficient permitted or reliable history must remain usable and show **“Price history unavailable.”** Lack of history for one product or retailer does not automatically block MVP launch.
+## 18. Current screen inventory
 
-### Reliable history
+1. Home/deals feed — desktop and mobile.
+2. Search results.
+3. Individual Offer Page.
+4. Wishlist.
+5. Account boundaries.
+6. Report stale/wrong.
+7. Admin offer/catalog/banner/report screens.
+8. Loading, empty, stale, scheduled, expired, unavailable, not-found, and error states.
 
-Show the textual interpretation expanded by default, followed by a readable chart with period selector, current marker, and observation coverage. For example: “Current price: $499 CAD. Lowest observed price since tracking began: $449 CAD. Tracking since: March 2026.” Use exact wording only when supported; never imply all-time coverage without all-time evidence. Include a text summary for screen readers.
+Detailed wireframes and older checkpoint artifacts remain historical references where they conflict with this approved individual-offer revision.
 
-### Partial history
+## 19. Final UX recommendation
 
-Show the chart only for the supported period and label coverage limitations. Avoid implying an all-time low.
-
-### Unavailable history
-
-Use a compact explanation: “Price history unavailable — we do not have enough verified history for this product yet.” Keep current price and retailer actions usable; do not render an empty axis that looks like missing data.
-
-The chart must not imply a continuous observation when data points are sparse.
-
-## 13. Retailer comparison
-
-Desktop uses a comparison table with one row per safely matched retailer offer. Columns: retailer, current price, observation time, availability/store context, shipping note when known, evidence, and action.
-
-Mobile uses stacked offer cards with the same information in the same priority order. The primary CTA is “View at retailer,” with “Opens retailer site” and affiliate disclosure close to it.
-
-Offers with an uncertain product match belong in a separate “Review before comparing” section. “No safe comparison available” is a valid final state and should explain that a similar listing was found but not treated as equivalent.
-
-Affiliate disclosure stays close to each retailer CTA, visible, neutral, and understandable. Conceptual baseline copy: “We may earn a commission if you buy through this link.” This is UX copy guidance; final legal and compliance wording remains subject to later review.
-
-## 14. Search and results
-
-Search accepts product names, model numbers, and common category terms. Autocomplete distinguishes products from categories and recent searches. Results preserve the typed query and expose a clear no-result path with spelling/category suggestions.
-
-Search result rows retain the same trust vocabulary as Deal Cards. A result must not become a deal merely because it has a low current price.
-
-## 15. Save, target price, and account friction
-
-Save is available from cards and Product Pages. Signed-out users can explore and compare first; account creation occurs only when persistence or alerts require it. The sign-in boundary states the benefit and preserves the product context.
-
-Target Price asks for a CAD amount, validates sensible input, and confirms: product, target, channel, and alert condition. P1 email alerts are explicit. Weekly digest is P2 and must not appear as an MVP default.
-
-## 16. Reporting stale or wrong information
-
-Report reasons: price changed, product mismatch, retailer page unavailable, incorrect variant, expired offer, or other. Keep the form short, include source context automatically, and show a confirmation without promising an SLA.
-
-## 17. Mobile and responsive behavior
-
-- Mobile-first content order: search, trust summary, key price, CTA, evidence, comparison, history.
-- One primary action per card; secondary actions move to a visible overflow.
-- After the original retailer CTA leaves the viewport, the mobile Product Page may show a sticky bar containing only the primary retailer handoff, such as “View at Best Buy.” It must not contain Save, Target Price, or multiple competing retailer actions.
-- The sticky retailer CTA must not cover evidence, content, or focus targets; it must remain keyboard accessible, have an accessible name, and preserve nearby affiliate-disclosure expectations.
-- Comparison tables become stacked cards at narrow widths.
-- Filters open as a full-height sheet with applied count and clear/apply controls.
-- Touch targets are at least 44 CSS pixels; focus indicators remain visible.
-- No essential claim depends on hover, pointer precision, or color alone.
-
-## 18. Accessibility
-
-Target WCAG 2.2 AA. Use semantic headings, landmarks, labeled controls, keyboard-complete flows, visible focus, sufficient contrast, reduced-motion support, and text alternatives for price-history charts. Announce filter changes and alert confirmation to assistive technology. Error messages identify the field and correction.
-
-## 19. Design system direction
-
-The visual personality is trustworthy, practical, and editorially restrained: neutral surfaces, one confident accent for actionable states, and semantic status colors used with text labels. Price is prominent; evidence and freshness are equally legible.
-
-Core components: App Shell, Search Bar, Filter Bar, Deal Card, Price Block, Evidence Badge, Freshness Label, Match Confidence Label, Retailer Offer Card, Comparison Table, Price History Panel, Save Button, Target Price Dialog, Disclosure, Report Dialog, Alert Banner, Empty State, Loading Skeleton, Error State, and Pagination/Load More.
-
-## 20. States and content rules
-
-Every primary screen defines loading, empty, error, stale, expired, unavailable, and success states. The state copy says what happened, what is known, and what the user can do next. Ads or sponsored content, if later introduced, must be visually separated, labeled, and excluded from organic trust signals.
-
-## 21. SEO-ready UX constraints
-
-Public Product Pages should have stable, readable titles, useful structured content, canonical product identity, and indexable evidence summaries only where data supports them. Avoid thin pages, mass-generated category pages, fake review language, and claims that cannot be refreshed.
-
-## 22. Measurement and validation
-
-Measure time to first useful result, search-to-Product-Page rate, evidence expansion, comparison use, retailer handoff, save conversion, alert creation, report rate, stale-rate by surface, and accessibility defects. User testing remains required, but does not block Solution Architecture or Data/Affiliate Architecture. The recommended sequence is: approved UX baseline → architecture and data planning → interactive/coded prototype → 5–8 representative Canadian shopper usability sessions → UX refinement → final MVP UX freeze and broader release.
-
-Usability sessions should test homepage comprehension, Deal Card comprehension, freshness and evidence interpretation, safe comparison, price-history states, affiliate disclosure, retailer handoff expectations, Save Product, Target Price Alert, and mobile usability. This is a formative comprehension study, not a statistical study.
-
-## 23. Candidate experiments after baseline approval
-
-- Search-first homepage versus curated-feed-first homepage.
-- Evidence summary expanded by default versus collapsed after the first screen; the approved baseline is expanded textual history interpretation.
-- “Best evidence” versus “Most recently checked” as a later ranking experiment; the approved initial default is Most recently checked.
-- Save-first versus alert-first return prompt after a verified Product Page.
-
-Experiments must not hide freshness, disclosure, match confidence, or evidence, and must not optimize retailer clicks at the expense of safe decisions.
-
-## 24. Screen inventory
-
-1. Home — desktop and mobile.
-2. Deals feed — desktop and mobile.
-3. Search results — desktop and mobile.
-4. Product Page — desktop and mobile.
-5. Price history states.
-6. Retailer comparison states.
-7. Save and target-price flow.
-8. Report stale/wrong flow.
-9. Saved products and alerts.
-10. Loading, empty, stale, unavailable, uncertain-match, and error states.
-
-Detailed text wireframes are in `docs/ux/WIREFRAMES.md`; tokens and component rules are in `docs/ux/DESIGN-SYSTEM.md`; prioritized UX stories are in `docs/ux/UX-BACKLOG.md`.
-
-## 25. Approved Human UX Checkpoint refinements
-
-- Public evidence wording is “Deals with strong evidence.”
-- Public product-match wording is “Same product confirmed,” “Review before comparing,” and “No safe comparison available.”
-- Initial feed sort is Most recently checked.
-- Textual price-history interpretation is expanded by default.
-- Mobile sticky bar contains only the primary retailer handoff after the original CTA leaves the viewport.
-- Affiliate disclosure remains adjacent to retailer CTAs; final legal/compliance wording remains subject to later review.
-
-These are UX decisions only. They do not authorize technology selection, integrations, or implementation.
-
-## 26. Final UX recommendation
-
-The approved UX is a narrow, evidence-led responsive experience centered on one trustworthy Product Page and a repeatable Deal Card. Current price, observation time, evidence basis, and product-match state are first-class content. No-history and no-safe-comparison remain useful honest outcomes. Save and Target Price are P1 retention flows, weekly digest remains P2, and the repository is now ready for coordinated Solution/Cloud Architecture and Data/Affiliate planning without starting implementation.
+GreatDeals.ca is an evidence-led offer discovery experience. Every card, detail page, Wishlist entry, price claim, and outbound action refers to one exact retailer listing. Deal price, same-listing regular price when verified, observation time, and evidence are first-class. Cross-retailer comparisons, public price tracking, target-price alerts, and promotional digests are outside the product.

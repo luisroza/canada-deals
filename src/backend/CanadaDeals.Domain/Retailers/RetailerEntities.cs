@@ -219,9 +219,14 @@ public sealed class RetailerListing
     public MatchState MatchState { get; private set; }
     public decimal? CurrentPriceAmount { get; private set; }
     public string? CurrentPriceCurrency { get; private set; }
+    public decimal? RegularPriceAmount { get; private set; }
+    public string? RegularPriceCurrency { get; private set; }
+    public DateTimeOffset? RegularPriceObservedAt { get; private set; }
+    public string? RegularPriceEvidenceReference { get; private set; }
     public Guid MerchantPolicyId { get; private set; }
     public MerchantPolicy MerchantPolicy { get; private set; } = null!;
     public bool IsEnabled { get; private set; } = true;
+    public DateTimeOffset? OfferValidFrom { get; private set; }
     public DateTimeOffset? OfferValidUntil { get; private set; }
     public ICollection<AffiliateLink> AffiliateLinks { get; private set; } = new List<AffiliateLink>();
 
@@ -252,21 +257,30 @@ public sealed class RetailerListing
         string? regionAvailabilityContext = "Canada",
         OnlineAvailabilityState onlineAvailability = OnlineAvailabilityState.Available,
         string? shippingContext = null,
-        DateTimeOffset? offerValidUntil = null) => new()
+        DateTimeOffset? offerValidUntil = null,
+        decimal? regularPriceAmount = null,
+        DateTimeOffset? regularPriceObservedAt = null,
+        string? regularPriceEvidenceReference = null,
+        DateTimeOffset? offerValidFrom = null)
     {
-        Id = Guid.NewGuid(), ProductId = productId, RetailerId = retailerId,
-        ExternalListingId = externalListingId, OriginalTitle = originalTitle, ProductUrl = productUrl,
-        MerchantPolicyId = merchantPolicyId, MatchState = matchState, SourceObservedAt = sourceObservedAt,
-        FetchedAt = fetchedAt, CurrentPriceAmount = currentPriceAmount, CurrentPriceCurrency = currentPriceCurrency,
-        Freshness = freshness, Evidence = evidence, History = history,
-        VariantAttributesJson = JsonSerializer.Serialize(variantAttributes ?? new Dictionary<string, string>()),
-        ExternalIdentifiersJson = JsonSerializer.Serialize(externalIdentifiers ?? new Dictionary<string, string>()),
-        RetailerSku = retailerSku, ApprovedAffiliateDestinationReference = approvedAffiliateDestinationReference,
-        Seller = seller, IsMarketplaceSeller = isMarketplaceSeller, Condition = condition,
-        PackQuantity = packQuantity, BundleContents = bundleContents, RegionAvailabilityContext = regionAvailabilityContext,
-        OnlineAvailability = onlineAvailability, ShippingContext = shippingContext, IsEnabled = true,
-        OfferValidUntil = offerValidUntil
-    };
+        var listing = new RetailerListing
+        {
+            Id = Guid.NewGuid(), ProductId = productId, RetailerId = retailerId,
+            ExternalListingId = externalListingId, OriginalTitle = originalTitle, ProductUrl = productUrl,
+            MerchantPolicyId = merchantPolicyId, MatchState = matchState, SourceObservedAt = sourceObservedAt,
+            FetchedAt = fetchedAt, CurrentPriceAmount = currentPriceAmount, CurrentPriceCurrency = currentPriceCurrency,
+            Freshness = freshness, Evidence = evidence, History = history,
+            VariantAttributesJson = JsonSerializer.Serialize(variantAttributes ?? new Dictionary<string, string>()),
+            ExternalIdentifiersJson = JsonSerializer.Serialize(externalIdentifiers ?? new Dictionary<string, string>()),
+            RetailerSku = retailerSku, ApprovedAffiliateDestinationReference = approvedAffiliateDestinationReference,
+            Seller = seller, IsMarketplaceSeller = isMarketplaceSeller, Condition = condition,
+            PackQuantity = packQuantity, BundleContents = bundleContents, RegionAvailabilityContext = regionAvailabilityContext,
+            OnlineAvailability = onlineAvailability, ShippingContext = shippingContext, IsEnabled = true,
+            OfferValidFrom = offerValidFrom, OfferValidUntil = offerValidUntil
+        };
+        listing.SetRegularPrice(regularPriceAmount, currentPriceCurrency ?? "CAD", regularPriceObservedAt, regularPriceEvidenceReference);
+        return listing;
+    }
 
     public IReadOnlyDictionary<string, string> VariantAttributes => Deserialize(VariantAttributesJson);
     public IReadOnlyDictionary<string, string> ExternalIdentifiers => Deserialize(ExternalIdentifiersJson);
@@ -281,6 +295,31 @@ public sealed class RetailerListing
         CurrentPriceCurrency = currency.ToUpperInvariant();
         SourceObservedAt = observedAt;
         FetchedAt = fetchedAt;
+    }
+
+    public void SetRegularPrice(decimal? amount, string currency, DateTimeOffset? observedAt, string? evidenceReference)
+    {
+        if (!amount.HasValue)
+        {
+            RegularPriceAmount = null;
+            RegularPriceCurrency = null;
+            RegularPriceObservedAt = null;
+            RegularPriceEvidenceReference = null;
+            return;
+        }
+
+        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        if (decimal.Round(amount.Value, 2) != amount.Value) throw new ArgumentException("Price supports at most two decimal places.", nameof(amount));
+        if (string.IsNullOrWhiteSpace(currency)) throw new ArgumentException("Currency is required.", nameof(currency));
+        if (!CurrentPriceAmount.HasValue || amount <= CurrentPriceAmount)
+            throw new ArgumentException("Regular price must be greater than the current deal price.", nameof(amount));
+        if (!observedAt.HasValue) throw new ArgumentException("A regular-price observation time is required.", nameof(observedAt));
+        if (string.IsNullOrWhiteSpace(evidenceReference)) throw new ArgumentException("Regular-price evidence is required.", nameof(evidenceReference));
+
+        RegularPriceAmount = amount.Value;
+        RegularPriceCurrency = currency.ToUpperInvariant();
+        RegularPriceObservedAt = observedAt.Value;
+        RegularPriceEvidenceReference = evidenceReference.Trim();
     }
 
     public void UpdateAdministrativeDetails(
@@ -302,7 +341,11 @@ public sealed class RetailerListing
         string? shippingContext,
         bool enabled,
         DateTimeOffset fetchedAt,
-        DateTimeOffset? offerValidUntil)
+        DateTimeOffset? offerValidUntil,
+        decimal? regularPriceAmount,
+        DateTimeOffset? regularPriceObservedAt,
+        string? regularPriceEvidenceReference,
+        DateTimeOffset? offerValidFrom)
     {
         if (string.IsNullOrWhiteSpace(originalTitle) || originalTitle.Length > 300) throw new ArgumentException("A listing title of at most 300 characters is required.", nameof(originalTitle));
         if (string.IsNullOrWhiteSpace(productUrl) || productUrl.Length > 1000) throw new ArgumentException("A product URL of at most 1000 characters is required.", nameof(productUrl));
@@ -323,15 +366,19 @@ public sealed class RetailerListing
         OnlineAvailability = onlineAvailability;
         RegionAvailabilityContext = Normalize(regionAvailabilityContext);
         ShippingContext = Normalize(shippingContext);
+        OfferValidFrom = offerValidFrom;
         OfferValidUntil = offerValidUntil;
         IsEnabled = enabled;
         Freshness = FreshnessState.Recent;
         RecordCurrentPrice(currentPriceAmount, "CAD", observedAt, fetchedAt);
+        SetRegularPrice(regularPriceAmount, "CAD", regularPriceObservedAt, regularPriceEvidenceReference);
     }
 
     public void SetEnabled(bool enabled) => IsEnabled = enabled;
 
-    public bool IsPublishedAt(DateTimeOffset now) => IsEnabled && (!OfferValidUntil.HasValue || OfferValidUntil > now);
+    public bool IsPublishedAt(DateTimeOffset now) => IsEnabled &&
+        (!OfferValidFrom.HasValue || OfferValidFrom <= now) &&
+        (!OfferValidUntil.HasValue || OfferValidUntil > now);
 
     public void SetAdministrativeMatchState(MatchState matchState)
     {

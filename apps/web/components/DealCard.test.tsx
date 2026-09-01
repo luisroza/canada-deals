@@ -20,12 +20,12 @@ const baseDeal = {
   availabilityState: "AVAILABLE" as const,
   evidenceExplanation: "Observed history is available for this permitted fixture source.",
   observedAt: "2026-08-11T12:00:00Z",
-  matchState: "Same product confirmed",
+  matchState: "Offer identity verified",
   historyState: "RELIABLE" as const,
-  referencePrice: 1299.99,
-  supportedSavingsPercent: 15.4,
-  hasSafeComparison: true,
-  detailsPath: "/products/northstar-55-qled-tv",
+  regularPrice: 1299.99,
+  savingsAmount: 200,
+  savingsPercent: 15.38,
+  detailsPath: "/offers/a",
   handoffPath: "/go/a",
   handoffUrl: null,
   handoffMode: "INTERNAL_REDIRECT" as const,
@@ -40,16 +40,20 @@ describe("DealCard", () => {
     render(<DealCard deal={baseDeal} />);
     expect(screen.getByText("$1,099.99")).toBeInTheDocument();
     expect(screen.getByText("CAD")).toBeInTheDocument();
-    expect(screen.getByText("15% below reference")).toBeInTheDocument();
+    expect(screen.getByText("Regular").parentElement).toHaveTextContent("$1,299.99");
+    expect(screen.getByText(/Save \$200\.00 \(15%\)/)).toBeInTheDocument();
     expect(screen.getByText(/Checked recently.*Strong evidence/)).toBeInTheDocument();
-    expect(screen.queryByText("$1,299.99")).not.toBeInTheDocument();
     expect(screen.queryByText("Available online")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "View details" })).not.toBeInTheDocument();
     const retailerLink = screen.getByRole("link", { name: "Check retailer price at Demo North Electronics" });
     expect(retailerLink).toHaveAttribute("href", "/go/a");
-    expect(retailerLink).toHaveAttribute("rel", "sponsored");
-    expect(retailerLink).not.toHaveAttribute("target");
-    expect(screen.getByRole("link", { name: baseDeal.productTitle })).toHaveAttribute("href", baseDeal.detailsPath);
+    expect(retailerLink).toHaveAttribute("rel", "sponsored noopener");
+    expect(retailerLink).toHaveAttribute("target", "_blank");
+    expect(retailerLink).toHaveAttribute("aria-description", "Opens retailer website in a new tab.");
+    const cardLink = screen.getByRole("link", { name: baseDeal.productTitle });
+    expect(cardLink).toHaveAttribute("href", baseDeal.detailsPath);
+    expect(cardLink).toHaveClass("deal-card-details-link");
+    expect(retailerLink).not.toHaveAttribute("href", baseDeal.detailsPath);
     expect(screen.getByRole("img", { name: baseDeal.productTitle })).toHaveAttribute("src", baseDeal.productImage.url);
   });
 
@@ -65,6 +69,7 @@ describe("DealCard", () => {
     const retailerLink = screen.getByRole("link", { name: "Check retailer price at Amazon.ca" });
     expect(retailerLink).toHaveAttribute("href", "https://amzn.to/example");
     expect(retailerLink).toHaveAttribute("rel", "sponsored noopener");
+    expect(retailerLink).toHaveAttribute("target", "_blank");
     expect(screen.getByText("Paid link")).toBeInTheDocument();
   });
 

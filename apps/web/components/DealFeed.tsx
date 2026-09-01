@@ -58,7 +58,7 @@ export function DealFeed({ params, result, initialLoadError, updateError, pendin
     {updateError && <div className="error-state feed-update-error" role="alert">{updateError === "filters" ? "The filters could not be applied. Your current results are unchanged." : "The deal order could not be updated. Your current results are unchanged."}</div>}
     {initialLoadError && <div className="error-state" role="alert">Deals are temporarily unavailable. Check that the API and local PostgreSQL are running.</div>}
     {!initialLoadError && result?.items.length === 0 && <div className="empty-state"><h3>No products match this selection.</h3><p>Try another search, category, or store.</p><Link className="button button-secondary" href="/" onClick={event => { event.preventDefault(); if (!pendingKind) void onClearFilters(); }}>Clear selection</Link></div>}
-    {!initialLoadError && result && <div className="deal-grid">{result.items.map(deal => <DealCard key={deal.productId} deal={deal} returnTo={currentDiscoveryHref(params)} />)}</div>}
+    {!initialLoadError && result && <div className="deal-grid">{result.items.map(deal => <DealCard key={deal.listingId} deal={deal} returnTo={currentDiscoveryHref(params)} />)}</div>}
     {!initialLoadError && result && result.totalPages > 1 && <nav className="pagination" aria-label="Search result pages">{result.page > 1 && <Link className="button button-secondary" href={pageHref(params, result.page - 1)}>Previous</Link>}<span>Page {result.page} of {result.totalPages}</span>{result.hasNext && <Link className="button button-secondary" href={pageHref(params, result.page + 1)}>Next</Link>}</nav>}
   </section>;
 }

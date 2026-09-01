@@ -35,8 +35,8 @@ import {
 
 type AccessState = "loading" | "authorized" | "signed-out" | "forbidden" | "unavailable";
 type Section = "overview" | "offers" | "catalog" | "stores" | "banners" | "reports" | "audit";
-type OfferForm = Omit<AdminOfferInput, "currentPrice" | "packQuantity" | "observedAt" | "fetchedAt" | "offerValidUntil" | "variantAttributes" | "externalIdentifiers"> & {
-  currentPrice: string; packQuantity: string; observedAt: string; fetchedAt: string; offerValidUntil: string; variantAttributes: string; externalIdentifiers: string;
+type OfferForm = Omit<AdminOfferInput, "currentPrice" | "regularPrice" | "packQuantity" | "observedAt" | "fetchedAt" | "regularPriceObservedAt" | "offerValidFrom" | "offerValidUntil" | "variantAttributes" | "externalIdentifiers"> & {
+  currentPrice: string; regularPrice: string; packQuantity: string; observedAt: string; fetchedAt: string; regularPriceObservedAt: string; offerValidFrom: string; offerValidUntil: string; variantAttributes: string; externalIdentifiers: string;
 };
 type NewProductImageDraft = {
   file: File | null;
@@ -97,8 +97,11 @@ function offerToForm(offer: AdminOffer): OfferForm {
     packQuantity: offer.packQuantity?.toString() ?? "", bundleContents: offer.bundleContents,
     regionAvailabilityContext: offer.regionAvailabilityContext, availabilityState: offer.availabilityState,
     shippingContext: offer.shippingContext, externalIdentifiers: jsonText(offer.externalIdentifiers),
-    currentPrice: offer.currentPrice?.toFixed(2) ?? "", observedAt: localDateTime(offer.observedAt), fetchedAt: localDateTime(offer.fetchedAt),
-    offerValidUntil: offer.offerValidUntil ? localDateTime(offer.offerValidUntil) : "",
+    currentPrice: offer.currentPrice?.toFixed(2) ?? "", regularPrice: offer.regularPrice?.toFixed(2) ?? "",
+    observedAt: localDateTime(offer.observedAt), fetchedAt: localDateTime(offer.fetchedAt),
+    regularPriceObservedAt: offer.regularPriceObservedAt ? localDateTime(offer.regularPriceObservedAt) : "",
+    regularPriceEvidenceReference: offer.regularPriceEvidenceReference,
+    offerValidFrom: offer.offerValidFrom ? localDateTime(offer.offerValidFrom) : "", offerValidUntil: offer.offerValidUntil ? localDateTime(offer.offerValidUntil) : "",
     matchState: offer.matchState, isEnabled: offer.isEnabled, changeReason: null,
   };
 }
@@ -114,7 +117,8 @@ function emptyOffer(dashboard: AdminDashboard): OfferForm {
     affiliateTrackingUrl: null, affiliatePartnerTag: null, affiliateRelationshipEvidenceReference: null, affiliateRelationshipConfirmed: false,
     seller: null, isMarketplaceSeller: false, conditionState: "UNKNOWN", packQuantity: "1", bundleContents: null,
     regionAvailabilityContext: "Canada", availabilityState: "UNKNOWN", shippingContext: null, externalIdentifiers: "{}",
-    currentPrice: "", observedAt: now, fetchedAt: now, offerValidUntil: "", matchState: "MANUALREVIEW", isEnabled: false, changeReason: null,
+    currentPrice: "", regularPrice: "", regularPriceObservedAt: "", regularPriceEvidenceReference: null,
+    observedAt: now, fetchedAt: now, offerValidFrom: "", offerValidUntil: "", matchState: "MANUALREVIEW", isEnabled: false, changeReason: null,
   };
 }
 
@@ -246,7 +250,7 @@ function Overview({ dashboard, navigate }: { dashboard: AdminDashboard; navigate
       {counts.openReports > 0 && <p><span className="status-chip status-warning">Reports</span> {counts.openReports} customer reports await review. <button className="button-text" type="button" onClick={() => navigate("reports")}>Open review queue</button></p>}
       {counts.blockedOrExpiredBanners === 0 && counts.openReports === 0 && <p>No immediate operational warnings.</p>}
     </section>
-    <section className="admin-card"><h2>Publication rules</h2><ul><li>Offers remain drafts until enabled and permitted by their Merchant Policy.</li><li>Reference prices and evidence are never typed manually.</li><li>Banner tracking destinations remain provider-managed and cannot be pasted here.</li></ul></section>
+    <section className="admin-card"><h2>Publication rules</h2><ul><li>Offers remain drafts until enabled and permitted by their Merchant Policy.</li><li>A regular price is optional, must exceed the deal price, and requires reviewed source evidence.</li><li>Banner tracking destinations remain provider-managed and cannot be pasted here.</li></ul></section>
   </>;
 }
 
@@ -287,7 +291,7 @@ function Brands({ dashboard, refresh, notify, reportError }: { dashboard: AdminD
 
   if (selected) {
     const existing = selected !== "new" ? selected : null;
-    return <form className="admin-editor" onSubmit={save} noValidate><div className="admin-heading"><div><p className="eyebrow">{existing ? "Edit brand" : "New brand"}</p><h1>{name || "Untitled brand"}</h1><p>Brands support Product identity, search, and safe comparison. Existing Products remain intact when a brand is inactive.</p></div><div className="admin-heading-actions"><button className="button button-secondary" type="button" onClick={() => setSelected(null)}>Cancel</button><button className="button button-primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Save brand"}</button></div></div>
+    return <form className="admin-editor" onSubmit={save} noValidate><div className="admin-heading"><div><p className="eyebrow">{existing ? "Edit brand" : "New brand"}</p><h1>{name || "Untitled brand"}</h1><p>Brands support Product identity, search, and catalog organization. Existing Products remain intact when a brand is inactive.</p></div><div className="admin-heading-actions"><button className="button button-secondary" type="button" onClick={() => setSelected(null)}>Cancel</button><button className="button button-primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Save brand"}</button></div></div>
       <div className="admin-editor-grid"><section className="admin-card admin-entity-form"><h2>Brand details</h2><label>Brand name<input required maxLength={120} value={name} onChange={event => { setName(event.target.value); if (!existing) setSlug(slugify(event.target.value)); }} /></label><label>Brand slug<input required maxLength={140} pattern="[a-z0-9-]+" readOnly={Boolean(existing)} value={slug} onChange={event => setSlug(slugify(event.target.value))} /><span className="field-help">{existing ? "Immutable after creation to preserve catalog identity." : "Lowercase letters, numbers, and hyphens."}</span></label>{existing && <div className="admin-readonly"><strong>Current impact</strong><span>{existing.productCount} products</span><span>{existing.publishedOfferCount} public offers</span><span>Product and Wishlist records are preserved</span></div>}</section>
         <aside className="admin-publication-card"><h2>Catalog status</h2><label className="admin-toggle"><input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} /><span>Available for public Products</span></label>{existing && existing.isEnabled && !enabled && <div className="admin-impact-warning" role="note"><strong>Before deactivating</strong><p>This hides associated offers from public discovery without deleting Products, offers, or Wishlists.</p></div>}<label>Change reason<textarea rows={4} maxLength={300} value={reason} onChange={event => setReason(event.target.value)} placeholder="Required when deactivating" /></label>{!existing && <p className="field-help">New brands always begin inactive.</p>}</aside></div></form>;
   }
@@ -407,8 +411,10 @@ function Offers({ dashboard, refresh, notify, reportError }: { dashboard: AdminD
         affiliateTrackingUrl: clean(form.affiliateTrackingUrl ?? ""), affiliatePartnerTag: clean(form.affiliatePartnerTag ?? ""),
         affiliateRelationshipEvidenceReference: clean(form.affiliateRelationshipEvidenceReference ?? ""), isEnabled: requestedEnabled,
         packQuantity: form.packQuantity ? Number(form.packQuantity) : null, bundleContents: clean(form.bundleContents ?? ""), regionAvailabilityContext: clean(form.regionAvailabilityContext ?? ""),
-        shippingContext: clean(form.shippingContext ?? ""), currentPrice: Number(form.currentPrice), observedAt: new Date(form.observedAt).toISOString(), fetchedAt: new Date(form.fetchedAt).toISOString(),
-        offerValidUntil: form.offerValidUntil ? new Date(form.offerValidUntil).toISOString() : null,
+        shippingContext: clean(form.shippingContext ?? ""), currentPrice: Number(form.currentPrice), regularPrice: form.regularPrice ? Number(form.regularPrice) : null,
+        regularPriceObservedAt: form.regularPriceObservedAt ? new Date(form.regularPriceObservedAt).toISOString() : null,
+        regularPriceEvidenceReference: clean(form.regularPriceEvidenceReference ?? ""), observedAt: new Date(form.observedAt).toISOString(), fetchedAt: new Date(form.fetchedAt).toISOString(),
+        offerValidFrom: form.offerValidFrom ? new Date(form.offerValidFrom).toISOString() : null, offerValidUntil: form.offerValidUntil ? new Date(form.offerValidUntil).toISOString() : null,
         variantAttributes: variants, externalIdentifiers: identifiers, changeReason: clean(form.changeReason ?? ""),
       };
       if (selected === "new") {
@@ -450,7 +456,7 @@ function Offers({ dashboard, refresh, notify, reportError }: { dashboard: AdminD
         }
       } else if (selected) await updateAdminOffer(selected.listingId, input);
       await refresh(); setSelected(null); setForm(null); notify(requestedEnabled ? "Offer published and available in public discovery." : "Draft saved. This offer is not public.");
-    } catch (caught) { reportError(caught instanceof SyntaxError ? "Variant attributes and external identifiers must be valid JSON objects." : caught instanceof Error ? caught.message : "Offer could not be saved."); }
+    } catch (caught) { reportError(caught instanceof SyntaxError ? "External identifiers must be a valid JSON object." : caught instanceof Error ? caught.message : "Offer could not be saved."); }
     finally { setPending(false); }
   }
 
@@ -460,8 +466,8 @@ function Offers({ dashboard, refresh, notify, reportError }: { dashboard: AdminD
     <div className="admin-heading"><div><p className="eyebrow">Catalog operations</p><h1>Offers</h1><p>Create drafts, review readiness, publish, or reversibly deactivate.</p></div><button className="button button-primary" type="button" onClick={() => open("new")}>Add offer</button></div>
     <label className="admin-search">Search offers<input type="search" value={filter} onChange={event => setFilter(event.target.value)} placeholder="Product, retailer, or external ID" /></label>
     <div className="admin-table" role="region" aria-label="Administrative offers" tabIndex={0}>
-      <table><thead><tr><th>Product</th><th>Retailer</th><th>Price</th><th>Status</th><th>Readiness</th><th><span className="sr-only">Actions</span></th></tr></thead>
-        <tbody>{visible.map(offer => <tr key={offer.listingId}><td><strong>{offer.productTitle}</strong><small>{offer.externalListingId}</small></td><td>{offer.retailer}</td><td>{offer.currentPrice?.toLocaleString("en-CA", { style: "currency", currency: "CAD" })}</td><td><span className={`status-chip ${offer.isEnabled ? "status-ready" : ""}`}>{offer.isEnabled ? "Enabled" : "Draft / disabled"}</span></td><td>{offer.isPubliclyEligible ? "Ready" : "Blocked"}</td><td><button className="button button-secondary" type="button" onClick={() => open(offer)}>Edit</button></td></tr>)}</tbody></table>
+      <table><thead><tr><th>Product</th><th>Retailer</th><th>Deal / regular price</th><th>Status</th><th>Readiness</th><th><span className="sr-only">Actions</span></th></tr></thead>
+        <tbody>{visible.map(offer => <tr key={offer.listingId}><td><strong>{offer.productTitle}</strong><small>{offer.externalListingId}</small></td><td>{offer.retailer}</td><td><strong>{offer.currentPrice?.toLocaleString("en-CA", { style: "currency", currency: "CAD" })}</strong>{offer.regularPrice && <small>Regular {offer.regularPrice.toLocaleString("en-CA", { style: "currency", currency: "CAD" })}</small>}</td><td><span className={`status-chip ${offer.isEnabled ? "status-ready" : ""}`}>{offer.isEnabled ? "Enabled" : "Draft / disabled"}</span></td><td>{offer.isPubliclyEligible ? "Ready" : "Blocked"}</td><td><button className="button button-secondary" type="button" onClick={() => open(offer)}>Edit</button></td></tr>)}</tbody></table>
       {visible.length === 0 && <p className="admin-empty">No offers match this search.</p>}
     </div>
   </>;
@@ -500,7 +506,7 @@ function OfferEditor({ dashboard, selected, form, field, save, cancel, pending, 
     <ol className="admin-offer-progress" aria-label="Offer workflow"><li className={currentStep === 1 ? "is-current" : "is-complete"} aria-current={currentStep === 1 ? "step" : undefined}><span>1</span>Validate and fill</li><li className={currentStep === 2 ? "is-current" : currentStep > 2 ? "is-complete" : undefined} aria-current={currentStep === 2 ? "step" : undefined}><span>2</span>Review card</li><li className={currentStep === 3 ? "is-current" : undefined} aria-current={currentStep === 3 ? "step" : undefined}><span>3</span>Publish</li></ol>
     <div className="admin-editor-grid"><div className="admin-form-stack">
       <AffiliateLinkIntake dashboard={dashboard} selected={selected} form={form} field={field} reportError={reportError} openExisting={openExisting} />
-      {selected === "new" && <section className="admin-card admin-product-choice"><h2>Choose the Product</h2><div className="admin-choice-grid" role="radiogroup" aria-label="Product creation mode"><label><input type="radio" name="product-mode" checked={!reusingProduct} onChange={() => useProduct(null)} /><span><strong>Create a new Product</strong><small>Use when this Product does not exist in the catalog.</small></span></label><label><input type="radio" name="product-mode" checked={reusingProduct} onChange={() => useProduct(dashboard.products[0]?.id ?? null)} /><span><strong>Add an offer to an existing Product</strong><small>Use for another store listing of the same confirmed Product.</small></span></label></div>{reusingProduct && <label className="admin-product-picker">Existing Product<select value={form.productId ?? ""} onChange={event => useProduct(event.target.value)}>{dashboard.products.map(product => <option key={product.id} value={product.id}>{product.title} · {product.brand}{product.modelNumber ? ` · ${product.modelNumber}` : ""}</option>)}</select></label>}</section>}
+       {selected === "new" && <section className="admin-card admin-product-choice"><h2>Choose the Product</h2><div className="admin-choice-grid" role="radiogroup" aria-label="Product creation mode"><label><input type="radio" name="product-mode" checked={!reusingProduct} onChange={() => useProduct(null)} /><span><strong>Create a new Product</strong><small>Use when this Product does not exist in the catalog.</small></span></label><label><input type="radio" name="product-mode" checked={reusingProduct} onChange={() => useProduct(dashboard.products[0]?.id ?? null)} /><span><strong>Reuse an existing Product identity</strong><small>The new store offer remains independent in discovery and in the Wishlist.</small></span></label></div>{reusingProduct && <label className="admin-product-picker">Existing Product<select value={form.productId ?? ""} onChange={event => useProduct(event.target.value)}>{dashboard.products.map(product => <option key={product.id} value={product.id}>{product.title} · {product.brand}{product.modelNumber ? ` · ${product.modelNumber}` : ""}</option>)}</select></label>}</section>}
       <details open className="admin-product-essentials"><summary>Product essentials</summary><div className="admin-form-grid">
         <label className="span-2">Product title<input required maxLength={240} readOnly={reusingProduct} value={form.productTitle} onChange={e => { field("productTitle", e.target.value); if (!existing && !form.productId) field("slug", slugify(e.target.value)); }} /></label>
         <label>Slug<input required pattern="[a-z0-9-]+" readOnly={existing || reusingProduct} value={form.slug} onChange={e => field("slug", slugify(e.target.value))} /><span className="field-help">{existing || reusingProduct ? "Immutable for existing Products so saved and shared links keep working." : "Generated from the title; lowercase letters, numbers, and hyphens."}</span></label>
@@ -512,20 +518,16 @@ function OfferEditor({ dashboard, selected, form, field, save, cancel, pending, 
       {form.productId ? <ProductImageEditor productId={form.productId} dashboard={dashboard} refresh={refresh} notify={notify} reportError={reportError} /> : <NewProductImageIntake value={newProductImage} onChange={setNewProductImage} />}
       <details open><summary>Offer essentials</summary><div className="admin-form-grid">
         <label>Store<select disabled={existing} value={form.retailerId} onChange={e => field("retailerId", e.target.value)}>{dashboard.retailers.filter(item => item.isEnabled || item.id === form.retailerId).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-        <label>Current price (CAD)<input required type="number" min="0.01" max="1000000" step="0.01" value={form.currentPrice} onChange={e => field("currentPrice", e.target.value)} /></label>
+        <label>Deal price (CAD)<input required type="number" min="0.01" max="1000000" step="0.01" value={form.currentPrice} onChange={e => field("currentPrice", e.target.value)} /><span className="field-help">The price currently available during this promotion.</span></label>
+        <label>Regular price (CAD, optional)<input type="number" min="0.01" max="1000000" step="0.01" value={form.regularPrice} onChange={e => { field("regularPrice", e.target.value); if (e.target.value && !form.regularPriceObservedAt) field("regularPriceObservedAt", form.observedAt); }} /><span className="field-help">The same store’s normal price outside this promotion. It must be higher than the deal price.</span></label>
+        <label>Regular price verified at<input type="datetime-local" required={Boolean(form.regularPrice)} disabled={!form.regularPrice} value={form.regularPriceObservedAt} onChange={e => field("regularPriceObservedAt", e.target.value)} /></label>
+        <label className="span-2">Regular price evidence<input required={Boolean(form.regularPrice)} disabled={!form.regularPrice} maxLength={1000} placeholder="Retailer feed field, approved API reference, or reviewed source record" value={form.regularPriceEvidenceReference ?? ""} onChange={e => field("regularPriceEvidenceReference", e.target.value)} /><span className="field-help">Required before the public card can claim a regular price or savings.</span></label>
         <label className="span-2">Canonical retailer Product page<input required type="url" placeholder="https://www.amazon.ca/dp/ASIN" value={form.productUrl} onChange={e => field("productUrl", e.target.value)} /><span className="field-help">Filled automatically when an Amazon.ca Product ID is found. Review before publishing.</span></label>
         <label>Availability<select value={form.availabilityState} onChange={e => field("availabilityState", e.target.value)}><option>AVAILABLE</option><option>UNAVAILABLE</option><option>UNKNOWN</option></select></label>
         <label>Observed at<input required type="datetime-local" value={form.observedAt} onChange={e => field("observedAt", e.target.value)} /></label>
-        <label>Offer valid until (optional)<input type="datetime-local" value={form.offerValidUntil} onChange={e => field("offerValidUntil", e.target.value)} /><span className="field-help">When supplied by the retailer, the offer is automatically hidden after this time.</span></label>
+        <label>Promotion starts (optional)<input type="datetime-local" value={form.offerValidFrom} onChange={e => field("offerValidFrom", e.target.value)} /><span className="field-help">A future promotion remains hidden until this time.</span></label>
+        <label>Promotion ends (optional)<input type="datetime-local" value={form.offerValidUntil} onChange={e => field("offerValidUntil", e.target.value)} /><span className="field-help">The offer is automatically hidden after this time.</span></label>
         <label>External Product ID<input required disabled={existing} value={form.externalListingId} onChange={e => field("externalListingId", e.target.value)} /><span className="field-help">Use the ASIN for Amazon, or the stable retailer listing ID for other stores.</span></label>
-      </div></details>
-      <details><summary>Advanced Product identity and matching</summary><div className="admin-form-grid">
-        <label>MPN<input readOnly={reusingProduct} value={form.manufacturerPartNumber ?? ""} onChange={e => field("manufacturerPartNumber", e.target.value)} /></label>
-        <label>GTIN<input readOnly={reusingProduct} value={form.gtin ?? ""} onChange={e => field("gtin", e.target.value)} /></label>
-        <label className="span-2">Variant attributes (JSON)<textarea readOnly={reusingProduct} rows={5} value={form.variantAttributes} onChange={e => field("variantAttributes", e.target.value)} /></label>
-        <label>Condition<select value={form.conditionState} onChange={e => field("conditionState", e.target.value)}><option>NEW</option><option>REFURBISHED</option><option>USED</option><option>UNKNOWN</option></select></label>
-        <label>Pack quantity<input type="number" min="1" max="1000" value={form.packQuantity} onChange={e => field("packQuantity", e.target.value)} /></label>
-        <label className="span-2">Bundle contents<textarea rows={3} value={form.bundleContents ?? ""} onChange={e => field("bundleContents", e.target.value)} /></label>
       </div></details>
       <details><summary>Advanced source and retailer details</summary><div className="admin-form-grid">
         <label>Merchant policy<select disabled={existing} value={form.merchantPolicyId} onChange={e => field("merchantPolicyId", e.target.value)}>{dashboard.policies.map(item => <option key={item.id} value={item.id}>{item.sourceKey} · current price {item.priceStorage}</option>)}</select></label>
@@ -540,11 +542,11 @@ function OfferEditor({ dashboard, selected, form, field, save, cancel, pending, 
         <label className="span-2">External identifiers (JSON)<textarea rows={5} value={form.externalIdentifiers} onChange={e => field("externalIdentifiers", e.target.value)} /></label>
       </div></details>
     </div><aside className="admin-publication-card">
-      <p className="eyebrow">Card preview — not public</p><div className="admin-offer-card-preview">{previewImage ? <img src={previewImage.previewPath} alt="" /> : <div aria-hidden="true">G</div>}<p>{dashboard.retailers.find(item => item.id === form.retailerId)?.label ?? "Retailer"}</p><strong>{form.productTitle || "Product title"}</strong><span>{form.currentPrice ? Number(form.currentPrice).toLocaleString("en-CA", { style: "currency", currency: "CAD" }) : "Current price"}</span><button type="button" disabled>Check retailer price</button></div>
+      <p className="eyebrow">Card preview — not public</p><div className="admin-offer-card-preview">{previewImage ? <img src={previewImage.previewPath} alt="" /> : <div aria-hidden="true">G</div>}<p>{dashboard.retailers.find(item => item.id === form.retailerId)?.label ?? "Retailer"}</p><strong>{form.productTitle || "Product title"}</strong><span className="admin-preview-deal-price">{form.currentPrice ? Number(form.currentPrice).toLocaleString("en-CA", { style: "currency", currency: "CAD" }) : "Deal price"}</span>{form.regularPrice && Number(form.regularPrice) > Number(form.currentPrice) && <small><del>{Number(form.regularPrice).toLocaleString("en-CA", { style: "currency", currency: "CAD" })}</del> · Save {Math.round((1 - Number(form.currentPrice) / Number(form.regularPrice)) * 100)}%</small>}<button type="button" disabled>Check retailer price</button></div>
       <h2>Public readiness</h2><p><strong>{form.isEnabled ? "Currently published" : "Draft / not public"}</strong></p>
       <p>Publication requires an active Product, store and Merchant Policy, reviewed price data, a valid time window, and an eligible retailer handoff.</p>
       {existing && <p className="admin-link-readiness"><strong>Retailer link</strong><span>{selected.affiliateLinkReadiness}</span></p>}
-      <label>Match decision<select value={form.matchState} onChange={e => field("matchState", e.target.value)}><option value="CONFIRMED">Same product confirmed</option><option value="POSSIBLEMATCHREVIEW">Review before comparing</option><option value="MANUALREVIEW">Manual review</option><option value="NOMATCH">No safe match</option></select></label>
+      <label>Internal identity decision<select value={form.matchState} onChange={e => field("matchState", e.target.value)}><option value="CONFIRMED">Offer identity verified</option><option value="POSSIBLEMATCHREVIEW">Identity needs review</option><option value="MANUALREVIEW">Manual review</option><option value="NOMATCH">Identity unavailable</option></select></label>
       <label>Change reason<textarea rows={4} value={form.changeReason ?? ""} onChange={e => field("changeReason", e.target.value)} placeholder="Required when deactivating or changing match state" /></label>
       <div className="admin-readonly"><strong>Derived, not editable</strong><span>Freshness from timestamps</span><span>Evidence from policy</span><span>Amazon handoff uses the exact owner-provided link</span><span>Other providers keep protected /go handoff</span><span>Expired offers leave public discovery automatically</span></div>
     </aside></div>
@@ -724,7 +726,13 @@ function Banners({ dashboard, refresh, notify, reportError }: { dashboard: Admin
     (filter === "inactive" && !banner.isEnabled) ||
     (filter === "attention" && banner.isEnabled && (!banner.isInPublicCarousel || banner.publicArtworkState === "FALLBACK")));
 
-  function open(banner: AdminBanner) { setSelected(banner); setForm(bannerInput(banner)); notify(null); reportError(null); }
+  function open(banner: AdminBanner) {
+    setSelected(banner);
+    setForm(bannerInput(banner));
+    notify(null);
+    reportError(null);
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
   function field<K extends keyof AdminBannerInput>(key: K, value: AdminBannerInput[K]) { setForm(current => current ? { ...current, [key]: value } : current); }
 
   async function uploadArtwork() {
@@ -762,7 +770,7 @@ function Banners({ dashboard, refresh, notify, reportError }: { dashboard: Admin
     } catch (caught) { reportError(caught instanceof Error ? caught.message : "Banner could not be saved."); }
     finally { setPending(false); }
   }
-  if (selected && form) return <form className="admin-editor" onSubmit={save}><div className="admin-heading"><div><p className="eyebrow">Banner editor</p><h1>{selected.retailer}</h1><p>Artwork and copy are editable here. Affiliate destination remains read-only and provider-managed.</p></div><div className="admin-heading-actions"><button className="button button-secondary" type="button" onClick={() => { setSelected(null); setForm(null); }}>Cancel</button><button className="button button-primary" type="submit" disabled={pending || uploading}>{pending ? "Saving…" : "Save banner"}</button></div></div>
+  if (selected && form) return <form className="admin-editor admin-banner-editor" onSubmit={save}><div className="admin-heading"><div><p className="eyebrow">Banner editor</p><h1>{selected.retailer}</h1><p>Artwork and copy are editable here. Affiliate destination remains read-only and provider-managed.</p></div><div className="admin-heading-actions"><button className="button button-secondary" type="button" onClick={() => { setSelected(null); setForm(null); }}>Cancel</button><button className="button button-primary" type="submit" disabled={pending || uploading}>{pending ? "Saving…" : "Save banner"}</button></div></div>
     <div className="admin-editor-grid admin-banner-editor-grid"><div className="admin-form-stack">
       <section className="admin-card"><h2>Banner copy</h2><div className="admin-form-grid admin-card-form-grid">
         <label className="span-2">Title <span className="field-counter">{form.title.length}/120</span><input required maxLength={120} value={form.title} onChange={e => field("title", e.target.value)} /></label>

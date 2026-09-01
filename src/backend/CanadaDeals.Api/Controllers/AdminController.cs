@@ -119,7 +119,7 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, Owner
                 brand.IsEnabled,
                 db.Products.Count(product => product.BrandId == brand.Id),
                 brand.IsEnabled ? db.RetailerListings.Count(listing => listing.Product.BrandId == brand.Id && listing.IsEnabled &&
-                    (listing.OfferValidUntil == null || listing.OfferValidUntil > now) && listing.Retailer.IsEnabled &&
+                    (listing.OfferValidFrom == null || listing.OfferValidFrom <= now) && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) && listing.Retailer.IsEnabled &&
                     listing.Product.Category.IsEnabled && listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                     listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution) : 0))
             .ToListAsync(cancellationToken);
@@ -131,7 +131,7 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, Owner
                 category.IsEnabled,
                 db.Products.Count(product => product.CategoryId == category.Id),
                 category.IsEnabled ? db.RetailerListings.Count(listing => listing.Product.CategoryId == category.Id && listing.IsEnabled &&
-                    (listing.OfferValidUntil == null || listing.OfferValidUntil > now) && listing.Product.Brand.IsEnabled &&
+                    (listing.OfferValidFrom == null || listing.OfferValidFrom <= now) && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) && listing.Product.Brand.IsEnabled &&
                     listing.Retailer.IsEnabled && listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                     listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution) : 0))
             .ToListAsync(cancellationToken);
@@ -144,7 +144,7 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, Owner
                 retailer.IsEnabled,
                 db.RetailerListings.Count(listing => listing.RetailerId == retailer.Id),
                 retailer.IsEnabled ? db.RetailerListings.Count(listing => listing.RetailerId == retailer.Id && listing.IsEnabled &&
-                    (listing.OfferValidUntil == null || listing.OfferValidUntil > now) && listing.Product.Brand.IsEnabled &&
+                    (listing.OfferValidFrom == null || listing.OfferValidFrom <= now) && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) && listing.Product.Brand.IsEnabled &&
                     listing.Product.Category.IsEnabled && listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                     listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution) : 0,
                 db.StoreBannerProfiles.Any(profile => profile.RetailerId == retailer.Id),
@@ -188,7 +188,7 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, Owner
 
         var offerResponses = offers.Select(offer => ToOfferResponse(offer, now)).ToList();
         var publicCatalogRetailerIds = await db.RetailerListings.AsNoTracking()
-            .Where(listing => listing.IsEnabled && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
+            .Where(listing => listing.IsEnabled && (listing.OfferValidFrom == null || listing.OfferValidFrom <= now) && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
                               listing.Retailer.IsEnabled && listing.Product.Brand.IsEnabled && listing.Product.Category.IsEnabled &&
                               listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                               listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution)
@@ -469,7 +469,8 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, Owner
             context.Policy.CanPublishCurrentPrice ? EvidenceState.Partial : EvidenceState.Unavailable, HistoryAvailability.Unavailable,
             request.VariantAttributes, request.ExternalIdentifiers, Normalize(request.RetailerSku), context.OwnerProvidedLink?.DestinationUrl ?? Normalize(request.ApprovedAffiliateDestinationReference),
             Normalize(request.Seller), request.IsMarketplaceSeller, context.Condition, request.PackQuantity, Normalize(request.BundleContents),
-            Normalize(request.RegionAvailabilityContext), context.Availability, Normalize(request.ShippingContext), request.OfferValidUntil);
+            Normalize(request.RegionAvailabilityContext), context.Availability, Normalize(request.ShippingContext), request.OfferValidUntil,
+            request.RegularPrice, request.RegularPriceObservedAt, Normalize(request.RegularPriceEvidenceReference), request.OfferValidFrom);
         listing.SetEnabled(request.IsEnabled);
 
         if (context.BrandWasCreated) db.Brands.Add(context.Brand);
@@ -497,7 +498,7 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, Owner
         }
 
         logger.LogInformation("Owner admin {UserId} created Listing {ListingId}.", ActorId(), listing.Id);
-        return Created($"/api/v1/admin/offers/{listing.Id}", new { listingId = listing.Id, productId = product.Id, brandId = context.Brand.Id, previewPath = $"/products/{product.Slug}" });
+        return Created($"/api/v1/admin/offers/{listing.Id}", new { listingId = listing.Id, productId = product.Id, brandId = context.Brand.Id, previewPath = $"/offers/{listing.Id:D}" });
     }
 
     [HttpPut("offers/{listingId:guid}")]
@@ -528,7 +529,8 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, Owner
             request.OriginalTitle, request.ProductUrl, request.CurrentPrice, request.ObservedAt, request.RetailerSku,
             context.OwnerProvidedLink?.DestinationUrl ?? request.ApprovedAffiliateDestinationReference, request.Seller, request.IsMarketplaceSeller, context.Condition,
             request.PackQuantity, request.BundleContents, request.VariantAttributes, request.ExternalIdentifiers, context.Availability,
-            request.RegionAvailabilityContext, request.ShippingContext, request.IsEnabled, request.FetchedAt, request.OfferValidUntil);
+            request.RegionAvailabilityContext, request.ShippingContext, request.IsEnabled, request.FetchedAt, request.OfferValidUntil,
+            request.RegularPrice, request.RegularPriceObservedAt, request.RegularPriceEvidenceReference, request.OfferValidFrom);
         listing.SetAdministrativeMatchState(context.MatchState);
         SyncOwnerProvidedAffiliateLink(listing, context.OwnerProvidedLink, request.ChangeReason);
         db.AdminAuditEvents.Add(Audit("UPDATE", "RetailerListing", listing.Id,
@@ -814,9 +816,28 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, Owner
         if (request.FetchedAt > now.AddMinutes(5)) ModelState.AddModelError(nameof(request.FetchedAt), "Fetched time cannot be in the future.");
         if (request.OfferValidUntil.HasValue && request.OfferValidUntil <= request.ObservedAt)
             ModelState.AddModelError(nameof(request.OfferValidUntil), "Offer validity must end after the observed time.");
+        if (request.OfferValidFrom.HasValue && request.OfferValidUntil.HasValue && request.OfferValidFrom >= request.OfferValidUntil)
+            ModelState.AddModelError(nameof(request.OfferValidUntil), "Promotion end must be later than promotion start.");
         if (request.IsEnabled && request.OfferValidUntil.HasValue && request.OfferValidUntil <= now)
             ModelState.AddModelError(nameof(request.OfferValidUntil), "An expired offer cannot be published. Save it as a draft or choose a future validity time.");
         if (decimal.Round(request.CurrentPrice, 2) != request.CurrentPrice) ModelState.AddModelError(nameof(request.CurrentPrice), "Price supports at most two decimal places.");
+        if (request.RegularPrice.HasValue)
+        {
+            if (decimal.Round(request.RegularPrice.Value, 2) != request.RegularPrice.Value)
+                ModelState.AddModelError(nameof(request.RegularPrice), "Regular price supports at most two decimal places.");
+            if (request.RegularPrice <= request.CurrentPrice)
+                ModelState.AddModelError(nameof(request.RegularPrice), "Regular price must be greater than the deal price.");
+            if (!request.RegularPriceObservedAt.HasValue)
+                ModelState.AddModelError(nameof(request.RegularPriceObservedAt), "Record when the regular price was verified.");
+            if (string.IsNullOrWhiteSpace(request.RegularPriceEvidenceReference))
+                ModelState.AddModelError(nameof(request.RegularPriceEvidenceReference), "Evidence is required before a regular price can be published.");
+            if (request.RegularPriceObservedAt > request.FetchedAt)
+                ModelState.AddModelError(nameof(request.RegularPriceObservedAt), "Regular-price observation cannot be later than the fetched time.");
+        }
+        else if (request.RegularPriceObservedAt.HasValue || !string.IsNullOrWhiteSpace(request.RegularPriceEvidenceReference))
+        {
+            ModelState.AddModelError(nameof(request.RegularPrice), "Enter a regular price or clear its evidence fields.");
+        }
 
         if (!Enum.TryParse<ProductCondition>(request.ConditionState, true, out var condition) || !Enum.IsDefined(condition))
             ModelState.AddModelError(nameof(request.ConditionState), "Choose NEW, USED, REFURBISHED, or UNKNOWN.");
@@ -1089,10 +1110,12 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, Owner
                 ? "Owner-provided Amazon link is ready for direct handoff."
                 : "Provider-generated link is ready for protected handoff."
             : $"Retailer link is {affiliateLink.Status.ToString().ToLowerInvariant()} or its program is not ready.";
+        var scheduled = listing.OfferValidFrom.HasValue && listing.OfferValidFrom > now;
         var expired = listing.OfferValidUntil.HasValue && listing.OfferValidUntil <= now;
-        var publicEligible = listing.IsEnabled && !expired && listing.Retailer.IsEnabled && listing.Product.Brand.IsEnabled && listing.Product.Category.IsEnabled && listing.MerchantPolicy.CanPublishCurrentPrice &&
+        var publicEligible = listing.IsEnabled && !scheduled && !expired && listing.Retailer.IsEnabled && listing.Product.Brand.IsEnabled && listing.Product.Category.IsEnabled && listing.MerchantPolicy.CanPublishCurrentPrice &&
                              !string.Equals(listing.MerchantPolicy.RequiredAttribution, TestOnlyAttribution, StringComparison.OrdinalIgnoreCase);
         var readiness = publicEligible ? "Ready for public discovery; retailer handoff remains derived from an approved active link."
+            : scheduled ? $"Scheduled for {listing.OfferValidFrom:yyyy-MM-dd HH:mm zzz}; hidden until promotion start."
             : expired ? $"Expired {listing.OfferValidUntil:yyyy-MM-dd HH:mm zzz}; automatically hidden from public discovery."
             : listing.IsEnabled ? "Blocked by brand, category, store, or Merchant Policy." : "Draft or deactivated; not visible in public discovery.";
         return new AdminOfferResponse(
@@ -1107,9 +1130,11 @@ public sealed class AdminController(DealsDbContext db, TimeProvider clock, Owner
             affiliateLink?.AffiliateProgram.ProviderProgramId, affiliateLink?.AffiliateProgram.RelationshipEvidenceReference,
             listing.Seller, listing.IsMarketplaceSeller, listing.Condition.ToString().ToUpperInvariant(), listing.PackQuantity, listing.BundleContents,
             listing.RegionAvailabilityContext, listing.OnlineAvailability.ToString().ToUpperInvariant(), listing.ShippingContext, listing.ExternalIdentifiers,
-            listing.SourceObservedAt, listing.FetchedAt, listing.OfferValidUntil, listing.CurrentPriceAmount, listing.CurrentPriceCurrency ?? "CAD", listing.MatchState.ToString().ToUpperInvariant(),
+            listing.SourceObservedAt, listing.FetchedAt, listing.OfferValidFrom, listing.OfferValidUntil, listing.CurrentPriceAmount,
+            listing.RegularPriceAmount, listing.RegularPriceObservedAt, listing.RegularPriceEvidenceReference,
+            listing.CurrentPriceCurrency ?? "CAD", listing.MatchState.ToString().ToUpperInvariant(),
             listing.Evidence.ToString().ToUpperInvariant(), listing.History.ToString().ToUpperInvariant(), listing.IsEnabled, publicEligible, readiness,
-            $"/products/{listing.Product.Slug}");
+            $"/offers/{listing.Id:D}");
     }
 
     private static AdminProductImageResponse ToProductImageResponse(ProductImage image, string productTitle, DateTimeOffset now) =>

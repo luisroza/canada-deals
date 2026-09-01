@@ -2,18 +2,18 @@
 
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { SavedProduct } from "../lib/api";
-import { getSavedProducts, getSession, saveProduct, unsaveProduct } from "../lib/account";
+import type { SavedOffer } from "../lib/api";
+import { getSavedOffers, getSession, saveOffer, unsaveOffer } from "../lib/account";
 
 type WishlistContextValue = {
   authenticated: boolean | null;
   loading: boolean;
   loadError: string | null;
-  items: SavedProduct[];
+  items: SavedOffer[];
   count: number;
-  isSaved: (productId: string) => boolean;
-  isPending: (productId: string) => boolean;
-  toggle: (productId: string) => Promise<boolean>;
+  isSaved: (listingId: string) => boolean;
+  isPending: (listingId: string) => boolean;
+  toggle: (listingId: string) => Promise<boolean>;
   retry: () => Promise<void>;
 };
 
@@ -36,7 +36,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [items, setItems] = useState<SavedProduct[]>([]);
+  const [items, setItems] = useState<SavedOffer[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 
@@ -54,10 +54,10 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const savedProducts = await getSavedProducts();
+      const savedProducts = await getSavedOffers();
       if (currentRequest !== requestId.current) return;
       setItems(savedProducts);
-      setSavedIds(new Set(savedProducts.map((item) => item.productId)));
+      setSavedIds(new Set(savedProducts.map((item) => item.listingId)));
     } catch {
       if (currentRequest !== requestId.current) return;
       setLoadError("We couldn’t load your Wishlist. Try again.");
@@ -68,24 +68,24 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { void load(); }, [load, pathname]);
 
-  const toggle = useCallback(async (productId: string) => {
+  const toggle = useCallback(async (listingId: string) => {
     if (!authenticated) throw new Error("Sign in to use your Wishlist.");
-    if (pendingIds.has(productId)) return savedIds.has(productId);
+    if (pendingIds.has(listingId)) return savedIds.has(listingId);
 
-    const wasSaved = savedIds.has(productId);
-    setPendingIds((current) => new Set(current).add(productId));
+    const wasSaved = savedIds.has(listingId);
+    setPendingIds((current) => new Set(current).add(listingId));
     try {
       if (wasSaved) {
-        await unsaveProduct(productId);
-        setSavedIds((current) => { const next = new Set(current); next.delete(productId); return next; });
-        setItems((current) => current.filter((item) => item.productId !== productId));
+        await unsaveOffer(listingId);
+        setSavedIds((current) => { const next = new Set(current); next.delete(listingId); return next; });
+        setItems((current) => current.filter((item) => item.listingId !== listingId));
       } else {
-        await saveProduct(productId);
-        setSavedIds((current) => new Set(current).add(productId));
+        await saveOffer(listingId);
+        setSavedIds((current) => new Set(current).add(listingId));
       }
       return !wasSaved;
     } finally {
-      setPendingIds((current) => { const next = new Set(current); next.delete(productId); return next; });
+      setPendingIds((current) => { const next = new Set(current); next.delete(listingId); return next; });
     }
   }, [authenticated, pendingIds, savedIds]);
 
@@ -95,8 +95,8 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     loadError,
     items,
     count: savedIds.size,
-    isSaved: (productId) => savedIds.has(productId),
-    isPending: (productId) => pendingIds.has(productId),
+    isSaved: (listingId) => savedIds.has(listingId),
+    isPending: (listingId) => pendingIds.has(listingId),
     toggle,
     retry: load,
   }), [authenticated, items, load, loadError, loading, pendingIds, savedIds, toggle]);

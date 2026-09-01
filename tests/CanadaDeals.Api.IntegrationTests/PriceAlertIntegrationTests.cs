@@ -68,7 +68,7 @@ public sealed class PriceAlertIntegrationTests(ApiFixture fixture) : IClassFixtu
     }
 
     [RequiresPostgresFact]
-    public async Task Alert_is_persisted_idempotent_versioned_listed_and_also_saves_the_product()
+    public async Task Legacy_alert_is_persisted_without_adding_an_offer_to_the_wishlist()
     {
         var client = CreateClient();
         var email = $"alert-persist-{Guid.NewGuid():N}@example.test";
@@ -91,9 +91,9 @@ public sealed class PriceAlertIntegrationTests(ApiFixture fixture) : IClassFixtu
         Assert.Equal(2, alert.GetProperty("targetVersion").GetInt32());
         Assert.Equal(PriceAlert.CurrentConsentVersion, alert.GetProperty("consentVersion").GetString());
 
-        using var saved = await client.GetAsync("/api/v1/saved-products");
+        using var saved = await client.GetAsync("/api/v1/saved-offers");
         using var savedJson = JsonDocument.Parse(await saved.Content.ReadAsStringAsync());
-        Assert.Contains(savedJson.RootElement.EnumerateArray(), item => item.GetProperty("productId").GetGuid() == productId);
+        Assert.Empty(savedJson.RootElement.EnumerateArray());
     }
 
     [RequiresPostgresFact]

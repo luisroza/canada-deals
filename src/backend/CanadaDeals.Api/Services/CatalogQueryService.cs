@@ -30,7 +30,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         {
             var existing = await db.Categories
                 .Where(x => x.IsEnabled && categoryKeys.Contains(x.Slug) && db.RetailerListings.Any(listing =>
-                    listing.IsEnabled && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
+                    listing.IsEnabled && (listing.OfferValidFrom == null || listing.OfferValidFrom <= now) && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
                     listing.Retailer.IsEnabled && listing.Product.Brand.IsEnabled && listing.Product.CategoryId == x.Id &&
                     listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                     listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
@@ -45,7 +45,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         {
             var existing = await db.Retailers
                 .Where(x => x.IsEnabled && retailerKeys.Contains(x.Key) && db.RetailerListings.Any(listing =>
-                    listing.IsEnabled && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
+                    listing.IsEnabled && (listing.OfferValidFrom == null || listing.OfferValidFrom <= now) && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
                     listing.Product.Brand.IsEnabled && listing.Product.Category.IsEnabled && listing.RetailerId == x.Id &&
                     listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                     listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
@@ -73,7 +73,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         var availability = DiscoveryQueryRequest.Values(request.Availability);
 
         var query = db.RetailerListings.AsNoTracking()
-            .Where(x => x.IsEnabled && (x.OfferValidUntil == null || x.OfferValidUntil > now) && x.Retailer.IsEnabled &&
+            .Where(x => x.IsEnabled && (x.OfferValidFrom == null || x.OfferValidFrom <= now) && (x.OfferValidUntil == null || x.OfferValidUntil > now) && x.Retailer.IsEnabled &&
                         x.Product.Brand.IsEnabled && x.Product.Category.IsEnabled && x.CurrentPriceAmount != null &&
                         x.CurrentPriceCurrency == PriceAlert.SupportedCurrency &&
                         x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
@@ -97,10 +97,9 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         if (request.HasReference.HasValue)
         {
             query = query.Where(x =>
-                (x.MerchantPolicy.AllowPriceHistory == PolicyPermission.Allowed &&
-                 db.PriceObservations.Any(observation =>
-                     observation.RetailerListingId == x.Id && observation.IsPermitted &&
-                     observation.ObservedAt < x.SourceObservedAt && observation.Amount > x.CurrentPriceAmount)) == request.HasReference.Value);
+                (x.RegularPriceAmount != null && x.RegularPriceAmount > x.CurrentPriceAmount &&
+                 x.RegularPriceCurrency == x.CurrentPriceCurrency && x.RegularPriceObservedAt != null &&
+                 x.RegularPriceEvidenceReference != null && x.RegularPriceEvidenceReference != "") == request.HasReference.Value);
         }
 
         if (freshness.Length > 0)
@@ -143,21 +142,12 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                 EF.Functions.TrigramsAreWordSimilar(search, x.Product.SearchDocument));
         }
 
-        var representativeListings = query.Where(candidate => candidate.Id == query
-            .Where(other => other.ProductId == candidate.ProductId)
-            .OrderByDescending(other => other.MatchState == MatchState.AutoMatched || other.MatchState == MatchState.Confirmed)
-            .ThenByDescending(other => other.SourceObservedAt)
-            .ThenBy(other => other.Id)
-            .Select(other => other.Id)
-            .First());
-
-        var representatives = representativeListings.Select(x => new DiscoveryCandidate
+        var candidates = query.Select(x => new DiscoveryCandidate
         {
             ListingId = x.Id,
             ProductId = x.ProductId,
             ObservedAt = x.SourceObservedAt,
             CurrentPrice = x.CurrentPriceAmount!.Value,
-            SafeMatch = x.MatchState == MatchState.AutoMatched || x.MatchState == MatchState.Confirmed,
             ExactModel = search.Length > 0 && x.Product.NormalizedModelNumber == normalizedSearch,
             ExactMpn = search.Length > 0 && x.Product.NormalizedManufacturerPartNumber == normalizedSearch,
             ExactGtin = search.Length > 0 && x.Product.Gtin == normalizedSearch,
@@ -167,24 +157,26 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                 ? EF.Property<NpgsqlTsVector>(x.Product, "SearchVector").Rank(EF.Functions.WebSearchToTsQuery("english", search))
                 : 0f,
             TrigramSimilarity = search.Length > 0 ? EF.Functions.TrigramsWordSimilarity(search, x.Product.SearchDocument) : 0d,
-            ReferencePrice = x.MerchantPolicy.AllowPriceHistory == PolicyPermission.Allowed
-                ? db.PriceObservations
-                    .Where(observation => observation.RetailerListingId == x.Id && observation.IsPermitted &&
-                        observation.ObservedAt < x.SourceObservedAt && observation.Amount > x.CurrentPriceAmount)
-                    .Select(observation => (decimal?)observation.Amount)
-                    .Max()
-                : null
+            RegularPrice = x.RegularPriceAmount != null && x.RegularPriceAmount > x.CurrentPriceAmount &&
+                           x.RegularPriceCurrency == x.CurrentPriceCurrency && x.RegularPriceObservedAt != null &&
+                           x.RegularPriceEvidenceReference != null && x.RegularPriceEvidenceReference != ""
+                ? x.RegularPriceAmount
+                : null,
+            HasSupportedSavings = x.RegularPriceAmount != null && x.RegularPriceAmount > x.CurrentPriceAmount &&
+                                  x.RegularPriceCurrency == x.CurrentPriceCurrency && x.RegularPriceObservedAt != null &&
+                                  x.RegularPriceEvidenceReference != null && x.RegularPriceEvidenceReference != ""
         });
 
-        var totalCount = await representatives.CountAsync(cancellationToken);
-        var ordered = ApplySort(representatives, sort);
+        var totalCount = await candidates.CountAsync(cancellationToken);
+        var ordered = ApplySort(candidates, sort);
         var rows = await ordered
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync(cancellationToken);
 
-        var productIds = rows.Select(x => x.ProductId).ToArray();
-        var listings = productIds.Length == 0
+        var listingIds = rows.Select(x => x.ListingId).ToArray();
+        var productIds = rows.Select(x => x.ProductId).Distinct().ToArray();
+        var listings = listingIds.Length == 0
             ? []
             : await db.RetailerListings
                 .AsNoTracking()
@@ -193,8 +185,8 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                 .Include(x => x.Retailer)
                 .Include(x => x.MerchantPolicy)
                 .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
-                .Where(x => x.IsEnabled && (x.OfferValidUntil == null || x.OfferValidUntil > now) && x.Retailer.IsEnabled &&
-                            x.Product.Brand.IsEnabled && x.Product.Category.IsEnabled && productIds.Contains(x.ProductId) &&
+                .Where(x => x.IsEnabled && (x.OfferValidFrom == null || x.OfferValidFrom <= now) && (x.OfferValidUntil == null || x.OfferValidUntil > now) && x.Retailer.IsEnabled &&
+                            x.Product.Brand.IsEnabled && x.Product.Category.IsEnabled && listingIds.Contains(x.Id) &&
                             x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                             x.MerchantPolicy.RequiredAttribution != TestOnlyAttribution)
                 .ToListAsync(cancellationToken);
@@ -202,13 +194,13 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         var productImages = await PublicImagesAsync(productIds, now, "DEAL_CARD", cancellationToken);
         var items = rows
             .Where(row => selected.ContainsKey(row.ListingId))
-            .Select(row => ToCard(selected[row.ListingId], now, listings, row.ReferencePrice, productImages.GetValueOrDefault(row.ProductId)))
+            .Select(row => ToCard(selected[row.ListingId], now, productImages.GetValueOrDefault(row.ProductId)))
             .ToList();
 
         var categories = await db.Categories.AsNoTracking().OrderBy(x => x.Name)
             .Where(x => x.IsEnabled)
             .Where(x => db.RetailerListings.Any(listing =>
-                listing.IsEnabled && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
+                listing.IsEnabled && (listing.OfferValidFrom == null || listing.OfferValidFrom <= now) && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
                 listing.Retailer.IsEnabled && listing.Product.Brand.IsEnabled && listing.Product.CategoryId == x.Id &&
                 listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                 listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
@@ -216,7 +208,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         var retailers = await db.Retailers.AsNoTracking().OrderBy(x => x.Name)
             .Where(x => x.IsEnabled)
             .Where(x => db.RetailerListings.Any(listing =>
-                listing.IsEnabled && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
+                listing.IsEnabled && (listing.OfferValidFrom == null || listing.OfferValidFrom <= now) && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
                 listing.Product.Brand.IsEnabled && listing.Product.Category.IsEnabled && listing.RetailerId == x.Id &&
                 listing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                 listing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution))
@@ -254,17 +246,17 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             .ThenByDescending(x => x.FullTextRank)
             .ThenByDescending(x => x.TrigramSimilarity)
             .ThenByDescending(x => x.ObservedAt)
-            .ThenBy(x => x.ProductId),
+            .ThenBy(x => x.ListingId),
         DiscoverySort.SupportedSavings => query
-            .OrderByDescending(x => x.ReferencePrice != null && x.ReferencePrice > x.CurrentPrice)
-            .ThenByDescending(x => x.ReferencePrice == null ? 0 : (x.ReferencePrice - x.CurrentPrice) / x.ReferencePrice)
+            .OrderByDescending(x => x.HasSupportedSavings)
+            .ThenByDescending(x => x.RegularPrice == null ? 0 : (x.RegularPrice - x.CurrentPrice) / x.RegularPrice)
             .ThenByDescending(x => x.ObservedAt)
-            .ThenBy(x => x.ProductId),
+            .ThenBy(x => x.ListingId),
         DiscoverySort.LowestPrice => query
             .OrderBy(x => x.CurrentPrice)
             .ThenByDescending(x => x.ObservedAt)
-            .ThenBy(x => x.ProductId),
-        _ => query.OrderByDescending(x => x.ObservedAt).ThenBy(x => x.ProductId)
+            .ThenBy(x => x.ListingId),
+        _ => query.OrderByDescending(x => x.ObservedAt).ThenBy(x => x.ListingId)
     };
 
     private static DiscoverySort? ParseSort(string? value) => value?.ToLowerInvariant() switch
@@ -289,7 +281,6 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         public Guid ProductId { get; init; }
         public DateTimeOffset? ObservedAt { get; init; }
         public decimal CurrentPrice { get; init; }
-        public bool SafeMatch { get; init; }
         public bool ExactModel { get; init; }
         public bool ExactMpn { get; init; }
         public bool ExactGtin { get; init; }
@@ -297,48 +288,62 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         public bool TitlePrefix { get; init; }
         public float FullTextRank { get; init; }
         public double TrigramSimilarity { get; init; }
-        public decimal? ReferencePrice { get; init; }
+        public decimal? RegularPrice { get; init; }
+        public bool HasSupportedSavings { get; init; }
     }
 
     public async Task<ProductDetailResponse?> GetProductAsync(string slug, CancellationToken cancellationToken)
     {
         var now = clock.GetUtcNow();
-        var product = await db.Products
+        var listing = await db.RetailerListings
             .AsNoTracking()
-            .Include(x => x.Brand)
-            .Include(x => x.Category)
-            .SingleOrDefaultAsync(x => x.Slug == slug && x.Brand.IsEnabled && x.Category.IsEnabled, cancellationToken);
-
-        if (product is null) return null;
-
-        var listings = await db.RetailerListings
-            .AsNoTracking()
+            .Include(x => x.Product).ThenInclude(x => x.Brand)
+            .Include(x => x.Product).ThenInclude(x => x.Category)
             .Include(x => x.Retailer)
             .Include(x => x.MerchantPolicy)
             .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
-            .Where(x => x.IsEnabled && (x.OfferValidUntil == null || x.OfferValidUntil > now) && x.Retailer.IsEnabled && x.ProductId == product.Id &&
+            .Where(x => x.IsEnabled && (x.OfferValidFrom == null || x.OfferValidFrom <= now) && (x.OfferValidUntil == null || x.OfferValidUntil > now) &&
+                        x.Retailer.IsEnabled && x.Product.Brand.IsEnabled && x.Product.Category.IsEnabled && x.Product.Slug == slug &&
                         x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
                         x.MerchantPolicy.RequiredAttribution != TestOnlyAttribution)
             .OrderByDescending(x => x.SourceObservedAt)
-            .ToListAsync(cancellationToken);
+            .ThenBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        return listing is null ? null : await ToProductDetailAsync(listing, now, cancellationToken);
+    }
 
-        if (listings.Count == 0) return null;
+    public async Task<ProductDetailResponse?> GetOfferAsync(Guid listingId, CancellationToken cancellationToken)
+    {
+        var now = clock.GetUtcNow();
+        var listing = await db.RetailerListings
+            .AsNoTracking()
+            .Include(x => x.Product).ThenInclude(x => x.Brand)
+            .Include(x => x.Product).ThenInclude(x => x.Category)
+            .Include(x => x.Retailer)
+            .Include(x => x.MerchantPolicy)
+            .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
+            .SingleOrDefaultAsync(x => x.Id == listingId && x.IsEnabled &&
+                (x.OfferValidFrom == null || x.OfferValidFrom <= now) && (x.OfferValidUntil == null || x.OfferValidUntil > now) &&
+                x.Retailer.IsEnabled && x.Product.Brand.IsEnabled && x.Product.Category.IsEnabled &&
+                x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
+                x.MerchantPolicy.RequiredAttribution != TestOnlyAttribution, cancellationToken);
+        return listing is null ? null : await ToProductDetailAsync(listing, now, cancellationToken);
+    }
 
-        var offers = listings.Select(x => ToOffer(x, now)).ToList();
-        var primary = offers.FirstOrDefault(x => x.IsSafeComparison && x.CurrentPrice is not null) ?? offers[0];
-        var safe = offers.Where(x => x.IsSafeComparison && x.ListingId != primary.ListingId).ToList();
-        var related = offers.Where(x => !x.IsSafeComparison).ToList();
-        const string history = "Price history is unavailable in the current product experience.";
-        var evidence = primary.EvidenceState switch
+    private async Task<ProductDetailResponse> ToProductDetailAsync(RetailerListing listing, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var offer = ToOffer(listing, now);
+        var evidence = offer.EvidenceState switch
         {
             "STRONG" => "The current price comes from a permitted source and the exact product match is verified.",
             "PARTIAL" => "The current offer is available, but some source or product evidence is incomplete.",
             _ => "There is not enough verified evidence for a stronger claim."
         };
 
+        var product = listing.Product;
         var productImage = (await PublicImagesAsync([product.Id], now, "PRODUCT_PAGE", cancellationToken)).GetValueOrDefault(product.Id);
         return new ProductDetailResponse(product.Id, product.Slug, product.Title, product.Brand.Name, product.Category.Name,
-            product.VariantAttributes, primary, safe, related, history, evidence, productImage);
+            product.VariantAttributes, offer, evidence, productImage);
     }
 
     public async Task<ProductHistoryResponse?> GetProductHistoryAsync(
@@ -358,7 +363,7 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
             from observation in db.PriceObservations.AsNoTracking()
             join listing in db.RetailerListings.AsNoTracking() on observation.RetailerListingId equals listing.Id
             join policy in db.MerchantPolicies.AsNoTracking() on listing.MerchantPolicyId equals policy.Id
-            where listing.IsEnabled && (listing.OfferValidUntil == null || listing.OfferValidUntil > now)
+            where listing.IsEnabled && (listing.OfferValidFrom == null || listing.OfferValidFrom <= now) && (listing.OfferValidUntil == null || listing.OfferValidUntil > now)
                 && listing.Retailer.IsEnabled && listing.Product.Brand.IsEnabled && listing.Product.Category.IsEnabled && listing.ProductId == product.Id
                 && (listing.MatchState == MatchState.AutoMatched || listing.MatchState == MatchState.Confirmed)
                 && listing.Condition == ProductCondition.New
@@ -413,58 +418,59 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
                 point.ObservationCount)).ToList());
     }
 
-    public async Task<IReadOnlyList<SavedProductResponse>> GetSavedProductsAsync(Guid userId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<SavedOfferResponse>> GetSavedOffersAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var saves = await db.SavedProducts
+        var now = clock.GetUtcNow();
+        var saves = await db.SavedOffers
             .AsNoTracking()
-            .Include(x => x.Product).ThenInclude(x => x.Brand)
-            .Include(x => x.Product).ThenInclude(x => x.Category)
-            .Where(x => x.UserId == userId)
+            .Include(x => x.RetailerListing).ThenInclude(x => x.Product).ThenInclude(x => x.Brand)
+            .Include(x => x.RetailerListing).ThenInclude(x => x.Product).ThenInclude(x => x.Category)
+            .Include(x => x.RetailerListing).ThenInclude(x => x.Retailer)
+            .Include(x => x.RetailerListing).ThenInclude(x => x.MerchantPolicy)
+            .Include(x => x.RetailerListing).ThenInclude(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
+            .Where(x => x.UserId == userId && x.RetailerListing.IsEnabled &&
+                (x.RetailerListing.OfferValidFrom == null || x.RetailerListing.OfferValidFrom <= now) &&
+                (x.RetailerListing.OfferValidUntil == null || x.RetailerListing.OfferValidUntil > now) &&
+                x.RetailerListing.Retailer.IsEnabled && x.RetailerListing.Product.Brand.IsEnabled &&
+                x.RetailerListing.Product.Category.IsEnabled &&
+                x.RetailerListing.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed &&
+                x.RetailerListing.MerchantPolicy.RequiredAttribution != TestOnlyAttribution)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(cancellationToken);
 
         if (saves.Count == 0) return [];
 
-        var productIds = saves.Select(x => x.ProductId).ToArray();
-        var now = clock.GetUtcNow();
-        var listings = await db.RetailerListings
-            .AsNoTracking()
-            .Include(x => x.Retailer)
-            .Include(x => x.MerchantPolicy)
-            .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
-            .Where(x => x.IsEnabled && (x.OfferValidUntil == null || x.OfferValidUntil > now) && x.Retailer.IsEnabled &&
-                        x.Product.Brand.IsEnabled && x.Product.Category.IsEnabled && productIds.Contains(x.ProductId) &&
-                        x.CurrentPriceAmount != null &&
-                        x.MerchantPolicy.AllowPriceStorage == PolicyPermission.Allowed)
-            .OrderByDescending(x => x.SourceObservedAt)
-            .ToListAsync(cancellationToken);
-
+        var productIds = saves.Select(x => x.RetailerListing.ProductId).Distinct().ToArray();
         var productImages = await PublicImagesAsync(productIds, now, "WISHLIST", cancellationToken);
         return saves.Select(saved =>
         {
-            var listing = listings.FirstOrDefault(x => x.ProductId == saved.ProductId && ComparisonRules.IsSafeComparison(x))
-                ?? listings.FirstOrDefault(x => x.ProductId == saved.ProductId);
-            var offer = listing is null ? null : ToOffer(listing, now);
+            var listing = saved.RetailerListing;
+            var offer = ToOffer(listing, now);
+            var product = listing.Product;
 
-            return new SavedProductResponse(
-                saved.ProductId,
-                saved.Product.Slug,
-                saved.Product.Title,
-                saved.Product.Brand.Name,
-                saved.Product.Category.Name,
-                offer?.CurrentPrice,
-                offer?.Currency ?? "CAD",
-                offer?.FreshnessState ?? "UNKNOWN",
-                offer?.EvidenceState ?? "UNKNOWN",
-                offer?.HistoryState ?? "UNAVAILABLE",
-                offer?.Retailer,
+            return new SavedOfferResponse(
+                listing.Id,
+                product.Id,
+                product.Slug,
+                product.Title,
+                product.Brand.Name,
+                product.Category.Name,
+                offer.CurrentPrice,
+                offer.RegularPrice,
+                offer.SavingsAmount,
+                offer.SavingsPercent,
+                offer.Currency,
+                offer.FreshnessState,
+                offer.EvidenceState,
+                offer.HistoryState,
+                offer.Retailer,
                 saved.CreatedAt,
-                $"/products/{saved.Product.Slug}",
-                productImages.GetValueOrDefault(saved.ProductId));
+                $"/offers/{listing.Id:D}",
+                productImages.GetValueOrDefault(product.Id));
         }).ToList();
     }
 
-    private DealCardResponse ToCard(RetailerListing listing, DateTimeOffset now, IReadOnlyList<RetailerListing> feed, decimal? referencePrice, ProductImageResponse? productImage)
+    private DealCardResponse ToCard(RetailerListing listing, DateTimeOffset now, ProductImageResponse? productImage)
     {
         var offer = ToOffer(listing, now);
         var disclosure = offer.HandoffMode == "DIRECT_PROVIDER"
@@ -473,12 +479,8 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         return new DealCardResponse(listing.Id, listing.ProductId, listing.Product.Slug, listing.Product.Title, listing.Product.Brand.Name,
             listing.Product.Category.Name, listing.Retailer.Name, listing.CurrentPriceAmount, listing.CurrentPriceCurrency ?? "CAD",
             offer.FreshnessState, offer.EvidenceState, offer.AvailabilityState, EvidenceExplanation(offer.EvidenceState), listing.SourceObservedAt,
-            PublicMatchState(listing.MatchState), offer.HistoryState, referencePrice,
-            DiscoveryRules.SupportedSavings(listing.CurrentPriceAmount!.Value, referencePrice)
-                ? Math.Round((referencePrice!.Value - listing.CurrentPriceAmount.Value) / referencePrice.Value * 100m, 1)
-                : null,
-            feed.Any(x => x.ProductId == listing.ProductId && x.Id != listing.Id && ComparisonRules.IsSafeComparison(x)),
-            $"/products/{listing.Product.Slug}", offer.HandoffPath, offer.HandoffUrl, offer.HandoffMode, disclosure, productImage);
+            PublicMatchState(listing.MatchState), offer.HistoryState, offer.RegularPrice, offer.SavingsAmount, offer.SavingsPercent,
+            $"/offers/{listing.Id:D}", offer.HandoffPath, offer.HandoffUrl, offer.HandoffMode, disclosure, productImage);
     }
 
     private async Task<IReadOnlyDictionary<Guid, ProductImageResponse>> PublicImagesAsync(
@@ -510,18 +512,30 @@ public sealed class CatalogQueryService(DealsDbContext db, TimeProvider clock, I
         var disclosure = handoff.Mode == "DIRECT_PROVIDER"
             ? "Paid link. As an Amazon Associate I earn from qualifying purchases."
             : listing.MerchantPolicy.DisclosureText;
+        var currency = listing.CurrentPriceCurrency ?? "CAD";
+        var regularPrice = listing.CurrentPriceAmount.HasValue && listing.RegularPriceCurrency == currency &&
+                           listing.RegularPriceObservedAt.HasValue &&
+                           DiscoveryRules.SupportedSavings(listing.CurrentPriceAmount.Value, listing.RegularPriceAmount, listing.RegularPriceEvidenceReference)
+            ? listing.RegularPriceAmount
+            : null;
+        var savingsAmount = listing.CurrentPriceAmount.HasValue
+            ? DiscoveryRules.SavingsAmount(listing.CurrentPriceAmount.Value, regularPrice, listing.RegularPriceEvidenceReference)
+            : null;
+        var savingsPercent = listing.CurrentPriceAmount.HasValue
+            ? DiscoveryRules.SavingsPercent(listing.CurrentPriceAmount.Value, regularPrice, listing.RegularPriceEvidenceReference)
+            : null;
         return new RetailerOfferResponse(listing.Id, listing.Retailer.Name, listing.OriginalTitle, listing.CurrentPriceAmount,
-            listing.CurrentPriceCurrency ?? "CAD", freshness.ToString().ToUpperInvariant(), evidence.ToString().ToUpperInvariant(),
+            regularPrice, savingsAmount, savingsPercent, currency, freshness.ToString().ToUpperInvariant(), evidence.ToString().ToUpperInvariant(),
             PublicMatchState(listing.MatchState), listing.History.ToString().ToUpperInvariant(), listing.OnlineAvailability.ToString().ToUpperInvariant(),
             listing.Seller, listing.Condition.ToString().ToUpperInvariant(), listing.RegionAvailabilityContext, listing.ShippingContext, listing.SourceObservedAt,
-            handoff.Path, handoff.Url, handoff.Mode, disclosure, ComparisonRules.IsSafeComparison(listing));
+            handoff.Path, handoff.Url, handoff.Mode, disclosure);
     }
 
     private static string PublicMatchState(MatchState matchState) => matchState switch
     {
-        MatchState.AutoMatched or MatchState.Confirmed => "Same product confirmed",
-        MatchState.PossibleMatchReview or MatchState.ManualReview => "Review before comparing",
-        _ => "No safe comparison available"
+        MatchState.AutoMatched or MatchState.Confirmed => "Offer identity verified",
+        MatchState.PossibleMatchReview or MatchState.ManualReview => "Offer identity under review",
+        _ => "Offer identity unavailable"
     };
 
     private static PublicHandoff Handoff(RetailerListing listing, DateTimeOffset now)

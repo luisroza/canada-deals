@@ -62,7 +62,7 @@ public sealed class SearchAndFilterTests(ApiFixture fixture) : IClassFixture<Api
     }
 
     [RequiresPostgresFact]
-    public async Task Feed_defaults_to_recent_with_bounded_metadata_and_one_card_per_product()
+    public async Task Feed_defaults_to_recent_with_bounded_metadata_and_one_card_per_offer()
     {
         using var json = await GetJsonAsync("/api/v1/deals?pageSize=3");
         var root = json.RootElement;
@@ -70,7 +70,7 @@ public sealed class SearchAndFilterTests(ApiFixture fixture) : IClassFixture<Api
         Assert.Equal(1, root.GetProperty("page").GetInt32());
         Assert.Equal(3, root.GetProperty("pageSize").GetInt32());
         Assert.True(root.GetProperty("totalPages").GetInt32() >= 2);
-        var ids = root.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("productId").GetGuid()).ToArray();
+        var ids = root.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("listingId").GetGuid()).ToArray();
         Assert.Equal(ids.Distinct().Count(), ids.Length);
     }
 
@@ -113,9 +113,9 @@ public sealed class SearchAndFilterTests(ApiFixture fixture) : IClassFixture<Api
         using var json = await GetJsonAsync($"/api/v1/deals?{filter}");
         var items = json.RootElement.GetProperty("items");
         Assert.NotEmpty(items.EnumerateArray());
-        if (evidence == "reference") Assert.All(items.EnumerateArray(), item => Assert.NotEqual(JsonValueKind.Null, item.GetProperty("referencePrice").ValueKind));
+        if (evidence == "reference") Assert.All(items.EnumerateArray(), item => Assert.NotEqual(JsonValueKind.Null, item.GetProperty("regularPrice").ValueKind));
         if (evidence == "stale") Assert.All(items.EnumerateArray(), item => Assert.Equal("STALE", item.GetProperty("freshnessState").GetString()));
-        if (evidence == "review") Assert.All(items.EnumerateArray(), item => Assert.Equal("Review before comparing", item.GetProperty("matchState").GetString()));
+        if (evidence == "review") Assert.All(items.EnumerateArray(), item => Assert.Equal("Offer identity under review", item.GetProperty("matchState").GetString()));
         if (evidence == UnavailableSlug) Assert.Contains(items.EnumerateArray(), item => item.GetProperty("productSlug").GetString() == UnavailableSlug);
     }
 
@@ -149,8 +149,8 @@ public sealed class SearchAndFilterTests(ApiFixture fixture) : IClassFixture<Api
         using var first = await GetJsonAsync($"/api/v1/deals?sort={sort}{search}");
         using var second = await GetJsonAsync($"/api/v1/deals?sort={sort}{search}");
         Assert.Equal(sort, first.RootElement.GetProperty("sort").GetString());
-        var firstIds = first.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("productId").GetGuid()).ToArray();
-        var secondIds = second.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("productId").GetGuid()).ToArray();
+        var firstIds = first.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("listingId").GetGuid()).ToArray();
+        var secondIds = second.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("listingId").GetGuid()).ToArray();
         Assert.Equal(firstIds, secondIds);
     }
 
@@ -159,8 +159,8 @@ public sealed class SearchAndFilterTests(ApiFixture fixture) : IClassFixture<Api
     {
         using var first = await GetJsonAsync("/api/v1/deals?page=1&pageSize=2");
         using var second = await GetJsonAsync("/api/v1/deals?page=2&pageSize=2");
-        var firstIds = first.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("productId").GetGuid()).ToHashSet();
-        var secondIds = second.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("productId").GetGuid()).ToHashSet();
+        var firstIds = first.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("listingId").GetGuid()).ToHashSet();
+        var secondIds = second.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("listingId").GetGuid()).ToHashSet();
         Assert.True(first.RootElement.GetProperty("hasNext").GetBoolean());
         Assert.Empty(firstIds.Intersect(secondIds));
     }

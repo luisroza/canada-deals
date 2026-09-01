@@ -197,6 +197,14 @@ public static class DemoDataSeeder
         var listingF = RetailerListing.Create(productF.Id, demoMarket.Id, "DEMO-F-UNKNOWN", productF.Title, "https://demo.local/products/mapleforge-compact-impact-driver", policy.Id, MatchState.NoMatch, now.AddHours(-2), now.AddHours(-2), 119.99m, "CAD", FreshnessState.Recent, EvidenceState.Unknown, HistoryAvailability.Unavailable, productF.VariantAttributes, new Dictionary<string, string> { ["gtin"] = "000000000006" }, "DM-MFID");
         var listingG = RetailerListing.Create(productG.Id, demoNorth.Id, "SEARCH-UNAVAILABLE", productG.Title, "https://demo.local/search-unavailable", policy.Id, MatchState.Confirmed, now.AddMinutes(-30), now.AddMinutes(-30), 49.99m, "CAD", FreshnessState.Recent, EvidenceState.Unknown, HistoryAvailability.Unavailable, productG.VariantAttributes, new Dictionary<string, string>(), onlineAvailability: OnlineAvailabilityState.Unavailable);
         var listingH = RetailerListing.Create(productH.Id, demoNorth.Id, "SEARCH-HIDDEN", productH.Title, "https://demo.local/search-hidden", unknownPolicy.Id, MatchState.Confirmed, now, now, 9.99m, "CAD", FreshnessState.Recent, EvidenceState.Unknown, HistoryAvailability.Unavailable, productH.VariantAttributes, new Dictionary<string, string>(), onlineAvailability: OnlineAvailabilityState.Available);
+        listingA1.SetRegularPrice(1199.99m, "CAD", now.AddHours(-2), "controlled-fixture:regular-price:demo-a1");
+        listingA2.SetRegularPrice(1249.99m, "CAD", now.AddHours(-4), "controlled-fixture:regular-price:demo-a2");
+        listingB.SetRegularPrice(299.99m, "CAD", now.AddHours(-8), "controlled-fixture:regular-price:demo-b");
+        listingC1.SetRegularPrice(199.99m, "CAD", now.AddHours(-3), "controlled-fixture:regular-price:demo-c1");
+        listingC2.SetRegularPrice(119.99m, "CAD", now.AddHours(-2), "controlled-fixture:regular-price:demo-c2");
+        listingD.SetRegularPrice(1599.99m, "CAD", now.AddDays(-3), "controlled-fixture:regular-price:demo-d");
+        listingE.SetRegularPrice(99.99m, "CAD", now.AddHours(-1), "controlled-fixture:regular-price:demo-e");
+        listingF.SetRegularPrice(149.99m, "CAD", now.AddHours(-2), "controlled-fixture:regular-price:demo-f");
 
         db.AddRange(listingA1, listingA2, listingB, listingC1, listingC2, listingD, listingE, listingF, listingG, listingH);
         await db.SaveChangesAsync(cancellationToken);

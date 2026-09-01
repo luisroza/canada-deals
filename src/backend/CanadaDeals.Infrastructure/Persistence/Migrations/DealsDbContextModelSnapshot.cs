@@ -24,24 +24,24 @@ namespace CanadaDeals.Infrastructure.Persistence.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("CanadaDeals.Domain.Accounts.SavedProduct", b =>
+            modelBuilder.Entity("CanadaDeals.Domain.Accounts.SavedOffer", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ProductId")
+                    b.Property<Guid>("RetailerListingId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("UserId", "ProductId");
+                    b.HasKey("UserId", "RetailerListingId");
 
-                    b.HasIndex("ProductId");
+                    b.HasIndex("RetailerListingId");
 
                     b.HasIndex("UserId", "CreatedAt");
 
-                    b.ToTable("SavedProducts");
+                    b.ToTable("SavedOffers", (string)null);
                 });
 
             modelBuilder.Entity("CanadaDeals.Domain.Administration.AdminAuditEvent", b =>
@@ -1293,6 +1293,9 @@ namespace CanadaDeals.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("MerchantPolicyId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("OfferValidFrom")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("OfferValidUntil")
                         .HasColumnType("timestamp with time zone");
 
@@ -1317,6 +1320,21 @@ namespace CanadaDeals.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("RegionAvailabilityContext")
                         .HasColumnType("text");
+
+                    b.Property<decimal?>("RegularPriceAmount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<string>("RegularPriceCurrency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("RegularPriceEvidenceReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset?>("RegularPriceObservedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("RetailerId")
                         .HasColumnType("uuid");
@@ -1347,12 +1365,12 @@ namespace CanadaDeals.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SourceObservedAt");
 
-                    b.HasIndex("IsEnabled", "OfferValidUntil");
-
                     b.HasIndex("OnlineAvailability", "MatchState");
 
                     b.HasIndex("RetailerId", "ExternalListingId")
                         .IsUnique();
+
+                    b.HasIndex("IsEnabled", "OfferValidFrom", "OfferValidUntil");
 
                     b.ToTable("RetailerListings");
                 });
@@ -1668,11 +1686,11 @@ namespace CanadaDeals.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("CanadaDeals.Domain.Accounts.SavedProduct", b =>
+            modelBuilder.Entity("CanadaDeals.Domain.Accounts.SavedOffer", b =>
                 {
-                    b.HasOne("CanadaDeals.Domain.Catalog.Product", "Product")
+                    b.HasOne("CanadaDeals.Domain.Retailers.RetailerListing", "RetailerListing")
                         .WithMany()
-                        .HasForeignKey("ProductId")
+                        .HasForeignKey("RetailerListingId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -1682,7 +1700,7 @@ namespace CanadaDeals.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Product");
+                    b.Navigation("RetailerListing");
                 });
 
             modelBuilder.Entity("CanadaDeals.Domain.Administration.AdminAuditEvent", b =>

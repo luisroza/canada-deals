@@ -11,11 +11,11 @@ PostgreSQL is the system of record. EF Core/Npgsql owns the relational model and
 - `RakutenAdvertiserCapability`, `RakutenSourceMapping`, `RakutenImportRun`
 - `MerchantPolicy`, `PriceObservation`
 - `ListingIssueReport`
-- ASP.NET Core Identity tables, `SavedProduct`, `PriceAlert`, `NotificationDelivery`, `AccountConfirmationDelivery`, `ControlledEmailCapture`, `ProcessedEmailWebhook`, and `EmailSuppression`
+- ASP.NET Core Identity tables, `SavedOffer`, legacy `PriceAlert`/delivery records, `AccountConfirmationDelivery`, `ControlledEmailCapture`, `ProcessedEmailWebhook`, and `EmailSuppression`
 
 Slice 7 migrations `20260812134659_AddProductionEmailDelivery` and `20260812135446_AddEmailRetrySchedule` add provider message/status timestamps, durable confirmation deliveries, exact Development/Test captures, replay-safe webhook events, normalized suppression, and persisted retry scheduling. Slice 8 migration `20260812143802_AddPersistentDataProtectionKeys` adds the ASP.NET Core Data Protection key ring table. Slice 9 migration `20260812213653_AddAffiliateLinkProviders` adds provider-neutral program lifecycle, persisted validated/failure link state, and minimum non-PII click telemetry. Migration `20260814173414_AddRakutenConnector` adds the MerchantPolicy affiliate permission and the three Rakuten capability/source/run tables. Provider credentials and tokens are never stored in these tables.
 
-`RetailerListing` stores source identifiers, original title, SKU, canonical product ID, URL, approved handoff reference, seller/marketplace information, condition, JSON structured variant attributes, pack/bundle fields, region/availability/shipping context, timestamps, freshness, current permitted price, matching state, and policy reference.
+`RetailerListing` stores source identifiers, original title, SKU, internal canonical Product ID, URL, approved handoff reference, seller/marketplace information, condition, JSON structured variant attributes, pack/bundle fields, region/availability/shipping context, timestamps, freshness, current deal price, optional same-listing regular price/evidence, promotion start/end, matching state, and policy reference.
 
 `UNKNOWN` policy values are explicit enum values. The API excludes protected fields when price storage is not `ALLOWED`.
 
@@ -44,7 +44,9 @@ The migration chain is:
 19. `20260827151516_AddOwnerProvidedAffiliateHandoff`
 20. `20260828134355_AddNormalizedBrandIdentity`
 
-No earlier migration was modified retroactively.
+21. `20260831135128_IndividualOfferPricing`
+
+No earlier migration was modified retroactively. `IndividualOfferPricing` adds regular-price/evidence and validity-start fields to `RetailerListings`, creates listing-keyed `SavedOffers`, migrates every existing Product-level save that has a listing to one deterministic existing listing, and then removes `SavedProducts`. A save whose Product has no listing cannot become an active offer save; the migration preserves it in the audit-only `SavedOfferMigrationOrphans` table with reason `NO_RETAILER_LISTING` instead of silently discarding it. The down migration restores both converted and archived rows.
 
 `AddNormalizedBrandIdentity` backfills `Brands.NormalizedKey` from the display name, stops with a clear migration error if existing rows collapse to the same identity, and adds a unique index. Runtime normalization removes trademark/copyright marks before Unicode compatibility normalization, folds case, collapses non-alphanumeric separators, and keeps the original display name and immutable slug unchanged. Confirmed Offer intake therefore reuses semantic variants such as `DeWalt`, `DEWALT`, and `DeWalt®` instead of creating another Brand.
 
@@ -60,7 +62,7 @@ The Slice 9 Rakuten validation database applied all ten migrations from empty, r
 
 `ListingIssueReports` references `RetailerListings` with `RESTRICT` delete behavior so quality/audit signals are not silently cascade-deleted. It stores a typed reason, typed lifecycle status, optional 500-character plain-text note, and creation/update timestamps. The `(Status, CreatedAt)` index supports review of OPEN reports in creation order. Multiple reports per listing are intentionally allowed.
 
-`SavedProducts` has composite primary key `(UserId, ProductId)`, which is also the database-level duplicate guard. User deletion cascades only the user's intent records; Product deletion is `RESTRICT` so canonical intent is not silently erased. `(UserId, CreatedAt)` supports the current user's newest-first list. Identity's normalized username uniqueness prevents normalized-equivalent email accounts because email is also the initial username.
+`SavedOffers` has composite primary key `(UserId, RetailerListingId)`, which is also the database-level duplicate guard. User deletion cascades only the user's intent records; RetailerListing deletion is `RESTRICT` so exact saved intent is not silently erased. `(UserId, CreatedAt)` supports the current user's newest-first list. Two retailer listings for one Product can be saved independently. `SavedOfferMigrationOrphans` is not runtime Wishlist state; it is an immutable migration audit boundary for legacy Product saves that had no listing at conversion time.
 
 `PriceAlerts` has a unique `(UserId, ProductId)` index, target range/version check constraints, user `CASCADE`, Product `RESTRICT`, consent timestamp/version, target version, and durable continuous-below-target state. `NotificationDeliveries` is separate from alert configuration and stores channel/destination, target and qualifying price, attempt/status/reason timestamps, and a unique `(PriceAlertId, TargetVersion, PriceObservationId)` durable deduplication key. Observation deletion is `RESTRICT`; alert/user deletion cascades owned delivery audit rows.
 

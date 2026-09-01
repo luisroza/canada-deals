@@ -1,25 +1,25 @@
-using CanadaDeals.Domain.Catalog;
+using CanadaDeals.Domain.Retailers;
 
 namespace CanadaDeals.Domain.Accounts;
 
-public sealed class SavedProduct
+public sealed class SavedOffer
 {
-    private SavedProduct() { }
+    private SavedOffer() { }
 
     public Guid UserId { get; private set; }
-    public Guid ProductId { get; private set; }
-    public Product Product { get; private set; } = null!;
+    public Guid RetailerListingId { get; private set; }
+    public RetailerListing RetailerListing { get; private set; } = null!;
     public DateTimeOffset CreatedAt { get; private set; }
 
-    public static SavedProduct Create(Guid userId, Guid productId, DateTimeOffset createdAt)
+    public static SavedOffer Create(Guid userId, Guid retailerListingId, DateTimeOffset createdAt)
     {
-        if (userId == Guid.Empty) throw new ArgumentException("A saved product requires a user.", nameof(userId));
-        if (productId == Guid.Empty) throw new ArgumentException("A saved product requires a product.", nameof(productId));
+        if (userId == Guid.Empty) throw new ArgumentException("A saved offer requires a user.", nameof(userId));
+        if (retailerListingId == Guid.Empty) throw new ArgumentException("A saved offer requires a retailer listing.", nameof(retailerListingId));
 
-        return new SavedProduct
+        return new SavedOffer
         {
             UserId = userId,
-            ProductId = productId,
+            RetailerListingId = retailerListingId,
             CreatedAt = createdAt
         };
     }

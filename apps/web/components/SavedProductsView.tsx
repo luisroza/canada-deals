@@ -35,12 +35,12 @@ export function SavedProductsView() {
   }, [category, query, retailer, sort, wishlist.items]);
   const hasFilters = Boolean(query || category || retailer || sort !== "saved-desc");
 
-  async function remove(productId: string) {
+  async function remove(listingId: string) {
     setError(null);
     try {
-      await wishlist.toggle(productId);
+      await wishlist.toggle(listingId);
     } catch {
-      setError("The saved product could not be removed. Please try again.");
+      setError("The saved offer could not be removed. Please try again.");
     }
   }
 
@@ -59,7 +59,7 @@ export function SavedProductsView() {
     <>
       {error && <p className="field-error" role="alert">{error}</p>}
       {wishlist.items.length === 0 ? (
-        <section className="notice"><h2>Your wishlist is empty.</h2><p>Browse current offers and save a product when you want to return to it.</p><Link className="button button-primary" href="/">Browse deals</Link></section>
+        <section className="notice"><h2>Your wishlist is empty.</h2><p>Browse current deals and save an offer when you want to return to it.</p><Link className="button button-primary" href="/">Browse deals</Link></section>
       ) : (
         <>
           <form className="wishlist-controls" onSubmit={(event) => event.preventDefault()}>
@@ -69,21 +69,22 @@ export function SavedProductsView() {
             <div><label htmlFor="wishlist-sort">Sort by</label><select id="wishlist-sort" value={sort} onChange={(event) => setSort(event.target.value)}><option value="saved-desc">Recently saved</option><option value="price-asc">Lowest current price</option><option value="name">Product name</option><option value="retailer">Store name</option></select></div>
             <button className="button button-secondary" type="button" disabled={!hasFilters} onClick={clearFilters}>Clear</button>
           </form>
-          <p className="wishlist-result-count" role="status" aria-live="polite">{visibleItems.length} of {wishlist.items.length} saved {wishlist.items.length === 1 ? "product" : "products"}</p>
-          {visibleItems.length === 0 ? <section className="notice"><h2>No saved products match.</h2><p>Try another product, category, or store.</p><button className="button button-primary" type="button" onClick={clearFilters}>Clear Wishlist filters</button></section> : <div className="saved-grid">
-          {visibleItems.map((item) => <article className="deal-card saved-product-card" key={item.productId}>
+          <p className="wishlist-result-count" role="status" aria-live="polite">{visibleItems.length} of {wishlist.items.length} saved {wishlist.items.length === 1 ? "offer" : "offers"}</p>
+          {visibleItems.length === 0 ? <section className="notice"><h2>No saved offers match.</h2><p>Try another product, category, or store.</p><button className="button button-primary" type="button" onClick={clearFilters}>Clear Wishlist filters</button></section> : <div className="saved-grid">
+          {visibleItems.map((item) => <article className="deal-card saved-product-card" key={item.listingId}>
               <Link className="saved-product-visual" href={item.detailsPath}><ProductVisual image={item.productImage} title={item.productTitle} category={item.category} /></Link>
               <div className="saved-product-body">
                 <p className="eyebrow">{item.category} · {item.brand}</p>
                 <h2><Link href={item.detailsPath}>{item.productTitle}</Link></h2>
-                <p className="price">{formatPrice(item.currentPrice, item.currency)}</p>
+                <p className="price"><span className="sr-only">Deal price </span>{formatPrice(item.currentPrice, item.currency)}</p>
+                {typeof item.regularPrice === "number" && typeof item.savingsPercent === "number" && <p className="deal-card-price-context"><span>Regular <del>{formatPrice(item.regularPrice, item.currency)}</del></span><strong>Save {Math.round(item.savingsPercent)}%</strong></p>}
                 <p className="card-meta">{item.retailer ?? "Retailer context unavailable"}</p>
                 <p className="saved-at">Saved {new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" }).format(new Date(item.savedAt))}</p>
                 <div className="state-row">
                   <StateBadge label={`Evidence: ${item.evidenceState.toLowerCase()}`} tone={item.evidenceState === "STRONG" ? "good" : "neutral"} />
                   <StateBadge label={item.freshnessState === "RECENT" ? "Checked recently" : `Freshness: ${item.freshnessState.toLowerCase()}`} tone={freshnessTone(item.freshnessState)} />
                 </div>
-                <div className="inline-actions"><Link className="button button-secondary" href={item.detailsPath}>View current offer</Link><button className="button button-text" type="button" disabled={wishlist.isPending(item.productId)} onClick={() => remove(item.productId)}>{wishlist.isPending(item.productId) ? "Removing…" : "Remove from wishlist"}</button></div>
+                <div className="inline-actions"><Link className="button button-secondary" href={item.detailsPath}>View offer</Link><button className="button button-text" type="button" disabled={wishlist.isPending(item.listingId)} onClick={() => remove(item.listingId)}>{wishlist.isPending(item.listingId) ? "Removing…" : "Remove from wishlist"}</button></div>
               </div>
             </article>
           )}

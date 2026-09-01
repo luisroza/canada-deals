@@ -15,14 +15,18 @@ function observationCopy(offer: RetailerOffer) {
 
 export function PrimaryOfferPanel({ offer, secondaryAction }: { offer: RetailerOffer; secondaryAction?: ReactNode }) {
   const stale = offer.freshnessState === "STALE";
+  const hasRegularPrice = typeof offer.regularPrice === "number"
+    && typeof offer.savingsAmount === "number"
+    && typeof offer.savingsPercent === "number";
 
   return <section className="primary-offer" aria-labelledby="current-offer-heading">
     <p className="eyebrow">Current retailer offer</p>
-    <h2 id="current-offer-heading">Current observed price</h2>
+    <h2 id="current-offer-heading">Current deal price</h2>
     <p className="price primary-price">{formatPrice(offer.currentPrice, offer.currency)}</p>
+    {hasRegularPrice && <div className="primary-price-context"><p>Regular price <del>{formatPrice(offer.regularPrice!, offer.currency)}</del></p><p className="deal-card-savings">You save {formatPrice(offer.savingsAmount!, offer.currency)} ({Math.round(offer.savingsPercent!)}%)</p></div>}
     <p className="product-meta"><strong>{offer.retailer}</strong> · {availabilityLabel(offer.availabilityState)} · {observationCopy(offer)}</p>
     <div className="state-row">
-      <StateBadge label={offer.matchState} tone={offer.isSafeComparison ? "good" : "warning"} />
+      <StateBadge label={offer.matchState} tone={offer.matchState.includes("verified") ? "good" : "warning"} />
       <StateBadge label={stale ? "May be stale" : offer.freshnessState.toLowerCase()} tone={freshnessTone(offer.freshnessState)} />
     </div>
     <div className="primary-offer-actions"><RetailerAction offer={offer} stickyOnMobile />{secondaryAction}</div>

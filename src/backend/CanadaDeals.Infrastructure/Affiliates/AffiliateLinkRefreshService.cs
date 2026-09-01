@@ -27,7 +27,7 @@ public sealed class AffiliateLinkRefreshService(
             .Include(x => x.Retailer)
             .Include(x => x.MerchantPolicy)
             .Include(x => x.AffiliateLinks)
-            .Where(x => x.IsEnabled && (x.OfferValidUntil == null || x.OfferValidUntil > now) &&
+            .Where(x => x.IsEnabled && (x.OfferValidFrom == null || x.OfferValidFrom <= now) && (x.OfferValidUntil == null || x.OfferValidUntil > now) &&
                         x.Retailer.IsEnabled && x.Product.Brand.IsEnabled && x.Product.Category.IsEnabled &&
                         x.MerchantPolicy.AllowAffiliateLinks == PolicyPermission.Allowed &&
                         x.ApprovedAffiliateDestinationReference != null &&

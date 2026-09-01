@@ -34,7 +34,7 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
     public DbSet<PriceObservation> PriceObservations => Set<PriceObservation>();
     public DbSet<MerchantPolicy> MerchantPolicies => Set<MerchantPolicy>();
     public DbSet<ListingIssueReport> ListingIssueReports => Set<ListingIssueReport>();
-    public DbSet<SavedProduct> SavedProducts => Set<SavedProduct>();
+    public DbSet<SavedOffer> SavedOffers => Set<SavedOffer>();
     public DbSet<PriceAlert> PriceAlerts => Set<PriceAlert>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<AccountConfirmationDelivery> AccountConfirmationDeliveries => Set<AccountConfirmationDelivery>();
@@ -177,7 +177,7 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
             entity.HasIndex(x => x.ProductId);
             entity.HasIndex(x => x.SourceObservedAt);
             entity.HasIndex(x => x.CurrentPriceAmount);
-            entity.HasIndex(x => new { x.IsEnabled, x.OfferValidUntil });
+            entity.HasIndex(x => new { x.IsEnabled, x.OfferValidFrom, x.OfferValidUntil });
             entity.HasIndex(x => new { x.OnlineAvailability, x.MatchState });
             entity.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Retailer).WithMany().HasForeignKey(x => x.RetailerId).OnDelete(DeleteBehavior.Restrict);
@@ -187,6 +187,9 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
             entity.Property(x => x.ProductUrl).HasMaxLength(1000).IsRequired();
             entity.Property(x => x.CurrentPriceAmount).HasPrecision(12, 2);
             entity.Property(x => x.CurrentPriceCurrency).HasMaxLength(3);
+            entity.Property(x => x.RegularPriceAmount).HasPrecision(12, 2);
+            entity.Property(x => x.RegularPriceCurrency).HasMaxLength(3);
+            entity.Property(x => x.RegularPriceEvidenceReference).HasMaxLength(1000);
             entity.Property(x => x.IsEnabled).HasDefaultValue(true);
             entity.Property(x => x.VariantAttributesJson).HasColumnType("jsonb").IsRequired();
             entity.Property(x => x.ExternalIdentifiersJson).HasColumnType("jsonb").IsRequired();
@@ -309,17 +312,18 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.Entity<SavedProduct>(entity =>
+        modelBuilder.Entity<SavedOffer>(entity =>
         {
-            entity.HasKey(x => new { x.UserId, x.ProductId });
+            entity.ToTable("SavedOffers");
+            entity.HasKey(x => new { x.UserId, x.RetailerListingId });
             entity.HasIndex(x => new { x.UserId, x.CreatedAt });
             entity.HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(x => x.Product)
+            entity.HasOne(x => x.RetailerListing)
                 .WithMany()
-                .HasForeignKey(x => x.ProductId)
+                .HasForeignKey(x => x.RetailerListingId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

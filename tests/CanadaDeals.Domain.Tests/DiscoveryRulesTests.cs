@@ -22,8 +22,16 @@ public sealed class DiscoveryRulesTests
     [InlineData(100, 120, true)]
     [InlineData(120, 100, false)]
     [InlineData(100, null, false)]
-    public void Savings_requires_a_higher_supported_reference(int current, int? reference, bool expected) =>
-        Assert.Equal(expected, DiscoveryRules.SupportedSavings(current, reference));
+    public void Savings_requires_a_higher_evidenced_regular_price(int current, int? reference, bool expected) =>
+        Assert.Equal(expected, DiscoveryRules.SupportedSavings(current, reference, reference.HasValue ? "fixture-evidence" : null));
+
+    [Fact]
+    public void Savings_is_hidden_without_regular_price_evidence()
+    {
+        Assert.False(DiscoveryRules.SupportedSavings(100m, 120m, null));
+        Assert.Null(DiscoveryRules.SavingsAmount(100m, 120m, null));
+        Assert.Null(DiscoveryRules.SavingsPercent(100m, 120m, null));
+    }
 
     [Fact]
     public void Sort_contract_contains_only_explainable_discovery_signals()

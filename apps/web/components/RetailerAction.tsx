@@ -24,12 +24,12 @@ export function RetailerAction({ offer, stickyOnMobile = false }: { offer: Retai
 
   const href = publicHandoffHref(offer.handoffPath, offer.handoffUrl);
   if (!href) return null;
-  const rel = offer.handoffMode === "DIRECT_PROVIDER" ? "sponsored noopener" : "sponsored";
+  const rel = "sponsored noopener";
 
   return <>
-    <a ref={sourceRef} className="button button-primary" href={href} rel={rel}>{label}</a>
+    <a ref={sourceRef} className="button button-primary" href={href} target="_blank" rel={rel} aria-description="Opens retailer website in a new tab.">{label} <span aria-hidden="true">↗</span></a>
     {stickyOnMobile && showSticky && <div className="mobile-retailer-bar" role="region" aria-label="Retailer action">
-      <a className="button button-primary" href={href} rel={rel}>Check retailer price</a>
+      <a className="button button-primary" href={href} target="_blank" rel={rel} aria-description="Opens retailer website in a new tab.">Check retailer price <span aria-hidden="true">↗</span></a>
     </div>}
   </>;
 }

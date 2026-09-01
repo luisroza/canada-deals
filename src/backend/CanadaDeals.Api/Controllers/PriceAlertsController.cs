@@ -111,9 +111,6 @@ public sealed class PriceAlertsController(
                 now);
         }
 
-        if (!await db.SavedProducts.AnyAsync(x => x.UserId == user.Id && x.ProductId == productId, cancellationToken))
-            db.SavedProducts.Add(SavedProduct.Create(user.Id, productId, now));
-
         await db.SaveChangesAsync(cancellationToken);
         jobs.Enqueue<PriceAlertEvaluationJob>(job => job.RunAsync());
         logger.LogInformation(

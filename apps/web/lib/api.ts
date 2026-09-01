@@ -15,9 +15,9 @@ export type DealCard = {
   observedAt: string | null;
   matchState: string;
   historyState: "RELIABLE" | "PARTIAL" | "UNAVAILABLE";
-  referencePrice: number | null;
-  supportedSavingsPercent: number | null;
-  hasSafeComparison: boolean;
+  regularPrice: number | null;
+  savingsAmount: number | null;
+  savingsPercent: number | null;
   detailsPath: string;
   handoffPath: string | null;
   handoffUrl: string | null;
@@ -33,6 +33,9 @@ export type RetailerOffer = {
   retailer: string;
   title: string;
   currentPrice: number | null;
+  regularPrice: number | null;
+  savingsAmount: number | null;
+  savingsPercent: number | null;
   currency: string;
   freshnessState: string;
   evidenceState: string;
@@ -48,7 +51,6 @@ export type RetailerOffer = {
   handoffUrl: string | null;
   handoffMode: "INTERNAL_REDIRECT" | "DIRECT_PROVIDER" | "NONE";
   disclosure: string;
-  isSafeComparison: boolean;
 };
 
 export type ProductDetail = {
@@ -59,9 +61,6 @@ export type ProductDetail = {
   category: string;
   variantAttributes: Record<string, string>;
   primaryOffer: RetailerOffer;
-  safeComparisons: RetailerOffer[];
-  relatedListingsForReview: RetailerOffer[];
-  historySummary: string;
   evidenceSummary: string;
   productImage: ProductImageData | null;
 };
@@ -133,13 +132,17 @@ export type DiscoveryParams = {
   pageSize?: string;
 };
 
-export type SavedProduct = {
+export type SavedOffer = {
+  listingId: string;
   productId: string;
   productSlug: string;
   productTitle: string;
   brand: string;
   category: string;
   currentPrice: number | null;
+  regularPrice: number | null;
+  savingsAmount: number | null;
+  savingsPercent: number | null;
   currency: string;
   freshnessState: string;
   evidenceState: string;
@@ -188,6 +191,13 @@ export async function getProduct(slug: string): Promise<ProductDetail | null> {
   const response = await fetch(`${apiBase}/api/v1/products/${encodeURIComponent(slug)}`, { cache: "no-store" });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error("Product could not be loaded.");
+  return response.json() as Promise<ProductDetail>;
+}
+
+export async function getOffer(listingId: string): Promise<ProductDetail | null> {
+  const response = await fetch(`${apiBase}/api/v1/offers/${encodeURIComponent(listingId)}`, { cache: "no-store" });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error("Offer could not be loaded.");
   return response.json() as Promise<ProductDetail>;
 }
 

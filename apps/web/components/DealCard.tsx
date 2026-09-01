@@ -23,20 +23,23 @@ function humanFreshness(state: string) {
 
 export function DealCard({ deal, returnTo = deal.detailsPath }: { deal: DealCardModel; returnTo?: string }) {
   const handoffHref = deal.handoffUrl ?? deal.handoffPath;
+  const hasRegularPrice = typeof deal.regularPrice === "number"
+    && typeof deal.savingsAmount === "number"
+    && typeof deal.savingsPercent === "number";
   return (
     <article className="deal-card">
       <div className="deal-card-media">
         <div className="deal-card-visual"><ProductVisual image={deal.productImage} title={deal.productTitle} category={deal.category} /></div>
-        <div className="deal-card-wishlist"><WishlistCardButton productId={deal.productId} productTitle={deal.productTitle} returnTo={returnTo} /></div>
+        <div className="deal-card-wishlist"><WishlistCardButton listingId={deal.listingId} productTitle={deal.productTitle} returnTo={returnTo} /></div>
       </div>
       <div className="deal-card-body">
         <p className="deal-card-retailer-name">{deal.retailer}</p>
-        <h2><Link href={deal.detailsPath}>{deal.productTitle}</Link></h2>
-        <div className="deal-card-price-row"><p className="price">{formatPrice(deal.currentPrice, deal.currency)}</p>{deal.currentPrice !== null && <span>{deal.currency}</span>}</div>
-        {deal.supportedSavingsPercent !== null && deal.supportedSavingsPercent > 0 && <p className="deal-card-savings">{Math.round(deal.supportedSavingsPercent)}% below reference</p>}
+        <h2><Link className="deal-card-details-link" href={deal.detailsPath}>{deal.productTitle}</Link></h2>
+        <div className="deal-card-price-row"><p className="price"><span className="sr-only">Deal price </span>{formatPrice(deal.currentPrice, deal.currency)}</p>{deal.currentPrice !== null && <span>{deal.currency}</span>}</div>
+        {hasRegularPrice && <p className="deal-card-price-context"><span>Regular <del>{formatPrice(deal.regularPrice!, deal.currency)}</del></span><strong>Save {formatPrice(deal.savingsAmount!, deal.currency)} ({Math.round(deal.savingsPercent!)}%)</strong></p>}
         <p className={`deal-card-confidence${deal.freshnessState === "STALE" ? " confidence-warning" : ""}`}>{humanFreshness(deal.freshnessState)} <span aria-hidden="true">·</span> {humanEvidence(deal.evidenceState)}</p>
         <div className="deal-card-footer">
-          {handoffHref ? <><a className="button button-primary" href={handoffHref} rel={deal.handoffMode === "DIRECT_PROVIDER" ? "sponsored noopener" : "sponsored"} aria-label={`Check retailer price at ${deal.retailer}`}>Check retailer price <span aria-hidden="true">↗</span></a>{deal.handoffMode === "DIRECT_PROVIDER" && <small className="deal-card-paid-link">Paid link</small>}</> : <p className="deal-card-link-unavailable">Retailer link unavailable</p>}
+          {handoffHref ? <><a className="button button-primary" href={handoffHref} target="_blank" rel="sponsored noopener" aria-label={`Check retailer price at ${deal.retailer}`} aria-description="Opens retailer website in a new tab.">Check retailer price <span aria-hidden="true">↗</span></a>{deal.handoffMode === "DIRECT_PROVIDER" && <small className="deal-card-paid-link">Paid link</small>}</> : <p className="deal-card-link-unavailable">Retailer link unavailable</p>}
         </div>
       </div>
     </article>

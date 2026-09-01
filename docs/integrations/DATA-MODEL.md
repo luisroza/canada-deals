@@ -12,7 +12,7 @@
 | `Category` | approved taxonomy and filters | stable slug, parent |
 | `Retailer` | merchant identity and region | merchant key, country, currency |
 | `AffiliateProgram` | implemented network/program relationship gate | provider, merchant, provider program/media/link IDs, lifecycle, deeplink permission, approved destination/tracking domains, validation evidence |
-| `RetailerListing` | retailer-specific product offer and current permitted state | retailer; external listing ID; retailer SKU; canonical product ID; original title; product URL; approved affiliate destination reference; seller; marketplace seller flag; condition; variant attributes; pack quantity; bundle contents; region/availability context; online availability; shipping context; external identifiers; source timestamps; freshness; current permitted price state |
+| `RetailerListing` | independent retailer-specific offer and current permitted state | retailer; external listing ID; retailer SKU; internal canonical product ID; original title; product URL; approved retailer destination reference; seller; marketplace seller flag; condition; variant attributes; pack quantity; bundle contents; region/availability context; online availability; shipping context; external identifiers; source timestamps; freshness; deal price; optional same-listing regular price with evidence; promotion start/end |
 | `PriceObservation` | source observation when permitted | listing + observed-at + source hash, amount, currency, availability |
 | `Deal` | derived public opportunity | listing/product, score inputs, freshness, evidence state |
 | `PriceAlert` | implemented user-owned canonical Product threshold configuration | user + product, CAD target, status/version, consent, evaluation/trigger state |
@@ -21,7 +21,7 @@
 | `ControlledEmailCapture` | Development/Test-only deterministic evidence | stable idempotency key, destination, exact subject/HTML/text, captured timestamp |
 | `ProcessedEmailWebhook` | provider webhook replay boundary | provider + unique event ID, type, message ID, provider/processed timestamps |
 | `EmailSuppression` | minimal application send suppression | normalized destination, bounce/complaint/provider-suppression reason and timestamps |
-| `SavedProduct` | implemented authenticated user intent; never a ranking or price-truth input | composite user + canonical product key, created-at |
+| `SavedOffer` | implemented authenticated user intent; never a ranking or price-truth input | composite user + retailer-listing key, created-at |
 | `AffiliateLink` | implemented provider-specific handoff | listing/program, exact tracking URL and destination, acquisition mode, handoff mode, validation/revalidation/expiry/failure state |
 | `ClickEvent` | implemented minimum non-PII redirect telemetry | opaque event, link/listing, server-selected placement, timestamp |
 | `RakutenAdvertiserCapability` | provider discovery and operator activation gate | MID, advertiser/partnership state, ships-to, feed/deep-link capabilities, Canada relevance, retailer/policy mapping, explicit affiliate/catalog enablement |
@@ -59,6 +59,8 @@ Unknown is a first-class value. Unknown means the connector may not publish or r
 - source-observed and fetched timestamps;
 - freshness state;
 - current permitted price amount, currency, and availability state.
+- optional regular price amount/currency, observed-at, and evidence reference from the same listing; the regular amount must exceed the deal price;
+- optional promotion validity start/end; public queries fail closed outside that window.
 
 Category-specific dimensions belong in structured variant attributes, for example screen size/storage/RAM/generation for electronics and voltage/tool-only/battery/charger/pack quantity for tools. Keep raw source values alongside normalized values; do not create dozens of category-specific nullable columns.
 
@@ -102,7 +104,11 @@ Vertical Slice 9 implements provider values `IMPACT`, `CJ`, `RAKUTEN`, reserved 
 
 ## Implemented Saved Product contract
 
-`SavedProduct` is implemented by migration `20260811192055_AddIdentityAndSavedProducts`. `(UserId, ProductId)` is the composite primary key and duplicate guard. The User foreign key cascades because the row is user-owned intent; the Product foreign key restricts deletion so catalog changes cannot silently discard intent. User identity always comes from the authenticated server session and is never client-assigned. A save contains no price, evidence, Deal Quality, affiliate economics, or ranking fields and does not change those systems.
+`SavedOffer` is implemented by migration `20260831135128_IndividualOfferPricing`. `(UserId, RetailerListingId)` is the composite primary key and duplicate guard. The migration deterministically maps each prior Product-level save to one existing listing before dropping `SavedProducts`. The User foreign key cascades because the row is user-owned intent; the RetailerListing foreign key restricts deletion so catalog changes cannot silently discard intent. User identity always comes from the authenticated server session and is never client-assigned. A save contains no price, evidence, Deal Quality, commercial economics, or ranking fields and does not change those systems.
+
+## Individual-offer pricing boundary
+
+Every public card/detail/Wishlist item is keyed by `RetailerListing.Id`. `ProductId` remains an internal normalization relationship for catalog identity, images, search terms, and administrative reuse. It does not deduplicate discovery results, select a public “representative” offer, or authorize comparing prices from different listings. `RegularPrice*` describes the ordinary price asserted for that exact listing; another listing, another retailer, or a historical high cannot populate it.
 
 ## Implemented Target Price Alert contract
 

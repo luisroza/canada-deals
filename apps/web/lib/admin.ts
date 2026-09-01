@@ -15,7 +15,8 @@ export type AdminOffer = {
   affiliateTrackingUrl: string | null; affiliateProvider: string | null; affiliateHandoffMode: string | null; affiliateLinkStatus: string | null;
   affiliateLinkReadiness: string; affiliatePartnerTag: string | null; affiliateRelationshipEvidenceReference: string | null;
   conditionState: string; packQuantity: number | null; bundleContents: string | null; regionAvailabilityContext: string | null; availabilityState: string;
-  shippingContext: string | null; externalIdentifiers: Record<string, string>; observedAt: string | null; fetchedAt: string | null; offerValidUntil: string | null; currentPrice: number | null;
+  shippingContext: string | null; externalIdentifiers: Record<string, string>; observedAt: string | null; fetchedAt: string | null; offerValidFrom: string | null; offerValidUntil: string | null;
+  currentPrice: number | null; regularPrice: number | null; regularPriceObservedAt: string | null; regularPriceEvidenceReference: string | null;
   currency: string; matchState: string; evidenceState: string; historyState: string; isEnabled: boolean; isPubliclyEligible: boolean; readinessSummary: string; previewPath: string;
 };
 export type AdminBanner = {
@@ -47,7 +48,8 @@ export type AdminOfferInput = {
   originalTitle: string; productUrl: string; approvedAffiliateDestinationReference: string | null; seller: string | null; isMarketplaceSeller: boolean | null;
   affiliateTrackingUrl: string | null; affiliatePartnerTag: string | null; affiliateRelationshipEvidenceReference: string | null; affiliateRelationshipConfirmed: boolean;
   conditionState: string; packQuantity: number | null; bundleContents: string | null; regionAvailabilityContext: string | null; availabilityState: string;
-  shippingContext: string | null; externalIdentifiers: Record<string, string>; currentPrice: number; observedAt: string; fetchedAt: string; offerValidUntil: string | null; matchState: string;
+  shippingContext: string | null; externalIdentifiers: Record<string, string>; currentPrice: number; regularPrice: number | null;
+  regularPriceObservedAt: string | null; regularPriceEvidenceReference: string | null; observedAt: string; fetchedAt: string; offerValidFrom: string | null; offerValidUntil: string | null; matchState: string;
   isEnabled: boolean; changeReason: string | null;
 };
 

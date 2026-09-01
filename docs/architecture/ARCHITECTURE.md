@@ -10,7 +10,7 @@
 Adopt a **single-repository modular monolith** with two coordinated deployables:
 
 1. **Next.js + React + TypeScript** for the public, server-rendered web experience, SEO, accessibility, deal discovery, product pages, and the future account UI.
-2. **ASP.NET Core REST API** for the domain, identity, saved products, alerts, ingestion orchestration, affiliate redirects, administration, and provider adapters.
+2. **ASP.NET Core REST API** for the domain, identity, saved offers, ingestion orchestration, retailer redirects, administration, and provider adapters.
 
 Use **PostgreSQL as the system of record**, PostgreSQL full-text search plus `pg_trgm` for the MVP, and **Hangfire with PostgreSQL storage** for durable retries and scheduled work. Host the web service and a separately scalable worker service from the same application image on **DigitalOcean App Platform in Toronto**, with **managed PostgreSQL in Toronto** and optional **DigitalOcean Spaces in Toronto** for permitted project-owned assets or feed staging. Use Cloudflare's free DNS/TLS/CDN baseline where it does not interfere with affiliate redirect semantics.
 
@@ -20,7 +20,8 @@ This is one deployable product boundary, not a microservice estate. The separati
 
 - Evidence, freshness, product identity, and source permissions are domain concepts, not presentation details.
 - Affiliate commission never changes organic deal quality, eligibility, or ranking.
-- Anonymous discovery is first-class; account creation is required only for saved products and alerts.
+- Anonymous discovery is first-class; account creation is required only for the Wishlist.
+- A public offer is a `RetailerListing`, not a representative canonical Product. Product matching remains an internal catalog-quality concern and never creates cross-retailer price comparison output.
 - A source is not automatically permitted because it is technically reachable. Every connector is gated by merchant/network approval, terms, and a policy record.
 - API/feed first. Crawling is not an MVP strategy and is prohibited for sources whose policies forbid extraction.
 - Deterministic product matching comes before fuzzy matching; uncertain matches are quarantined for review.
@@ -52,7 +53,7 @@ Cloudflare DNS/TLS/CDN baseline
                   ^
                   |
         ASP.NET Core worker service (same image, separate App Platform component)
-        imports, normalization, matching, freshness, alerts, retries, reconciliation
+        imports, normalization, matching, freshness, retries, reconciliation
 ```
 
 The public UI never trusts an arbitrary destination URL. Provider-generated Impact, CJ, and Rakuten links resolve an allowlisted `RetailerListing` through `/go/{listingId}` and record a privacy-conscious click event before redirecting. ADR-010 defines one constrained exception: an owner-provided Amazon.ca Special Link is validated, stored exactly, and returned as a direct browser destination because its parameters must not be rewritten; it never enters `/go` and does not imply Product-data rights.
@@ -74,17 +75,17 @@ The exact DNS and provider reverse-proxy configuration is intentionally deferred
 The backend remains one bounded application with explicit modules:
 
 - **Catalog:** product, brand, category, canonical identifiers, approved product content.
-- **Retailer Listings:** merchant offers, availability, shipping region, current permitted price state, evidence references.
-- **Price Truth:** observations, freshness, history availability, confidence, comparison rules.
+- **Retailer Listings:** independent merchant offers, availability, shipping region, deal price, optional same-listing regular price, validity window, and evidence references.
+- **Price Truth:** current observation, freshness, and rules for showing a same-listing regular price/savings claim; no public cross-retailer comparison.
 - **Deal Evaluation:** deal quality inputs and explanation; no commission input.
 - **Discovery/Search:** query parsing, filters, sort, category facets, pagination.
-- **Accounts:** ASP.NET Core Identity, consent, saved products, target-price alerts.
+- **Accounts:** ASP.NET Core Identity and listing-keyed saved offers. Historical alert records remain outside the active product.
 - **Ingestion:** connector lifecycle, fetch, normalization, idempotency, retry, quarantine, policy enforcement.
 - **Matching:** deterministic identifiers, candidate matches, manual review, merge/split audit.
 - **Affiliate Handoff:** approved link generation/revalidation, safe redirect, disclosure metadata, click telemetry.
 - **Administration:** owner-only reversible Brand/Category/Store lifecycle, canonical Product reuse, editorial offers and banners, source policy, connector health, moderation of match decisions, import retry, and audit trail. Brand/category/store deactivation and optional offer expiry are evaluated by public queries and handoffs rather than cascading destructive updates or requiring an expiry job.
 
-The Next.js application should mirror these user-facing capabilities but should not duplicate domain rules. The API remains authoritative for product identity, price state, eligibility, alerts, disclosures, and redirect safety.
+The Next.js application should mirror these user-facing capabilities but should not duplicate domain rules. The API remains authoritative for listing identity, deal/regular price state, validity, eligibility, disclosures, and redirect safety. `/offers/{listingId}` is the canonical detail boundary; `/products/{slug}` is a compatibility resolver, not a comparison page.
 
 Owner Brand intake follows ADR-012. URL inspection is read-only and returns only a review candidate or an exact normalized catalog match. `Brands.NormalizedKey` is the unique semantic identity guard; a confirmed new or inactive Brand is created/reactivated in the same PostgreSQL unit of work as the Product, retailer listing, affiliate-link state, and audit records. Existing Products keep their canonical Brand. Provider aliases and source mappings can extend this boundary later without replacing the modular monolith or adding infrastructure.
 

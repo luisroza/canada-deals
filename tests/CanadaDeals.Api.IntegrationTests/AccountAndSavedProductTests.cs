@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Hosting;
 
 namespace CanadaDeals.Api.IntegrationTests;
 
-public sealed class AccountAndSavedProductTests(ApiFixture fixture) : IClassFixture<ApiFixture>
+public sealed class AccountAndSavedOfferTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     private const string Password = "SecurePass42";
 
@@ -42,12 +42,12 @@ public sealed class AccountAndSavedProductTests(ApiFixture fixture) : IClassFixt
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
-    private static async Task<Guid> GetProductIdAsync(HttpClient client, string slug = "northstar-55-qled-tv")
+    private static async Task<Guid> GetListingIdAsync(HttpClient client, string slug = "northstar-55-qled-tv")
     {
         using var response = await client.GetAsync($"/api/v1/products/{slug}");
         response.EnsureSuccessStatusCode();
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        return json.RootElement.GetProperty("productId").GetGuid();
+        return json.RootElement.GetProperty("primaryOffer").GetProperty("listingId").GetGuid();
     }
 
     [RequiresPostgresFact]
@@ -154,7 +154,7 @@ public sealed class AccountAndSavedProductTests(ApiFixture fixture) : IClassFixt
         await RegisterAsync(client, $"logout-{Guid.NewGuid():N}@example.test");
 
         using var logout = await MutateAsync(client, HttpMethod.Post, "/api/v1/account/logout");
-        using var saved = await client.GetAsync("/api/v1/saved-products");
+        using var saved = await client.GetAsync("/api/v1/saved-offers");
         using var discovery = await client.GetAsync("/api/v1/deals");
 
         Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
@@ -186,9 +186,9 @@ public sealed class AccountAndSavedProductTests(ApiFixture fixture) : IClassFixt
 
         var client = CreateClient();
         await RegisterAsync(client, $"csrf-save-{Guid.NewGuid():N}@example.test");
-        var productId = await GetProductIdAsync(client);
-        using var save = await client.PutAsync($"/api/v1/saved-products/{productId}", null);
-        using var unsave = await client.DeleteAsync($"/api/v1/saved-products/{productId}");
+        var listingId = await GetListingIdAsync(client);
+        using var save = await client.PutAsync($"/api/v1/saved-offers/{listingId}", null);
+        using var unsave = await client.DeleteAsync($"/api/v1/saved-offers/{listingId}");
 
         Assert.Equal(HttpStatusCode.BadRequest, save.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, unsave.StatusCode);
@@ -200,31 +200,31 @@ public sealed class AccountAndSavedProductTests(ApiFixture fixture) : IClassFixt
         var client = CreateClient();
         var email = $"save-{Guid.NewGuid():N}@example.test";
         await RegisterAsync(client, email);
-        var productId = await GetProductIdAsync(client);
+        var listingId = await GetListingIdAsync(client);
 
-        using var first = await MutateAsync(client, HttpMethod.Put, $"/api/v1/saved-products/{productId}");
-        using var second = await MutateAsync(client, HttpMethod.Put, $"/api/v1/saved-products/{productId}");
+        using var first = await MutateAsync(client, HttpMethod.Put, $"/api/v1/saved-offers/{listingId}");
+        using var second = await MutateAsync(client, HttpMethod.Put, $"/api/v1/saved-offers/{listingId}");
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);
 
-        using var list = await client.GetAsync("/api/v1/saved-products");
+        using var list = await client.GetAsync("/api/v1/saved-offers");
         list.EnsureSuccessStatusCode();
         using var json = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
         Assert.Single(json.RootElement.EnumerateArray());
-        Assert.Equal(productId, json.RootElement[0].GetProperty("productId").GetGuid());
+        Assert.Equal(listingId, json.RootElement[0].GetProperty("listingId").GetGuid());
         Assert.Equal("STRONG", json.RootElement[0].GetProperty("evidenceState").GetString());
 
         await using (var scope = fixture.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<DealsDbContext>();
-            Assert.Equal(1, await db.SavedProducts.CountAsync(x => x.ProductId == productId && x.UserId == db.Users.Where(u => u.Email == email).Select(u => u.Id).Single()));
+            Assert.Equal(1, await db.SavedOffers.CountAsync(x => x.RetailerListingId == listingId && x.UserId == db.Users.Where(u => u.Email == email).Select(u => u.Id).Single()));
         }
 
-        using var removed = await MutateAsync(client, HttpMethod.Delete, $"/api/v1/saved-products/{productId}");
-        using var removedAgain = await MutateAsync(client, HttpMethod.Delete, $"/api/v1/saved-products/{productId}");
+        using var removed = await MutateAsync(client, HttpMethod.Delete, $"/api/v1/saved-offers/{listingId}");
+        using var removedAgain = await MutateAsync(client, HttpMethod.Delete, $"/api/v1/saved-offers/{listingId}");
         Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, removedAgain.StatusCode);
-        using var empty = await client.GetAsync("/api/v1/saved-products");
+        using var empty = await client.GetAsync("/api/v1/saved-offers");
         Assert.Equal("[]", await empty.Content.ReadAsStringAsync());
     }
 
@@ -233,11 +233,11 @@ public sealed class AccountAndSavedProductTests(ApiFixture fixture) : IClassFixt
     {
         var client = CreateClient();
         await RegisterAsync(client, $"truth-neutral-{Guid.NewGuid():N}@example.test");
-        var productId = await GetProductIdAsync(client);
+        var listingId = await GetListingIdAsync(client);
         using var before = await client.GetAsync("/api/v1/deals");
         var beforeBody = await before.Content.ReadAsStringAsync();
 
-        using var save = await MutateAsync(client, HttpMethod.Put, $"/api/v1/saved-products/{productId}");
+        using var save = await MutateAsync(client, HttpMethod.Put, $"/api/v1/saved-offers/{listingId}");
         save.EnsureSuccessStatusCode();
         using var after = await client.GetAsync("/api/v1/deals");
 
@@ -245,28 +245,28 @@ public sealed class AccountAndSavedProductTests(ApiFixture fixture) : IClassFixt
     }
 
     [RequiresPostgresFact]
-    public async Task Save_rejects_an_unknown_product_without_creating_an_orphan()
+    public async Task Save_rejects_an_unknown_offer_without_creating_an_orphan()
     {
         var client = CreateClient();
         await RegisterAsync(client, $"invalid-product-{Guid.NewGuid():N}@example.test");
         var unknown = Guid.NewGuid();
 
-        using var response = await MutateAsync(client, HttpMethod.Put, $"/api/v1/saved-products/{unknown}");
+        using var response = await MutateAsync(client, HttpMethod.Put, $"/api/v1/saved-offers/{unknown}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         await using var scope = fixture.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<DealsDbContext>();
-        Assert.False(await db.SavedProducts.AnyAsync(x => x.ProductId == unknown));
+        Assert.False(await db.SavedOffers.AnyAsync(x => x.RetailerListingId == unknown));
     }
 
     [RequiresPostgresFact]
-    public async Task Saved_product_survives_logout_and_a_new_login_session()
+    public async Task Saved_offer_survives_logout_and_a_new_login_session()
     {
         var email = $"persistent-{Guid.NewGuid():N}@example.test";
         var firstSession = CreateClient();
         await RegisterAsync(firstSession, email);
-        var productId = await GetProductIdAsync(firstSession);
-        using (var save = await MutateAsync(firstSession, HttpMethod.Put, $"/api/v1/saved-products/{productId}"))
+        var listingId = await GetListingIdAsync(firstSession);
+        using (var save = await MutateAsync(firstSession, HttpMethod.Put, $"/api/v1/saved-offers/{listingId}"))
             save.EnsureSuccessStatusCode();
         using (var logout = await MutateAsync(firstSession, HttpMethod.Post, "/api/v1/account/logout"))
             Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
@@ -274,9 +274,9 @@ public sealed class AccountAndSavedProductTests(ApiFixture fixture) : IClassFixt
         var secondSession = CreateClient();
         using (var login = await MutateAsync(secondSession, HttpMethod.Post, "/api/v1/account/login", new { email, password = Password }))
             Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-        using var list = await secondSession.GetAsync("/api/v1/saved-products");
+        using var list = await secondSession.GetAsync("/api/v1/saved-offers");
         using var json = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
-        Assert.Contains(json.RootElement.EnumerateArray(), item => item.GetProperty("productId").GetGuid() == productId);
+        Assert.Contains(json.RootElement.EnumerateArray(), item => item.GetProperty("listingId").GetGuid() == listingId);
     }
 
     [RequiresPostgresFact]
@@ -287,19 +287,19 @@ public sealed class AccountAndSavedProductTests(ApiFixture fixture) : IClassFixt
         var emailA = $"isolation-a-{Guid.NewGuid():N}@example.test";
         await RegisterAsync(userA, emailA);
         await RegisterAsync(userB, $"isolation-b-{Guid.NewGuid():N}@example.test");
-        var productId = await GetProductIdAsync(userA);
-        using (var save = await MutateAsync(userA, HttpMethod.Put, $"/api/v1/saved-products/{productId}"))
+        var listingId = await GetListingIdAsync(userA);
+        using (var save = await MutateAsync(userA, HttpMethod.Put, $"/api/v1/saved-offers/{listingId}"))
             Assert.Equal(HttpStatusCode.Created, save.StatusCode);
 
-        using var listB = await userB.GetAsync("/api/v1/saved-products");
+        using var listB = await userB.GetAsync("/api/v1/saved-offers");
         Assert.Equal("[]", await listB.Content.ReadAsStringAsync());
-        using var deleteByB = await MutateAsync(userB, HttpMethod.Delete, $"/api/v1/saved-products/{productId}");
+        using var deleteByB = await MutateAsync(userB, HttpMethod.Delete, $"/api/v1/saved-offers/{listingId}");
         Assert.Equal(HttpStatusCode.NoContent, deleteByB.StatusCode);
 
-        using var listA = await userA.GetAsync("/api/v1/saved-products");
+        using var listA = await userA.GetAsync("/api/v1/saved-offers");
         using var jsonA = JsonDocument.Parse(await listA.Content.ReadAsStringAsync());
         Assert.Single(jsonA.RootElement.EnumerateArray());
-        Assert.Equal(productId, jsonA.RootElement[0].GetProperty("productId").GetGuid());
+        Assert.Equal(listingId, jsonA.RootElement[0].GetProperty("listingId").GetGuid());
     }
 
     [RequiresPostgresFact]
@@ -308,21 +308,21 @@ public sealed class AccountAndSavedProductTests(ApiFixture fixture) : IClassFixt
         var client = CreateClient();
         var email = $"constraints-{Guid.NewGuid():N}@example.test";
         await RegisterAsync(client, email);
-        var productId = await GetProductIdAsync(client);
-        using (var saved = await MutateAsync(client, HttpMethod.Put, $"/api/v1/saved-products/{productId}"))
+        var listingId = await GetListingIdAsync(client);
+        using (var saved = await MutateAsync(client, HttpMethod.Put, $"/api/v1/saved-offers/{listingId}"))
             saved.EnsureSuccessStatusCode();
 
         await using var scope = fixture.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<DealsDbContext>();
         var user = await db.Users.SingleAsync(x => x.Email == email);
-        db.SavedProducts.Add(SavedProduct.Create(user.Id, productId, DateTimeOffset.UtcNow));
+        db.SavedOffers.Add(SavedOffer.Create(user.Id, listingId, DateTimeOffset.UtcNow));
         await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
         db.ChangeTracker.Clear();
 
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         user = (await users.FindByEmailAsync(email))!;
         Assert.True((await users.DeleteAsync(user)).Succeeded);
-        Assert.False(await db.SavedProducts.AnyAsync(x => x.UserId == user.Id));
-        Assert.True(await db.Products.AnyAsync(x => x.Id == productId));
+        Assert.False(await db.SavedOffers.AnyAsync(x => x.UserId == user.Id));
+        Assert.True(await db.RetailerListings.AnyAsync(x => x.Id == listingId));
     }
 }

@@ -14,7 +14,7 @@ type Suggestion = {
 
 function suggestionsFrom(response: DiscoveryResponse): Suggestion[] {
   const products = response.items.slice(0, 5).map((item) => ({
-    key: `product-${item.productId}`,
+    key: `offer-${item.listingId}`,
     label: item.productTitle,
     context: `${item.brand} · ${item.retailer}`,
     href: item.detailsPath,

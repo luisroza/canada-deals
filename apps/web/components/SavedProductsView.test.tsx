@@ -6,12 +6,14 @@ import { WishlistProvider } from "./WishlistContext";
 vi.mock("next/navigation", () => ({ usePathname: () => "/saved" }));
 
 const savedProduct = {
-  productId: "product-1", productSlug: "fixture-tv", productTitle: "Fixture television", brand: "Fixture Brand",
+  listingId: "listing-1", productId: "product-1", productSlug: "fixture-tv", productTitle: "Fixture television", brand: "Fixture Brand",
   category: "Electronics", currentPrice: 499.99, currency: "CAD", freshnessState: "RECENT", evidenceState: "STRONG",
-  historyState: "RELIABLE", retailer: "Fixture Retailer", savedAt: "2026-08-11T19:30:00Z", detailsPath: "/products/fixture-tv", productImage: null,
+  regularPrice: 599.99, savingsAmount: 100, savingsPercent: 16.67,
+  historyState: "RELIABLE", retailer: "Fixture Retailer", savedAt: "2026-08-11T19:30:00Z", detailsPath: "/offers/listing-1", productImage: null,
 };
 const secondSavedProduct = {
   ...savedProduct,
+  listingId: "listing-2",
   productId: "product-2",
   productSlug: "fixture-drill",
   productTitle: "Fixture cordless drill",
@@ -19,7 +21,7 @@ const secondSavedProduct = {
   currentPrice: 129.99,
   retailer: "Demo Tool Store",
   savedAt: "2026-08-10T19:30:00Z",
-  detailsPath: "/products/fixture-drill",
+  detailsPath: "/offers/listing-2",
 };
 
 describe("SavedProductsView", () => {
@@ -48,7 +50,7 @@ describe("SavedProductsView", () => {
   it("loads only saved products and removes an item from the wishlist", async () => {
     const fetchMock = vi.fn().mockImplementation((path: string) => {
       if (path.endsWith("/me")) return Promise.resolve({ ok: true, json: async () => ({ isAuthenticated: true, email: "a@example.test" }) });
-      if (path === "/api/v1/saved-products") return Promise.resolve({ ok: true, json: async () => [savedProduct] });
+      if (path === "/api/v1/saved-offers") return Promise.resolve({ ok: true, json: async () => [savedProduct] });
       if (path.endsWith("/antiforgery")) return Promise.resolve({ ok: true, json: async () => ({ requestToken: "csrf" }) });
       return Promise.resolve({ ok: true, status: 204, json: async () => null });
     });
@@ -72,7 +74,7 @@ describe("SavedProductsView", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { container } = renderView();
 
-    expect(await screen.findByText("2 of 2 saved products")).toBeVisible();
+    expect(await screen.findByText("2 of 2 saved offers")).toBeVisible();
     fireEvent.change(screen.getByLabelText("Search your Wishlist"), { target: { value: "drill" } });
     expect(screen.getByRole("heading", { name: "Fixture cordless drill" })).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Fixture television" })).not.toBeInTheDocument();

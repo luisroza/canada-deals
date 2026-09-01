@@ -15,7 +15,7 @@ public sealed record EmailConfirmationResponse(string Status, string Message);
 public sealed record AccountSessionResponse(bool IsAuthenticated, string? Email, bool EmailConfirmed);
 public sealed record AccountMutationResponse(string Message, bool IsAuthenticated);
 public sealed record AntiforgeryTokenResponse(string RequestToken);
-public sealed record SavedProductMutationResponse(Guid ProductId, bool IsSaved);
+public sealed record SavedOfferMutationResponse(Guid ListingId, bool IsSaved);
 
 public sealed record UpsertPriceAlertRequest(
     [Range(typeof(decimal), "0.01", "1000000")] decimal TargetPrice,

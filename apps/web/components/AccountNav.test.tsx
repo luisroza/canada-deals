@@ -11,7 +11,7 @@ describe("AccountNav", () => {
   it("shows the authenticated Wishlist count after one shared load", async () => {
     const fetchMock = vi.fn().mockImplementation((path: string) => {
       if (path.endsWith("/me")) return Promise.resolve({ ok: true, json: async () => ({ isAuthenticated: true, email: "shopper@example.test" }) });
-      return Promise.resolve({ ok: true, json: async () => [{ productId: "one" }, { productId: "two" }] });
+      return Promise.resolve({ ok: true, json: async () => [{ listingId: "one" }, { listingId: "two" }] });
     });
     vi.stubGlobal("fetch", fetchMock);
 

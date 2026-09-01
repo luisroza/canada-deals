@@ -35,7 +35,7 @@ describe("WishlistCardButton accessible names", () => {
     ["unavailable", wishlistState({ authenticated: null }), `Save — Wishlist unavailable for ${productTitle}`],
   ])("includes the visible Save label while %s", (_state, value, accessibleName) => {
     mockUseWishlist.mockReturnValue(value);
-    render(<WishlistCardButton productId="product-a" productTitle={productTitle} returnTo="/#deals" />);
+    render(<WishlistCardButton listingId="listing-a" productTitle={productTitle} returnTo="/#deals" />);
     expect(screen.getByRole(value.authenticated === false ? "link" : "button", { name: accessibleName })).toHaveTextContent("Save");
   });
 
@@ -46,7 +46,7 @@ describe("WishlistCardButton accessible names", () => {
     ["pending remove", true, true, `Wait — removing ${productTitle} from your Wishlist`, "Wait"],
   ])("includes the visible label for the authenticated %s state", (_state, saved, pending, accessibleName, visibleLabel) => {
     mockUseWishlist.mockReturnValue(wishlistState({ isSaved: () => saved, isPending: () => pending }));
-    render(<WishlistCardButton productId="product-a" productTitle={productTitle} returnTo="/#deals" />);
+    render(<WishlistCardButton listingId="listing-a" productTitle={productTitle} returnTo="/#deals" />);
     expect(screen.getByRole("button", { name: accessibleName })).toHaveTextContent(visibleLabel);
   });
 });

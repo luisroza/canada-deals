@@ -11,7 +11,7 @@ function deal(productId: string, productTitle: string): DealCardData {
     listingId: `listing-${productId}`, productId, productSlug: productId, productTitle, brand: "Brand", category: "Category", retailer: "Store",
     currentPrice: 10, currency: "CAD", freshnessState: "RECENT", evidenceState: "STRONG", availabilityState: "AVAILABLE",
     evidenceExplanation: "Controlled evidence", observedAt: "2026-08-28T12:00:00Z", matchState: "CONFIRMED", historyState: "UNAVAILABLE",
-    referencePrice: null, supportedSavingsPercent: null, hasSafeComparison: false, detailsPath: `/products/${productId}`, handoffPath: null,
+    regularPrice: null, savingsAmount: null, savingsPercent: null, detailsPath: `/offers/listing-${productId}`, handoffPath: null,
     handoffUrl: null, handoffMode: "NONE", disclosure: "", productImage: null,
   };
 }

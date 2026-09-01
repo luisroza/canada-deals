@@ -73,9 +73,9 @@ public sealed record DealCardResponse(
     DateTimeOffset? ObservedAt,
     string MatchState,
     string HistoryState,
-    decimal? ReferencePrice,
-    decimal? SupportedSavingsPercent,
-    bool HasSafeComparison,
+    decimal? RegularPrice,
+    decimal? SavingsAmount,
+    decimal? SavingsPercent,
     string DetailsPath,
     string? HandoffPath,
     string? HandoffUrl,
@@ -93,6 +93,9 @@ public sealed record RetailerOfferResponse(
     string Retailer,
     string Title,
     decimal? CurrentPrice,
+    decimal? RegularPrice,
+    decimal? SavingsAmount,
+    decimal? SavingsPercent,
     string Currency,
     string FreshnessState,
     string EvidenceState,
@@ -107,8 +110,7 @@ public sealed record RetailerOfferResponse(
     string? HandoffPath,
     string? HandoffUrl,
     string HandoffMode,
-    string Disclosure,
-    bool IsSafeComparison);
+    string Disclosure);
 
 public sealed record ProductDetailResponse(
     Guid ProductId,
@@ -118,9 +120,6 @@ public sealed record ProductDetailResponse(
     string Category,
     IReadOnlyDictionary<string, string> VariantAttributes,
     RetailerOfferResponse PrimaryOffer,
-    IReadOnlyList<RetailerOfferResponse> SafeComparisons,
-    IReadOnlyList<RetailerOfferResponse> RelatedListingsForReview,
-    string HistorySummary,
     string EvidenceSummary,
     ProductImageResponse? ProductImage);
 
@@ -176,13 +175,17 @@ public sealed record DiscoveryResponse(
     bool HasNext,
     DiscoveryFacetsResponse Facets);
 
-public sealed record SavedProductResponse(
+public sealed record SavedOfferResponse(
+    Guid ListingId,
     Guid ProductId,
     string ProductSlug,
     string ProductTitle,
     string Brand,
     string Category,
     decimal? CurrentPrice,
+    decimal? RegularPrice,
+    decimal? SavingsAmount,
+    decimal? SavingsPercent,
     string Currency,
     string FreshnessState,
     string EvidenceState,

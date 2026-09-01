@@ -39,8 +39,16 @@ public static class DiscoveryRules
         _ => "none"
     };
 
-    public static bool SupportedSavings(decimal currentPrice, decimal? referencePrice) =>
-        referencePrice.HasValue && referencePrice.Value > currentPrice;
+    public static bool SupportedSavings(decimal currentPrice, decimal? regularPrice, string? evidenceReference) =>
+        regularPrice.HasValue && regularPrice.Value > currentPrice && !string.IsNullOrWhiteSpace(evidenceReference);
+
+    public static decimal? SavingsAmount(decimal currentPrice, decimal? regularPrice, string? evidenceReference) =>
+        SupportedSavings(currentPrice, regularPrice, evidenceReference) ? regularPrice!.Value - currentPrice : null;
+
+    public static decimal? SavingsPercent(decimal currentPrice, decimal? regularPrice, string? evidenceReference) =>
+        SupportedSavings(currentPrice, regularPrice, evidenceReference)
+            ? Math.Round((regularPrice!.Value - currentPrice) / regularPrice.Value * 100m, 1)
+            : null;
 
     public static string SortKey(DiscoverySort sort) => sort switch
     {

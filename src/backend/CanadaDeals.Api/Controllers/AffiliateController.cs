@@ -23,7 +23,7 @@ public sealed class AffiliateController(DealsDbContext db, IConfiguration config
 
         var now = clock.GetUtcNow();
         var policyAllowsAffiliate = await db.RetailerListings.AsNoTracking()
-            .AnyAsync(listing => listing.IsEnabled && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
+            .AnyAsync(listing => listing.IsEnabled && (listing.OfferValidFrom == null || listing.OfferValidFrom <= now) && (listing.OfferValidUntil == null || listing.OfferValidUntil > now) &&
                                  listing.Product.Brand.IsEnabled && listing.Product.Category.IsEnabled && listing.RetailerId == retailer.Id &&
                                  listing.MerchantPolicy.AllowAffiliateLinks == PolicyPermission.Allowed,
                 cancellationToken);
@@ -84,7 +84,7 @@ public sealed class AffiliateController(DealsDbContext db, IConfiguration config
         var listing = await db.RetailerListings
             .Include(x => x.MerchantPolicy)
             .Include(x => x.AffiliateLinks).ThenInclude(x => x.AffiliateProgram)
-            .SingleOrDefaultAsync(x => x.IsEnabled && (x.OfferValidUntil == null || x.OfferValidUntil > now) &&
+            .SingleOrDefaultAsync(x => x.IsEnabled && (x.OfferValidFrom == null || x.OfferValidFrom <= now) && (x.OfferValidUntil == null || x.OfferValidUntil > now) &&
                 x.Retailer.IsEnabled && x.Product.Brand.IsEnabled && x.Product.Category.IsEnabled && x.Id == listingId, cancellationToken);
 
         if (listing is null || !listing.MerchantPolicy.CanUseAffiliateLinks ||

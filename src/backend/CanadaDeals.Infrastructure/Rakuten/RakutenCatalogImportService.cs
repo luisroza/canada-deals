@@ -156,6 +156,14 @@ public sealed class RakutenCatalogImportService(
 
         var (amount, currency) = source.CurrentPrice();
         if (amount is null || !string.Equals(currency, "CAD", StringComparison.OrdinalIgnoreCase)) return RowResult.Skip();
+        var regularPrice = source.SalePrice is > 0 && source.RetailPrice is > 0 && source.RetailPrice > source.SalePrice &&
+                           string.Equals(source.SaleCurrency, "CAD", StringComparison.OrdinalIgnoreCase) &&
+                           string.Equals(source.RetailCurrency, "CAD", StringComparison.OrdinalIgnoreCase)
+            ? source.RetailPrice
+            : null;
+        var regularPriceEvidence = regularPrice.HasValue
+            ? $"rakuten-product-search:{capability.AdvertiserMid}:{source.SourceListingKey}:retailPrice"
+            : null;
         if (!TryApprovedProductUrl(capability.AdvertiserUrl, source.LinkUrl, out var productUrl)) return RowResult.Skip();
 
         if (dryRun) return RowResult.DryRun();
@@ -188,7 +196,9 @@ public sealed class RakutenCatalogImportService(
                     ["rakutenSourceKey"] = source.SourceListingKey
                 }, retailerSku: source.Sku, approvedAffiliateDestinationReference: policy.CanUseAffiliateLinks ? productUrl.ToString() : null,
                 seller: null, isMarketplaceSeller: null, condition: ProductCondition.Unknown,
-                regionAvailabilityContext: "Canada", onlineAvailability: OnlineAvailabilityState.Unknown, shippingContext: null);
+                regionAvailabilityContext: "Canada", onlineAvailability: OnlineAvailabilityState.Unknown, shippingContext: null,
+                regularPriceAmount: regularPrice, regularPriceObservedAt: regularPrice.HasValue ? observedAt : null,
+                regularPriceEvidenceReference: regularPriceEvidence);
             db.RetailerListings.Add(listing);
             db.RakutenSourceMappings.Add(RakutenSourceMapping.Create(capability.AdvertiserMid, source.SourceListingKey, listing.Id, clock.GetUtcNow()));
             created = 1;
@@ -209,6 +219,7 @@ public sealed class RakutenCatalogImportService(
             var priceChanged = listing.CurrentPriceAmount != amount.Value ||
                                !string.Equals(listing.CurrentPriceCurrency, "CAD", StringComparison.OrdinalIgnoreCase);
             listing.RecordCurrentPrice(amount.Value, "CAD", clock.GetUtcNow(), clock.GetUtcNow());
+            listing.SetRegularPrice(regularPrice, "CAD", regularPrice.HasValue ? clock.GetUtcNow() : null, regularPriceEvidence);
             mapping.MarkSeen(clock.GetUtcNow());
             updated = 1;
             if (!priceChanged) return new RowResult(created, updated, 0, 0, 0, 0);

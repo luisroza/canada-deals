@@ -27,6 +27,7 @@ describe("AdminPanel", () => {
   });
 
   it("lets the owner select carousel banners and exposes the reviewed artwork workflow", async () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     const banner = (id: string, retailer: string, enabled: boolean) => ({
       retailerId: id, retailerKey: retailer.toLowerCase(), retailer, profileId: id, title: `Shop ${retailer}`, subtitle: "Current store deals",
       assetPath: "/store-banners/electronics-devices.svg", assetSource: "CANADADEALSORIGINAL", brandAssetPolicy: "UNKNOWN",
@@ -60,6 +61,7 @@ describe("AdminPanel", () => {
     expect(screen.getByText(/1 public/i)).toBeInTheDocument();
     expect(screen.getAllByLabelText("Active in homepage carousel")).toHaveLength(2);
     fireEvent.click(screen.getAllByRole("button", { name: "Edit banner" })[0]);
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
     expect(screen.getByRole("heading", { name: "Public preview" })).toBeInTheDocument();
     expect(screen.getByLabelText(/Artwork from reviewed library/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Upload artwork/i)).toHaveAttribute("accept", "image/png,image/jpeg,image/webp");
@@ -115,9 +117,16 @@ describe("AdminPanel", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Offers" }));
     fireEvent.click(screen.getByRole("button", { name: "Add offer" }));
     expect(screen.getByText("Create a new Product")).toBeInTheDocument();
-    expect(screen.getByText("Add an offer to an existing Product")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Offer valid until/i)).toBeInTheDocument();
-    expect(screen.getByText("Advanced Product identity and matching")).toBeInTheDocument();
+    expect(screen.getByText("Reuse an existing Product identity")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Promotion starts/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Promotion ends/i)).toBeInTheDocument();
+    expect(screen.queryByText("Advanced Product identity and matching")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^MPN$/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^GTIN$/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Variant attributes/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Condition$/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Pack quantity/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Bundle contents/)).not.toBeInTheDocument();
     const advancedSource = screen.getByText("Advanced source and retailer details").closest("details");
     expect(advancedSource).not.toHaveAttribute("open");
     fireEvent.click(screen.getByText("Advanced source and retailer details"));
@@ -126,7 +135,7 @@ describe("AdminPanel", () => {
     expect(screen.getByLabelText(/^Retailer link/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Validate and fill" })).toBeDisabled();
 
-    fireEvent.click(screen.getByText("Add an offer to an existing Product"));
+    fireEvent.click(screen.getByText("Reuse an existing Product identity"));
     expect(screen.getByLabelText("Existing Product")).toHaveValue("product-1");
     expect(screen.getByLabelText(/^Slug/)).toHaveAttribute("readonly");
   });
