@@ -28,6 +28,8 @@ Vertical Slice 9 implements the provider-neutral tracking-link boundary and dete
 
 The Rakuten connector implementation completes the technical fixture-backed portion of `INT-006`, including scoped token reuse, read-only discovery, capability persistence, deep links, Product Search dry-run, source mapping, and policy-gated import. `INT-006` is still externally blocked: there is no secure credential set, live discovery evidence, approved merchant partnership, Canada Deals data entitlement, MerchantPolicy approval, or controlled live link/catalog result.
 
+The 2026-09-01 multi-network increment completes the connector-neutral technical boundary and deterministic adapters for eBay Browse, Impact Catalog, Awin Product Feed, and CJ Product Search. It does **not** complete `INT-003` through `INT-006`: no live Canada Deals account discovery, merchant approval, catalog/feed entitlement, field rights, image rights, or affiliate rights was available. Provider activation remains a human checkpoint.
+
 ### Rakuten activation checklist
 
 - [ ] Rotate the credential disclosed outside the approved secret store.
@@ -48,6 +50,8 @@ The Rakuten connector implementation completes the technical fixture-backed port
 - Publish evidence/freshness states to the public API.
 - Add provider health, import counts, error rates, and audit events.
 - Add contract tests using provider fixtures with no live credentials in CI.
+
+Technical status: the common contract, provider adapters, dry-run, audit, idempotent source mapping, bounded jobs, scripts, and deterministic fixtures are implemented. External source/merchant approval remains the gate before the first live P1 merchant.
 
 ## P2 - retention and coverage
 

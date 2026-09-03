@@ -42,4 +42,22 @@ describe("DealFeed", () => {
 
     expect(onSort).toHaveBeenCalledWith("savings");
   });
+
+  it("requests a complete selection reset from the no-results recovery action", () => {
+    const onClearFilters = vi.fn().mockResolvedValue(true);
+
+    render(<DealFeed
+      params={{ search: "missing", category: "electronics", retailer: "demo-north" }}
+      result={response("relevance", [])}
+      initialLoadError={false}
+      updateError={null}
+      pendingKind={null}
+      onSort={vi.fn().mockResolvedValue(true)}
+      onClearFilters={onClearFilters}
+    />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Clear selection" }));
+
+    expect(onClearFilters).toHaveBeenCalledOnce();
+  });
 });

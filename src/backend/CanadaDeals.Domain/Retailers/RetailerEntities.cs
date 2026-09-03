@@ -297,6 +297,48 @@ public sealed class RetailerListing
         FetchedAt = fetchedAt;
     }
 
+    public void RefreshFromCatalog(
+        string originalTitle,
+        string productUrl,
+        string? retailerSku,
+        string? seller,
+        bool? isMarketplaceSeller,
+        ProductCondition condition,
+        OnlineAvailabilityState availability,
+        string? region,
+        string? shipping,
+        IReadOnlyDictionary<string, string>? externalIdentifiers,
+        decimal currentPrice,
+        string currency,
+        DateTimeOffset observedAt,
+        DateTimeOffset fetchedAt,
+        decimal? regularPrice,
+        string? regularPriceEvidenceReference,
+        DateTimeOffset? promotionStart,
+        DateTimeOffset? promotionEnd)
+    {
+        if (string.IsNullOrWhiteSpace(originalTitle) || originalTitle.Trim().Length > 300)
+            throw new ArgumentException("A listing title of at most 300 characters is required.", nameof(originalTitle));
+        if (string.IsNullOrWhiteSpace(productUrl) || productUrl.Trim().Length > 1000)
+            throw new ArgumentException("A product URL of at most 1000 characters is required.", nameof(productUrl));
+
+        OriginalTitle = originalTitle.Trim();
+        ProductUrl = productUrl.Trim();
+        RetailerSku = Normalize(retailerSku);
+        Seller = Normalize(seller);
+        IsMarketplaceSeller = isMarketplaceSeller;
+        Condition = condition;
+        OnlineAvailability = availability;
+        RegionAvailabilityContext = Normalize(region);
+        ShippingContext = Normalize(shipping);
+        ExternalIdentifiersJson = JsonSerializer.Serialize(externalIdentifiers ?? new Dictionary<string, string>());
+        OfferValidFrom = promotionStart;
+        OfferValidUntil = promotionEnd;
+        Freshness = FreshnessState.Recent;
+        RecordCurrentPrice(currentPrice, currency, observedAt, fetchedAt);
+        SetRegularPrice(regularPrice, currency, regularPrice.HasValue ? observedAt : null, regularPriceEvidenceReference);
+    }
+
     public void SetRegularPrice(decimal? amount, string currency, DateTimeOffset? observedAt, string? evidenceReference)
     {
         if (!amount.HasValue)

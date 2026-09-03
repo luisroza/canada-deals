@@ -33,7 +33,7 @@ describe("StoreBanner", () => {
     expect(screen.queryByText(/affiliate/i)).not.toBeInTheDocument();
   });
 
-  it("keeps a discovery-only store inside GreatDeals", () => {
+  it("keeps a discovery-only store inside Deal North", () => {
     render(<StoreBanner banner={banner()} />);
     const link = screen.getByRole("link", { name: /Browse by store.*Shop Demo North.*Electronics and everyday tech.*See store deals/i });
     expect(link).toHaveAttribute("href", "/?retailer=demo-north#deals");

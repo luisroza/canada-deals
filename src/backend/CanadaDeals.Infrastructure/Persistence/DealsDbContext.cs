@@ -48,6 +48,9 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
     public DbSet<RakutenAdvertiserCapability> RakutenAdvertiserCapabilities => Set<RakutenAdvertiserCapability>();
     public DbSet<RakutenSourceMapping> RakutenSourceMappings => Set<RakutenSourceMapping>();
     public DbSet<RakutenImportRun> RakutenImportRuns => Set<RakutenImportRun>();
+    public DbSet<CatalogMerchantSource> CatalogMerchantSources => Set<CatalogMerchantSource>();
+    public DbSet<CatalogSourceMapping> CatalogSourceMappings => Set<CatalogSourceMapping>();
+    public DbSet<CatalogImportRun> CatalogImportRuns => Set<CatalogImportRun>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -289,6 +292,44 @@ public sealed class DealsDbContext(DbContextOptions<DealsDbContext> options)
             entity.HasIndex(x => new { x.Status, x.StartedAt });
             entity.Property(x => x.AdvertiserMid).HasMaxLength(40).IsRequired();
             entity.Property(x => x.FailureReason).HasMaxLength(160);
+        });
+
+        modelBuilder.Entity<CatalogMerchantSource>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.Provider, x.ProviderAdvertiserId, x.CatalogId }).IsUnique();
+            entity.HasIndex(x => new { x.State, x.UpdatedAt });
+            entity.Property(x => x.Provider).HasMaxLength(24).IsRequired();
+            entity.Property(x => x.ProviderAdvertiserId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.CatalogId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Currency).HasMaxLength(3);
+            entity.Property(x => x.AllowedDestinationHostsJson).HasColumnType("jsonb").IsRequired();
+            entity.HasOne(x => x.Retailer).WithMany().HasForeignKey(x => x.RetailerId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.MerchantPolicy).WithMany().HasForeignKey(x => x.MerchantPolicyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.DefaultCategory).WithMany().HasForeignKey(x => x.DefaultCategoryId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CatalogSourceMapping>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.Provider, x.ProviderAdvertiserId, x.SourceListingKey }).IsUnique();
+            entity.HasIndex(x => x.RetailerListingId).IsUnique();
+            entity.Property(x => x.Provider).HasMaxLength(24).IsRequired();
+            entity.Property(x => x.ProviderAdvertiserId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.SourceListingKey).HasMaxLength(240).IsRequired();
+            entity.HasOne(x => x.RetailerListing).WithMany().HasForeignKey(x => x.RetailerListingId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CatalogImportRun>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.Provider, x.ProviderAdvertiserId, x.StartedAt });
+            entity.HasIndex(x => new { x.Status, x.StartedAt });
+            entity.Property(x => x.Provider).HasMaxLength(24).IsRequired();
+            entity.Property(x => x.ProviderAdvertiserId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.FailureReason).HasMaxLength(160);
+            entity.HasOne<Retailer>().WithMany().HasForeignKey(x => x.RetailerId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<PriceObservation>(entity =>

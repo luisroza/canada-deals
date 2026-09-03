@@ -9,6 +9,7 @@ PostgreSQL is the system of record. EF Core/Npgsql owns the relational model and
 - `AffiliateProgram`, `AffiliateLink`, `ClickEvent`
 - `StoreBannerProfile`, `StoreAffiliateDestination`
 - `RakutenAdvertiserCapability`, `RakutenSourceMapping`, `RakutenImportRun`
+- `CatalogMerchantSource`, `CatalogSourceMapping`, `CatalogImportRun`
 - `MerchantPolicy`, `PriceObservation`
 - `ListingIssueReport`
 - ASP.NET Core Identity tables, `SavedOffer`, legacy `PriceAlert`/delivery records, `AccountConfirmationDelivery`, `ControlledEmailCapture`, `ProcessedEmailWebhook`, and `EmailSuppression`
@@ -45,6 +46,7 @@ The migration chain is:
 20. `20260828134355_AddNormalizedBrandIdentity`
 
 21. `20260831135128_IndividualOfferPricing`
+22. `20260901190128_AddMultiNetworkCatalogIngestion`
 
 No earlier migration was modified retroactively. `IndividualOfferPricing` adds regular-price/evidence and validity-start fields to `RetailerListings`, creates listing-keyed `SavedOffers`, migrates every existing Product-level save that has a listing to one deterministic existing listing, and then removes `SavedProducts`. A save whose Product has no listing cannot become an active offer save; the migration preserves it in the audit-only `SavedOfferMigrationOrphans` table with reason `NO_RETAILER_LISTING` instead of silently discarding it. The down migration restores both converted and archived rows.
 
@@ -55,6 +57,10 @@ No earlier migration was modified retroactively. `IndividualOfferPricing` adds r
 `StoreBannerProfiles` uniquely configures one retailer banner with original/merchant-approved asset provenance, tri-state brand rights, approved asset provider and placement, evidence, neutral editorial order, enabled state, effective/expiry rights, and a reviewed first-party asset path. Expired or incomplete merchant rights fall back to Canada Deals original artwork rather than removing the store. `StoreAffiliateDestinations` uniquely stores one current provider-neutral storefront destination per affiliate program without inventing a `RetailerListing`. `ClickEvents` now supports exactly one product-link source or one store-destination source through `CK_ClickEvents_Source`; store clicks include retailer/program IDs and no user, email, IP, fingerprint, or query history. Retailer, program, banner, destination, and click relationships use restrictive deletion.
 
 `RakutenAdvertiserCapabilities` has a unique MID and records provider state separately from explicit operator mapping/enablement. `RakutenSourceMappings` uniquely binds `(AdvertiserMid, SourceListingKey)` and one listing to prevent duplicate ingestion. `RakutenImportRuns` records dry-run/live status and bounded counters without response payloads or secrets. Foreign keys use restrictive behavior so capability/policy/source audit is not silently erased.
+
+`CatalogMerchantSources` uniquely binds `(Provider, ProviderAdvertiserId, CatalogId)` and stores discovery state separately from Retailer, MerchantPolicy, default Category, destination-host allowlist, and activation. `CatalogSourceMappings` uniquely binds `(Provider, ProviderAdvertiserId, SourceListingKey)` and one listing. `CatalogImportRuns` records provider-neutral validity/CAD/mapping/write/review/error counters. All foreign keys are restrictive and no table stores raw provider payloads, tokens, secrets, signed feed URLs, commission, or shopper PII.
+
+The multi-network validation database applied the complete 22-migration chain from empty through `AddMultiNetworkCatalogIngestion`; a second update was a current/no-op, and all 185 PostgreSQL integration/provider tests passed with zero skips.
 
 The Slice 9 Rakuten validation database applied all ten migrations from empty, ran a second current/no-op migration, and contained the Rakuten tables, affiliate tables, and `pg_trgm`. The 132-test PostgreSQL/provider suite then passed with zero skips.
 

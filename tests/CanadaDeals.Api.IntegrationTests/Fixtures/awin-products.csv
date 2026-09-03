@@ -1,0 +1,2 @@
+merchant_id,aw_product_id,merchant_product_id,product_name,merchant_deep_link,aw_deep_link,merchant_image_url,search_price,product_price_old,currency,brand_name,product_GTIN,mpn,model_number,in_stock,condition,merchant_category,delivery_cost,last_updated
+555,awin-1,sku-1,"Controlled, Awin Television",https://retailer.example/products/awin-1,https://www.awin1.com/cread.php?awinmid=555&awinaffid=1,https://images.example/awin-1.jpg,499.99,699.99,CAD,Northstar,00012345678929,NS-TV-1,TV100,true,new,Televisions,0.00,2026-08-30T12:00:00Z

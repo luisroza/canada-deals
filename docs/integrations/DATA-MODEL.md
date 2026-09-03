@@ -121,3 +121,10 @@ Eligibility uses current `PriceObservation` plus `RetailerListing`/`MerchantPoli
 ## Future-proofing
 
 The model supports additional networks, retailers, product categories, currencies, and mobile clients without exposing provider schemas. It does not assume that every merchant provides historical prices, stable IDs, images, or an API.
+# Multi-network source model — 2026-09-01
+
+- `CatalogMerchantSource` uniquely identifies `(Provider, ProviderAdvertiserId, CatalogId)` and keeps provider discovery evidence separate from explicit Retailer, MerchantPolicy, default Category, approved destination-host, and operator activation decisions.
+- `CatalogSourceMapping` uniquely identifies `(Provider, ProviderAdvertiserId, SourceListingKey)` and points to exactly one `RetailerListing`. It is the cross-provider idempotency boundary.
+- `CatalogImportRun` stores bounded provider-neutral audit counters and safe failure codes; it stores neither provider payloads nor credentials.
+- `ExternalOffer` is an in-memory normalization contract, not a raw-payload table. `ProviderMetadata` is bounded to approved scalar evidence.
+- `Product` remains an internal canonical identity. `RetailerListing.Id` remains the public offer and Wishlist identity. Multiple sources/listings may reference one Product without public comparison or representative-card selection.

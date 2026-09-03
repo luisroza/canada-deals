@@ -7,13 +7,14 @@ The scores below are screening judgements, not approvals. Two high-quality appro
 
 | Merchant | Category fit | Affiliate evidence | Feed/API evidence | Policy risk | Screening score | Recommended posture |
 |---|---|---|---|---|---:|---|
+| eBay Canada | broad marketplace | EPN supported by Browse API; Canada Deals approval **ABSENT** | Browse adapter implemented for `EBAY_CA`; production eligibility unverified | marketplace seller, item rights, EPN and destination review | 74 | **Technical candidate — credentials/approval checkpoint required** |
 | Best Buy Canada | strong electronics | official page identifies Impact; Canada Deals approval **ABSENT** | feed/API **UNKNOWN** | medium; terms/license review | 72 | **Impact adapter implemented — awaiting publisher approval/credentials** |
 | Home Depot Canada | strong home improvement/tools | official page identifies Commission Junction; Canada Deals approval **ABSENT** | feed/API **UNKNOWN** | medium; terms/license review | 70 | **CJ adapter implemented — awaiting publisher approval/credentials** |
 | Amazon.ca | broad electronics/home/tools | owner-provided Special Link boundary implemented; Canada Deals eligibility still requires operator evidence | official API exists, not authorized here | high; strict policy and comparison rules | 66 | **Direct link supported; Product data/API gated** |
 | Walmart Canada | broad general merchandise | current Walmart.ca page points to Rakuten; Canada Deals approval/link rights **ABSENT** | merchant feed/API **UNKNOWN** | medium/high | 60 | **Gated / unverified for Canada Deals** |
 | Canadian Tire | strong Canadian relevance/tools | current program/network **UNKNOWN** | **UNKNOWN** | **UNKNOWN** | 48 | Phase 2 research |
 | Staples Canada | electronics/home office | current program/network **UNKNOWN** | **UNKNOWN** | **UNKNOWN** | 45 | Phase 2 |
-| Wayfair Canada | home | current program/network **UNKNOWN** | **UNKNOWN** | **UNKNOWN** | 40 | Phase 2/3 |
+| Wayfair Canada | home | CJ candidate; owner account relationship **UNKNOWN** | CJ Product Search adapter exists; account availability **UNKNOWN** | **UNKNOWN** | 40 | **Gated candidate; discovery required** |
 | Costco Canada | broad, membership | current program/network **UNKNOWN** | **UNKNOWN** | membership/content rights | 35 | Not MVP |
 | Sport Chek | out of initial wedge | current program/network **UNKNOWN** | **UNKNOWN** | **UNKNOWN** | 35 | Phase 3 |
 | Sephora Canada | out of initial wedge | current program/network **UNKNOWN** | **UNKNOWN** | **UNKNOWN** | 38 | Phase 3 |
@@ -26,6 +27,8 @@ Target **two launch retailers** from Best Buy Canada and Home Depot Canada if la
 This deliberately favors a smaller, evidence-quality catalog over a broad directory with uncertain rights. Retailer count is not a success metric by itself.
 
 No live Rakuten discovery was authorized in Vertical Slice 9, so this document records no newly discovered advertiser count, merchant candidate, partnership, Product Feed entitlement, or Canada coverage. Those facts must come from the read-only discovery checkpoint and must not be inferred from the connector implementation or a credential alone.
+
+The multi-network increment adds fixture-validated eBay, Impact, Awin, and CJ catalog adapters but had no live credentials. Therefore it records no newly discovered advertiser/catalog/feed, joined relationship, merchant entitlement, or data right. `docs/integrations/CATALOG-PROVIDERS.md` is the current candidate/activation matrix.
 
 ## Source-specific rules
 

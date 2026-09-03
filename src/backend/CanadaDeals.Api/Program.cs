@@ -9,6 +9,7 @@ using CanadaDeals.Infrastructure.Email;
 using CanadaDeals.Infrastructure.Identity;
 using CanadaDeals.Infrastructure.Persistence;
 using CanadaDeals.Infrastructure.Rakuten;
+using CanadaDeals.Infrastructure.Catalogs;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Identity;
@@ -30,6 +31,7 @@ builder.Services.AddCanadaDealsTransactionalEmail(builder.Configuration, builder
 builder.Services.AddCanadaDealsPersistence(builder.Configuration, builder.Environment);
 builder.Services.AddCanadaDealsAffiliateLinks(builder.Configuration);
 builder.Services.AddCanadaDealsRakuten(builder.Configuration);
+builder.Services.AddCanadaDealsCatalogSources(builder.Configuration);
 builder.Services.AddCanadaDealsDataProtection(builder.Configuration, builder.Environment);
 var databaseConnection = DatabaseServices.GetValidatedConnectionString(builder.Configuration, builder.Environment);
 builder.Services.AddHangfire(configuration => configuration.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(databaseConnection)));

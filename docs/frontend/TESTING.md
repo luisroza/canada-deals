@@ -2,7 +2,7 @@
 
 Validated toolchain (2026-08-31): Node.js 24 and the repository-declared `pnpm@10.15.0`.
 
-Current test-runner caveat: the 2026-08-31 status refresh found an order/concurrency-sensitive failure in the normal parallel command. `DiscoveryExperience.test.tsx` reported Category still set to `electronics` after Clear, producing 90 passed and 1 failed. The test passes in isolation, and the complete suite passes 91/91 with `pnpm --dir apps/web exec vitest run --maxWorkers=1`. Treat the normal command as an open stability gate rather than reporting the frontend suite unconditionally green.
+The prior Clear-filter order/concurrency failure is closed. The test now waits for the complete committed UI/history/scroll state instead of observing one intermediate React update, without sleeps, skips, serial mode, or reduced workers. The normal `pnpm --dir apps/web test` command passed three consecutive Phase-0 runs; final release validation repeats the same three-run gate after all changes.
 
 Run component tests and a production build:
 

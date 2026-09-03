@@ -20,7 +20,7 @@ describe("AdminPanel", () => {
 
   it("shows a dedicated owner login without public registration", async () => {
     render(<AdminPanel />);
-    expect(await screen.findByRole("heading", { name: "GreatDeals.ca Admin" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Deal North Admin" })).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toHaveAttribute("autocomplete", "username");
     expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "current-password");
     expect(screen.queryByText(/create account/i)).not.toBeInTheDocument();
@@ -70,7 +70,7 @@ describe("AdminPanel", () => {
     expect(screen.queryByLabelText("Active in homepage carousel")).not.toBeInTheDocument();
   });
 
-  it("provides separate accessible category and store management screens", async () => {
+  it("provides category and store management without a standalone Brands screen", async () => {
     const dashboard = {
       counts: { publishedOffers: 3, draftOffers: 0, enabledBanners: 1, blockedOrExpiredBanners: 0, openReports: 0 },
       brands: [], categories: [], retailers: [], products: [], policies: [], offers: [], productImages: [], bannerAssets: [], banners: [], reports: [], recentAudit: [],
@@ -88,10 +88,8 @@ describe("AdminPanel", () => {
     expect(screen.getByDisplayValue("electronics")).toHaveAttribute("readonly");
     expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: /Brands/ }));
-    expect(screen.getByRole("heading", { name: "Brands" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Edit brand" }));
-    expect(screen.getByDisplayValue("northstar")).toHaveAttribute("readonly");
+    expect(screen.queryByRole("tab", { name: /Brands/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Brands" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Stores" }));
     expect(screen.getByRole("heading", { name: "Stores" })).toBeInTheDocument();

@@ -14,13 +14,13 @@ function normalize(raw: RawParams): DiscoveryParams {
 export async function generateMetadata({ searchParams }: { searchParams: Promise<RawParams> }): Promise<Metadata> {
   const params = normalize(await searchParams);
   const narrowed = Object.values(params).some(Boolean);
-  const title = params.search ? `Search results for ${params.search} | GreatDeals.ca` : "GreatDeals.ca";
+  const title = params.search ? `Search results for ${params.search} | Deal North` : "Deal North";
   const description = "Discover Canadian online offers with clear deal prices, freshness, and product evidence.";
   return {
     title,
     description,
     alternates: { canonical: absoluteUrl("/") },
-    openGraph: { title, description, type: "website", url: absoluteUrl("/"), siteName: "GreatDeals.ca", locale: "en_CA" },
+    openGraph: { title, description, type: "website", url: absoluteUrl("/"), siteName: "Deal North", locale: "en_CA" },
     robots: narrowed ? { index: false, follow: true } : undefined,
   };
 }

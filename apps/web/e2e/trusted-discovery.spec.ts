@@ -88,7 +88,9 @@ test("discovery-only store banner stays inside the store-filtered catalog", asyn
   await expect(banner).not.toHaveAttribute("target");
   await banner.click();
   await expect(page).toHaveURL(/retailer=demo-home-tool/);
-  await expect(page.getByRole("link", { name: "MapleForge 20V Cordless Drill Kit", exact: true })).toBeVisible();
+  const storeOffers = page.getByRole("link", { name: "MapleForge 20V Cordless Drill Kit", exact: true });
+  await expect(storeOffers).toHaveCount(2);
+  await expect(storeOffers.first()).toBeVisible();
 });
 
 test("controlled Rakuten fixture crosses search, product evidence, and persisted handoff", async ({ page }) => {
@@ -273,7 +275,7 @@ test("visitor can submit a price change report that becomes reviewable", async (
 
   await expect(page.getByRole("status")).toContainText("attached to this listing for review");
 
-  const review = await page.request.get("http://localhost:3000/api/internal/listing-issue-reports?status=OPEN");
+  const review = await page.request.get("/api/internal/listing-issue-reports?status=OPEN");
   expect(review.ok()).toBe(true);
   const reports = await review.json() as Array<{ note: string | null; status: string }>;
   expect(reports).toContainEqual(expect.objectContaining({ note, status: "OPEN" }));
@@ -288,7 +290,7 @@ test("visitor can report a wrong variant as a review signal", async ({ page }) =
   await page.getByRole("button", { name: "Send report" }).click();
 
   await expect(page.getByRole("status")).toContainText("attached to this listing for review");
-  const review = await page.request.get("http://localhost:3000/api/internal/listing-issue-reports?status=OPEN");
+  const review = await page.request.get("/api/internal/listing-issue-reports?status=OPEN");
   const reports = await review.json() as Array<{ note: string | null; reason: string }>;
   expect(reports).toContainEqual(expect.objectContaining({ note, reason: "WRONG_VARIANT" }));
 });

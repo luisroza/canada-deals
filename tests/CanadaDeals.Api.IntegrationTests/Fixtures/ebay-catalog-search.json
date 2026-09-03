@@ -1,0 +1,28 @@
+{
+  "total": 3,
+  "limit": 2,
+  "offset": 0,
+  "itemSummaries": [
+    {
+      "itemId": "v1|123|0",
+      "title": "Controlled Canadian Headphones",
+      "price": { "value": "149.99", "currency": "CAD" },
+      "marketingPrice": { "originalPrice": { "value": "199.99", "currency": "CAD" } },
+      "itemWebUrl": "https://www.ebay.ca/itm/123",
+      "itemAffiliateWebUrl": "https://www.ebay.ca/itm/123?campid=controlled",
+      "image": { "imageUrl": "https://i.ebayimg.com/images/controlled.jpg" },
+      "seller": { "username": "controlled-seller" },
+      "condition": "New",
+      "itemLocation": { "country": "CA" },
+      "shippingOptions": [{ "shippingCost": { "value": "9.99", "currency": "CAD" } }],
+      "uniqueProductIdentifiers": [{ "brand": "Northstar", "gtin": "00012345678905", "mpn": "NS-100" }],
+      "buyingOptions": ["FIXED_PRICE"]
+    },
+    {
+      "itemId": "v1|124|0",
+      "title": "Controlled US-priced item",
+      "price": { "value": "10.00", "currency": "USD" },
+      "itemWebUrl": "https://www.ebay.ca/itm/124"
+    }
+  ]
+}

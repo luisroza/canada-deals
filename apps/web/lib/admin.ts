@@ -1,5 +1,4 @@
 export type AdminReferenceOption = { id: string; key: string; label: string; isEnabled: boolean };
-export type AdminBrand = { id: string; name: string; slug: string; isEnabled: boolean; productCount: number; publishedOfferCount: number };
 export type AdminCategory = { id: string; name: string; slug: string; isEnabled: boolean; productCount: number; publishedOfferCount: number };
 export type AdminRetailer = { id: string; name: string; key: string; countryCode: string; isEnabled: boolean; listingCount: number; publishedOfferCount: number; hasBannerProfile: boolean; isBannerActive: boolean; affiliateProgramCount: number };
 export type AdminProductReference = {
@@ -36,7 +35,7 @@ export type AdminReport = { reportId: string; listingId: string; retailer: strin
 export type AdminDashboard = {
   counts: { publishedOffers: number; draftOffers: number; enabledBanners: number; blockedOrExpiredBanners: number; openReports: number };
   brands: AdminReferenceOption[]; categories: AdminReferenceOption[]; retailers: AdminReferenceOption[]; products: AdminProductReference[]; policies: AdminPolicyOption[];
-  managedBrands: AdminBrand[]; managedCategories: AdminCategory[]; managedRetailers: AdminRetailer[];
+  managedCategories: AdminCategory[]; managedRetailers: AdminRetailer[];
   offers: AdminOffer[]; productImages: AdminProductImage[]; bannerAssets: AdminBannerAsset[]; banners: AdminBanner[]; reports: AdminReport[]; recentAudit: AdminAudit[];
 };
 
@@ -65,8 +64,6 @@ export type AdminAffiliateLinkInspection = {
 };
 
 export type AdminOfferCreated = { listingId: string; productId: string; brandId: string; previewPath: string };
-export type AdminBrandCreated = { brandId: string };
-
 export type AdminBannerInput = {
   title: string; subtitle: string; assetPath: string | null; assetSource: string; assetProvider: string | null; assetEvidenceReference: string | null;
   allowedPlacement: string | null; effectiveAt: string | null; expiresAt: string | null; bannerOrder: number; changeReason: string | null;
@@ -109,8 +106,6 @@ export async function getAdminDashboard() {
 export function createAdminOffer(input: AdminOfferInput) { return mutation("/api/v1/admin/offers", "POST", input) as Promise<AdminOfferCreated>; }
 export function updateAdminOffer(listingId: string, input: AdminOfferInput) { return mutation(`/api/v1/admin/offers/${encodeURIComponent(listingId)}`, "PUT", input); }
 export function inspectAdminAffiliateLink(url: string) { return mutation("/api/v1/admin/affiliate-links/inspect", "POST", { url }) as Promise<AdminAffiliateLinkInspection>; }
-export function createAdminBrand(name: string, slug: string) { return mutation("/api/v1/admin/brands", "POST", { name, slug }) as Promise<AdminBrandCreated>; }
-export function updateAdminBrand(brandId: string, name: string, isEnabled: boolean, changeReason: string | null) { return mutation(`/api/v1/admin/brands/${encodeURIComponent(brandId)}`, "PUT", { name, isEnabled, changeReason }); }
 export function createAdminCategory(name: string, slug: string) { return mutation("/api/v1/admin/categories", "POST", { name, slug }); }
 export function updateAdminCategory(categoryId: string, name: string, isEnabled: boolean, changeReason: string | null) { return mutation(`/api/v1/admin/categories/${encodeURIComponent(categoryId)}`, "PUT", { name, isEnabled, changeReason }); }
 export function createAdminRetailer(name: string, key: string) { return mutation("/api/v1/admin/retailers", "POST", { name, key }); }

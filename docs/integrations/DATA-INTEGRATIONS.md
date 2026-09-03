@@ -127,3 +127,10 @@ The following capabilities were verified against official documentation on 2026-
 - the first approved network/merchant contracts must be recorded after outreach;
 - Amazon comparison, caching, disclosure, and historical claims remain a legal/policy gate;
 - freshness targets are configured only after each approved source provides quota and update evidence.
+# Multi-network catalog ingestion — 2026-09-01
+
+Rakuten, eBay Browse, Impact Catalog, Awin Product Feed, and CJ Product Search now share the provider-neutral `IOfferCatalogSource` boundary. Adapters normalize only source-proven fields into bounded `ExternalOffer` records. Provider concepts, raw payloads, credentials, commission, and tracking metadata do not enter Product domain entities or public APIs.
+
+The common importer requires an explicit provider/advertiser/catalog → Retailer mapping, default Category, approved destination hosts, active/access relationship evidence, Canada relevance, and a fail-closed MerchantPolicy. CAD is required; there is no FX conversion. Strong GTIN/UPC or Brand + MPN identity may match/create a Product; title-only/fuzzy identity routes to review. Source listing identity is deterministic and unique, so repeat imports update one independent `RetailerListing`. Connector image URLs are not persisted or displayed by this increment.
+
+All new providers and global persistence are disabled by default. Discovery is read-only, dry-run does not mutate catalog state, and live merchant activation remains blocked pending account-specific credentials and rights. See `CATALOG-PROVIDERS.md` and `../operations/CATALOG-SOURCES.md`.

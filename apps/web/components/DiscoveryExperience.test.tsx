@@ -56,12 +56,14 @@ describe("DiscoveryExperience", () => {
 
     fireEvent.click(screen.getByRole("link", { name: "Clear" }));
 
-    await waitFor(() => expect(screen.getAllByRole("article").map(item => item.textContent)).toEqual(["Alpha", "Beta"]));
-    expect(screen.getByLabelText("Category")).toHaveValue("");
-    expect(screen.getByLabelText("Store")).toHaveValue("");
-    expect(screen.queryByRole("link", { name: "Clear" })).not.toBeInTheDocument();
-    expect(pushState).toHaveBeenLastCalledWith(null, "", "/?sort=recent");
-    expect(scrollTo).toHaveBeenLastCalledWith(0, 640);
+    await waitFor(() => {
+      expect(screen.getAllByRole("article").map(item => item.textContent)).toEqual(["Alpha", "Beta"]);
+      expect(screen.getByLabelText("Category")).toHaveValue("");
+      expect(screen.getByLabelText("Store")).toHaveValue("");
+      expect(screen.queryByRole("link", { name: "Clear" })).not.toBeInTheDocument();
+      expect(pushState).toHaveBeenLastCalledWith(null, "", "/?sort=recent");
+      expect(scrollTo).toHaveBeenLastCalledWith(0, 640);
+    });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

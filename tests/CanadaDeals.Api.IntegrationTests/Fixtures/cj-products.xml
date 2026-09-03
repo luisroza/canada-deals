@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cj-api>
+  <products total-matched="2" records-returned="1" page-number="1">
+    <product>
+      <advertiser-id>888</advertiser-id>
+      <advertiser-name>Controlled CJ Canada</advertiser-name>
+      <catalog-id>cj-100</catalog-id>
+      <sku>sku-cj-1</sku>
+      <name>Controlled CJ Appliance</name>
+      <manufacturer-name>Northstar</manufacturer-name>
+      <manufacturer-sku>NS-CJ-1</manufacturer-sku>
+      <upc>0012345678905</upc>
+      <price>799.99</price>
+      <sale-price>649.99</sale-price>
+      <currency>CAD</currency>
+      <buy-url>https://www.anrdoezrs.net/click-1-2</buy-url>
+      <image-url>https://images.example/cj-1.jpg</image-url>
+      <in-stock>true</in-stock>
+      <advertiser-category>Appliances</advertiser-category>
+      <last-updated>2026-08-30T12:00:00Z</last-updated>
+    </product>
+  </products>
+</cj-api>

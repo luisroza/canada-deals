@@ -7,14 +7,14 @@ import { absoluteUrl } from "../../../lib/seo";
 export async function generateMetadata({ params }: { params: Promise<{ listingId: string }> }): Promise<Metadata> {
   const { listingId } = await params;
   const product = await getOffer(listingId);
-  if (!product) return { title: "Offer not found | GreatDeals.ca", robots: { index: false, follow: false } };
-  const title = `${product.productTitle} at ${product.primaryOffer.retailer} | GreatDeals.ca`;
+  if (!product) return { title: "Offer not found | Deal North", robots: { index: false, follow: false } };
+  const title = `${product.productTitle} at ${product.primaryOffer.retailer} | Deal North`;
   const canonical = absoluteUrl(`/offers/${product.primaryOffer.listingId}`);
   return {
     title,
     description: product.evidenceSummary,
     alternates: { canonical },
-    openGraph: { title, description: product.evidenceSummary, type: "website", url: canonical, siteName: "GreatDeals.ca", locale: "en_CA" },
+    openGraph: { title, description: product.evidenceSummary, type: "website", url: canonical, siteName: "Deal North", locale: "en_CA" },
   };
 }
 

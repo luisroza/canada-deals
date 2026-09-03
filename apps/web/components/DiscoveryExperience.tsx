@@ -96,6 +96,10 @@ export function DiscoveryExperience({ initialParams, initialResult, initialError
     return applyFilters({ category: undefined, retailer: undefined });
   }
 
+  function clearSelection() {
+    return load({}, true, true, "filters");
+  }
+
   function changeSort(sort: string) {
     if (pendingKind) return Promise.resolve(false);
     return load({ ...params, sort, page: undefined }, true, false, "sort");
@@ -119,7 +123,7 @@ export function DiscoveryExperience({ initialParams, initialResult, initialError
       updateError={updateError}
       pendingKind={pendingKind}
       onSort={changeSort}
-      onClearFilters={clearFilters}
+      onClearFilters={clearSelection}
     />
   </>;
 }

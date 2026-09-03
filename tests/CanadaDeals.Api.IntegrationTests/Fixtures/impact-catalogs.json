@@ -1,0 +1,19 @@
+{
+  "@page": "1",
+  "@numpages": "1",
+  "@total": "1",
+  "Catalogs": [
+    {
+      "Id": "4321",
+      "Name": "Controlled Canada Catalog",
+      "AdvertiserId": "123456",
+      "AdvertiserName": "Controlled Canada Retailer",
+      "CampaignId": "0102",
+      "CampaignName": "Controlled Program",
+      "DateLastUpdated": "2026-08-30T12:00:00Z",
+      "Currency": "CAD",
+      "ServiceAreas": ["Canada"],
+      "ItemsUri": "/Mediapartners/account/Catalogs/4321/Items"
+    }
+  ]
+}

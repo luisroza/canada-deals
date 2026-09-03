@@ -724,6 +724,218 @@ namespace CanadaDeals.Infrastructure.Persistence.Migrations
                     b.ToTable("ProductImages");
                 });
 
+            modelBuilder.Entity("CanadaDeals.Domain.Integrations.CatalogImportRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CadRecords")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("DryRun")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<DateTimeOffset?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Invalid")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ListingsCreated")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ListingsUpdated")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MappedRecords")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ObservationsCreated")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PagesFetched")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PolicyBlocked")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("ProviderAdvertiserId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<int>("RecordsReceived")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("RetailerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ReviewCandidates")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Skipped")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UnmappedRecords")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UnsupportedCurrency")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ValidRecords")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RetailerId");
+
+                    b.HasIndex("Status", "StartedAt");
+
+                    b.HasIndex("Provider", "ProviderAdvertiserId", "StartedAt");
+
+                    b.ToTable("CatalogImportRuns");
+                });
+
+            modelBuilder.Entity("CanadaDeals.Domain.Integrations.CatalogMerchantSource", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AffiliateAvailable")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("AllowedDestinationHostsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<bool?>("CanadaRelevant")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("CatalogAvailable")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("CatalogEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("CatalogId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<Guid?>("DefaultCategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("DiscoveredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("character varying(240)");
+
+                    b.Property<Guid?>("MerchantPolicyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("ProviderAdvertiserId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<int>("RelationshipStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("RetailerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefaultCategoryId");
+
+                    b.HasIndex("MerchantPolicyId");
+
+                    b.HasIndex("RetailerId");
+
+                    b.HasIndex("State", "UpdatedAt");
+
+                    b.HasIndex("Provider", "ProviderAdvertiserId", "CatalogId")
+                        .IsUnique();
+
+                    b.ToTable("CatalogMerchantSources");
+                });
+
+            modelBuilder.Entity("CanadaDeals.Domain.Integrations.CatalogSourceMapping", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("FirstSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("ProviderAdvertiserId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<Guid>("RetailerListingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceListingKey")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("character varying(240)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RetailerListingId")
+                        .IsUnique();
+
+                    b.HasIndex("Provider", "ProviderAdvertiserId", "SourceListingKey")
+                        .IsUnique();
+
+                    b.ToTable("CatalogSourceMappings");
+                });
+
             modelBuilder.Entity("CanadaDeals.Domain.Integrations.RakutenAdvertiserCapability", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1869,6 +2081,49 @@ namespace CanadaDeals.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("CanadaDeals.Domain.Integrations.CatalogImportRun", b =>
+                {
+                    b.HasOne("CanadaDeals.Domain.Retailers.Retailer", null)
+                        .WithMany()
+                        .HasForeignKey("RetailerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("CanadaDeals.Domain.Integrations.CatalogMerchantSource", b =>
+                {
+                    b.HasOne("CanadaDeals.Domain.Catalog.Category", "DefaultCategory")
+                        .WithMany()
+                        .HasForeignKey("DefaultCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CanadaDeals.Domain.Policies.MerchantPolicy", "MerchantPolicy")
+                        .WithMany()
+                        .HasForeignKey("MerchantPolicyId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CanadaDeals.Domain.Retailers.Retailer", "Retailer")
+                        .WithMany()
+                        .HasForeignKey("RetailerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("DefaultCategory");
+
+                    b.Navigation("MerchantPolicy");
+
+                    b.Navigation("Retailer");
+                });
+
+            modelBuilder.Entity("CanadaDeals.Domain.Integrations.CatalogSourceMapping", b =>
+                {
+                    b.HasOne("CanadaDeals.Domain.Retailers.RetailerListing", "RetailerListing")
+                        .WithMany()
+                        .HasForeignKey("RetailerListingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RetailerListing");
                 });
 
             modelBuilder.Entity("CanadaDeals.Domain.Integrations.RakutenAdvertiserCapability", b =>

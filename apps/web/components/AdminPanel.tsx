@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { BrandLogo } from "./BrandLogo";
 import { signIn, signOut } from "../lib/account";
 import {
   AdminApiError,
   activateAdminProductImage,
   archiveAdminProductImage,
-  createAdminBrand,
   createAdminCategory,
   createAdminOffer,
   createAdminRetailer,
@@ -15,7 +15,6 @@ import {
   inspectAdminAffiliateLink,
   updateAdminBannerSelection,
   updateAdminBanner,
-  updateAdminBrand,
   updateAdminCategory,
   updateAdminOffer,
   updateAdminReport,
@@ -24,7 +23,6 @@ import {
   uploadAdminProductImage,
   type AdminBanner,
   type AdminBannerInput,
-  type AdminBrand,
   type AdminDashboard,
   type AdminAffiliateLinkInspection,
   type AdminCategory,
@@ -164,7 +162,7 @@ export function AdminPanel() {
   return (
     <div className="admin-panel-shell">
       <header className="admin-topbar">
-        <div><span className="admin-brand-mark" aria-hidden="true">G</span><strong>GreatDeals.ca</strong><span>Admin</span></div>
+        <div><BrandLogo compact /><span>Admin</span></div>
         <div><Link href="/">View public site</Link><button type="button" className="button button-secondary" onClick={logout} disabled={pending}>Sign out</button></div>
       </header>
       <div className="admin-layout">
@@ -213,9 +211,9 @@ function AdminSignIn({ access, error, onAuthorized }: { access: AccessState; err
   return (
     <div className="admin-access">
       <section className="admin-login-card" aria-labelledby="admin-login-heading">
-        <span className="admin-brand-mark" aria-hidden="true">G</span>
+        <BrandLogo />
         <p className="eyebrow">Restricted workspace</p>
-        <h1 id="admin-login-heading">GreatDeals.ca Admin</h1>
+        <h1 id="admin-login-heading">Deal North Admin</h1>
         <p>Use the owner administrator account. This route is not part of public navigation.</p>
         {access === "forbidden" ? (
           <div className="admin-denied" role="alert"><strong>This account is not authorized.</strong><p>Sign out, then use the owner administrator account.</p><button className="button button-secondary" type="button" onClick={resetSession} disabled={pending}>Use another account</button></div>
@@ -257,47 +255,7 @@ function Overview({ dashboard, navigate }: { dashboard: AdminDashboard; navigate
 type EntityFilter = "all" | "active" | "inactive" | "public" | "empty";
 
 function CatalogSettings({ dashboard, refresh, notify, reportError }: { dashboard: AdminDashboard; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
-  const [area, setArea] = useState<"categories" | "brands">("categories");
-  return <>
-    <div className="admin-catalog-tabs" role="tablist" aria-label="Catalog settings">
-      <button role="tab" aria-selected={area === "categories"} type="button" onClick={() => setArea("categories")}><strong>Categories</strong><span>Public discovery structure</span></button>
-      <button role="tab" aria-selected={area === "brands"} type="button" onClick={() => setArea("brands")}><strong>Brands</strong><span>Advanced Product identity</span></button>
-    </div>
-    {area === "categories"
-      ? <Categories dashboard={dashboard} refresh={refresh} notify={notify} reportError={reportError} />
-      : <Brands dashboard={dashboard} refresh={refresh} notify={notify} reportError={reportError} />}
-  </>;
-}
-
-function Brands({ dashboard, refresh, notify, reportError }: { dashboard: AdminDashboard; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
-  const [selected, setSelected] = useState<AdminBrand | "new" | null>(null);
-  const [name, setName] = useState(""); const [slug, setSlug] = useState(""); const [enabled, setEnabled] = useState(false); const [reason, setReason] = useState("");
-  const [search, setSearch] = useState(""); const [filter, setFilter] = useState<EntityFilter>("all"); const [pending, setPending] = useState(false);
-  const visible = dashboard.managedBrands.filter(brand => {
-    const matchesSearch = `${brand.name} ${brand.slug}`.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = filter === "all" || (filter === "active" && brand.isEnabled) || (filter === "inactive" && !brand.isEnabled) ||
-      (filter === "public" && brand.publishedOfferCount > 0) || (filter === "empty" && brand.productCount === 0);
-    return matchesSearch && matchesFilter;
-  });
-  const activeCount = dashboard.managedBrands.filter(brand => brand.isEnabled).length;
-
-  function open(value: AdminBrand | "new") { setSelected(value); setName(value === "new" ? "" : value.name); setSlug(value === "new" ? "" : value.slug); setEnabled(value === "new" ? false : value.isEnabled); setReason(""); notify(null); reportError(null); }
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (selected !== "new" && selected?.isEnabled && !enabled && !reason.trim()) { reportError("Add a reason before deactivating this brand."); return; }
-    setPending(true); notify(null); reportError(null);
-    try { if (selected === "new") await createAdminBrand(name.trim(), slug); else if (selected) await updateAdminBrand(selected.id, name.trim(), enabled, clean(reason)); await refresh(); setSelected(null); notify(selected === "new" ? "Brand created inactive. Review it before using it on new Products." : "Brand updated and audited."); }
-    catch (caught) { reportError(caught instanceof Error ? caught.message : "Brand could not be saved."); } finally { setPending(false); }
-  }
-
-  if (selected) {
-    const existing = selected !== "new" ? selected : null;
-    return <form className="admin-editor" onSubmit={save} noValidate><div className="admin-heading"><div><p className="eyebrow">{existing ? "Edit brand" : "New brand"}</p><h1>{name || "Untitled brand"}</h1><p>Brands support Product identity, search, and catalog organization. Existing Products remain intact when a brand is inactive.</p></div><div className="admin-heading-actions"><button className="button button-secondary" type="button" onClick={() => setSelected(null)}>Cancel</button><button className="button button-primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Save brand"}</button></div></div>
-      <div className="admin-editor-grid"><section className="admin-card admin-entity-form"><h2>Brand details</h2><label>Brand name<input required maxLength={120} value={name} onChange={event => { setName(event.target.value); if (!existing) setSlug(slugify(event.target.value)); }} /></label><label>Brand slug<input required maxLength={140} pattern="[a-z0-9-]+" readOnly={Boolean(existing)} value={slug} onChange={event => setSlug(slugify(event.target.value))} /><span className="field-help">{existing ? "Immutable after creation to preserve catalog identity." : "Lowercase letters, numbers, and hyphens."}</span></label>{existing && <div className="admin-readonly"><strong>Current impact</strong><span>{existing.productCount} products</span><span>{existing.publishedOfferCount} public offers</span><span>Product and Wishlist records are preserved</span></div>}</section>
-        <aside className="admin-publication-card"><h2>Catalog status</h2><label className="admin-toggle"><input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} /><span>Available for public Products</span></label>{existing && existing.isEnabled && !enabled && <div className="admin-impact-warning" role="note"><strong>Before deactivating</strong><p>This hides associated offers from public discovery without deleting Products, offers, or Wishlists.</p></div>}<label>Change reason<textarea rows={4} maxLength={300} value={reason} onChange={event => setReason(event.target.value)} placeholder="Required when deactivating" /></label>{!existing && <p className="field-help">New brands always begin inactive.</p>}</aside></div></form>;
-  }
-
-  return <><div className="admin-heading"><div><p className="eyebrow">Catalog identity</p><h1>Brands</h1><p><strong>{activeCount} active</strong> · {dashboard.managedBrands.length - activeCount} inactive. Manage Product brands without editing database records directly.</p></div><button className="button button-primary" type="button" onClick={() => open("new")}>Add brand</button></div><EntityToolbar search={search} setSearch={setSearch} filter={filter} setFilter={setFilter} placeholder="Name or brand slug" includeEmpty />
-    <div className="admin-entity-grid">{visible.map(brand => <article className="admin-entity-card" key={brand.id}><div><span className={`status-chip ${brand.isEnabled ? "status-ready" : ""}`}>{brand.isEnabled ? "Active" : "Inactive"}</span><code>{brand.slug}</code></div><h2>{brand.name}</h2><dl><div><dt>Products</dt><dd>{brand.productCount}</dd></div><div><dt>Public offers</dt><dd>{brand.publishedOfferCount}</dd></div></dl><button className="button button-secondary" type="button" onClick={() => open(brand)}>Edit brand</button></article>)}</div>{visible.length === 0 && <p className="admin-card admin-empty">No brands match these controls.</p>}</>;
+  return <Categories dashboard={dashboard} refresh={refresh} notify={notify} reportError={reportError} />;
 }
 
 function Categories({ dashboard, refresh, notify, reportError }: { dashboard: AdminDashboard; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {
@@ -629,14 +587,14 @@ function AffiliateLinkIntake({ dashboard, selected, form, field, reportError, op
     {inspection && <div className={`admin-affiliate-result ${inspection.status === "READY" ? "is-ready" : "needs-review"}`} tabIndex={-1}>
       <div className="admin-section-heading"><div><strong>{inspection.status === "READY" ? "Link recognized" : "Link recognized — review needed"}</strong><p>{existingOffer ? "This Product and offer already exist in the catalog." : "Store, Product ID, canonical URL, Partner Tag, and URL title suggestion are filled when available."}</p></div><span className="status-chip">{inspection.status.replaceAll("_", " ")}</span></div>
       <dl><div><dt>Provider</dt><dd>{inspection.provider}</dd></div><div><dt>Handoff</dt><dd>{inspection.handoffMode.replaceAll("_", " ")}</dd></div><div><dt>Tracking host</dt><dd>{inspection.trackingHost}</dd></div><div><dt>Store</dt><dd>{inspection.matchedRetailer ?? "Not configured"}</dd></div><div><dt>Product ID</dt><dd>{inspection.externalProductId ?? "Enter ASIN manually"}</dd></div><div><dt>Brand</dt><dd>{inspection.brandCandidate?.matchedBrandName ?? inspection.brandCandidate?.name ?? "Review manually"}</dd></div><div><dt>Destination</dt><dd>{inspection.canonicalProductUrl ?? "Enter canonical Amazon.ca Product page"}</dd></div></dl>
-      <div className={`admin-autofill-status ${existingOffer || inspection.brandCandidate?.matchStatus === "MATCHED_EXISTING" ? "is-ready" : ""}`}><strong>{existingOffer ? "Complete catalog data found" : inspection.brandCandidate?.matchStatus === "MATCHED_EXISTING" ? "Existing brand matched" : inspection.brandCandidate ? "New brand candidate filled for review" : "Product identity filled from the URL"}</strong><p>{existingOffer ? "Name, classification, latest permitted price, and reviewed image can be reused from the existing record." : `${titleSuggestion ? "A title suggestion was filled from the URL. " : ""}${inspection.brandCandidate?.confidence === "LOW" ? "The brand candidate came only from URL text and must be confirmed before save. " : ""}Price and image are not present in an Amazon link. Enter reviewed values or configure an approved Creators API connector; GreatDeals.ca will not scrape the Product page.`}</p></div>
+      <div className={`admin-autofill-status ${existingOffer || inspection.brandCandidate?.matchStatus === "MATCHED_EXISTING" ? "is-ready" : ""}`}><strong>{existingOffer ? "Complete catalog data found" : inspection.brandCandidate?.matchStatus === "MATCHED_EXISTING" ? "Existing brand matched" : inspection.brandCandidate ? "New brand candidate filled for review" : "Product identity filled from the URL"}</strong><p>{existingOffer ? "Name, classification, latest permitted price, and reviewed image can be reused from the existing record." : `${titleSuggestion ? "A title suggestion was filled from the URL. " : ""}${inspection.brandCandidate?.confidence === "LOW" ? "The brand candidate came only from URL text and must be confirmed before save. " : ""}Price and image are not present in an Amazon link. Enter reviewed values or configure an approved Creators API connector; Deal North will not scrape the Product page.`}</p></div>
       {inspection.warnings.length > 0 && <ul>{inspection.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>}
       <div className="admin-affiliate-result-actions">{existingOffer ? <button className="button button-primary" type="button" onClick={() => openExisting(existingOffer)}>Open existing offer</button> : <button className="button button-primary" type="button" onClick={useDetails}>Reapply autofill</button>}<button className="button button-text" type="button" onClick={() => setInspection(null)}>Analyze another link</button></div>
     </div>}
     {form.affiliateTrackingUrl && <div className="admin-affiliate-confirmation">
       <label>Amazon Partner Tag<input maxLength={100} placeholder="yourtag-20" value={form.affiliatePartnerTag ?? ""} onChange={event => field("affiliatePartnerTag", event.target.value)} /><span className="field-help">For amzn.to links, confirm the tag from your Amazon Associates Canada account.</span></label>
       <label>Relationship evidence reference<textarea rows={3} maxLength={1000} placeholder="Redacted account approval or SiteStripe evidence reference" value={form.affiliateRelationshipEvidenceReference ?? ""} onChange={event => field("affiliateRelationshipEvidenceReference", event.target.value)} /></label>
-      <label className="admin-toggle"><input type="checkbox" checked={form.affiliateRelationshipConfirmed} onChange={event => field("affiliateRelationshipConfirmed", event.target.checked)} /><span>I confirm this link belongs to my approved account and GreatDeals.ca is registered for its use.</span></label>
+      <label className="admin-toggle"><input type="checkbox" checked={form.affiliateRelationshipConfirmed} onChange={event => field("affiliateRelationshipConfirmed", event.target.checked)} /><span>I confirm this link belongs to my approved account and Deal North is registered for its use.</span></label>
       <p className="field-help">This confirmation validates the commercial link only. Price, metadata and image rights remain controlled by the selected Merchant Policy.</p>
     </div>}
   </section>;
@@ -781,7 +739,7 @@ function Banners({ dashboard, refresh, notify, reportError }: { dashboard: Admin
         <div className="admin-upload span-2"><label htmlFor="banner-artwork-upload">Upload artwork <span>PNG, JPEG, or WebP · maximum 2 MB · 16:9 recommended</span></label><div><input key={uploadKey} id="banner-artwork-upload" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => setUploadFile(event.target.files?.[0] ?? null)} /><button className="button button-secondary" type="button" disabled={!uploadFile || uploading} onClick={uploadArtwork}>{uploading ? "Uploading…" : "Upload and use"}</button></div><p>The upload is stored in the reviewed artwork library. Publication still depends on the provenance and rights fields below.</p></div>
       </div></section>
       <section className="admin-card"><h2>Artwork provenance and rights</h2><div className="admin-form-grid admin-card-form-grid">
-        <label className="span-2">Artwork provenance<select value={form.assetSource} onChange={e => field("assetSource", e.target.value)}><option value="CANADADEALSORIGINAL">GreatDeals original</option><option value="MERCHANTAPPROVEDAFFILIATEASSET">Merchant-approved affiliate asset</option></select><span className="field-help">Provenance types are controlled because they determine publication rights.</span></label>
+        <label className="span-2">Artwork provenance<select value={form.assetSource} onChange={e => field("assetSource", e.target.value)}><option value="CANADADEALSORIGINAL">Deal North original</option><option value="MERCHANTAPPROVEDAFFILIATEASSET">Merchant-approved affiliate asset</option></select><span className="field-help">Provenance types are controlled because they determine publication rights.</span></label>
         {form.assetSource === "MERCHANTAPPROVEDAFFILIATEASSET" && <>
           <label>Affiliate provider<select value={form.assetProvider ?? "RAKUTEN"} onChange={e => field("assetProvider", e.target.value)}><option value="RAKUTEN">Rakuten</option><option value="IMPACT">Impact</option><option value="CJ">CJ</option><option value="AMAZONCREATORS">Amazon Creators</option><option value="OTHER">Other</option></select></label>
           <label>Allowed placement<input readOnly value="store_banner" /></label>
@@ -801,7 +759,7 @@ function Banners({ dashboard, refresh, notify, reportError }: { dashboard: Admin
   return <><div className="admin-heading"><div><p className="eyebrow">Homepage merchandising</p><h1>Store banners</h1><p><strong>{publicCount} public</strong> · {selectedCount} selected · maximum 4 visible per carousel page.</p><p>Select the configured banners that should participate. Public eligibility and artwork rights remain enforced by the backend.</p></div></div>
     <section className={`admin-carousel-selection ${removesBanner ? "has-removals" : ""}`} aria-labelledby="carousel-selection-heading"><div className="admin-carousel-intro"><h2 id="carousel-selection-heading">Carousel selection</h2><p>Choose active banners, then save the selection once. Unconfigured stores must be edited before activation.</p></div><dl className="admin-selection-summary" aria-label="Carousel selection summary" aria-live="polite"><div><dt>Selected</dt><dd>{selectedCount}</dd></div><div><dt>Currently public</dt><dd>{publicCount}</dd></div><div><dt>Need attention</dt><dd>{needsAttention}</dd></div></dl>{removesBanner && <label className="admin-carousel-removal-reason">Change reason for removals<input maxLength={300} value={selectionReason} onChange={event => setSelectionReason(event.target.value)} placeholder="Why are these banners being removed?" /></label>}<button className="button button-primary admin-carousel-save" type="button" onClick={saveSelection} disabled={changedSelection.length === 0 || savingSelection}>{savingSelection ? "Saving selection…" : `Save active banners (${changedSelection.length} change${changedSelection.length === 1 ? "" : "s"})`}</button></section>
     <div className="admin-banner-filters" role="group" aria-label="Filter store banners">{(["all", "active", "inactive", "attention"] as const).map(value => <button type="button" key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "attention" ? "Needs attention" : value[0].toUpperCase() + value.slice(1)}</button>)}</div>
-    <div className="admin-banner-grid">{visibleBanners.map(banner => <article className="admin-banner-card" key={banner.retailerId}><div className="admin-banner-preview" style={{ backgroundImage: `linear-gradient(90deg,rgba(4,31,22,.94),rgba(4,31,22,.38)),url(${banner.assetPath ?? builtInAssets[0].path})` }}><small>{banner.retailer}</small><strong>{banner.title}</strong><span>{banner.subtitle}</span></div><div className="admin-banner-card-body"><div className="admin-banner-card-status"><span className={`status-chip ${banner.isInPublicCarousel ? "status-ready" : banner.isEnabled ? "status-warning" : ""}`}>{banner.isInPublicCarousel ? `Public · position ${banner.publicPosition}` : banner.visibilityState}</span><span>{banner.publicArtworkState === "FALLBACK" ? "Fallback artwork" : banner.assetSource === "CANADADEALSORIGINAL" ? "GreatDeals original" : "Merchant-approved"}</span></div><label className="admin-toggle"><input type="checkbox" checked={selection[banner.retailerId] ?? false} disabled={!banner.profileId} onChange={event => setSelection(current => ({ ...current, [banner.retailerId]: event.target.checked }))} aria-describedby={`banner-reason-${banner.retailerId}`} /><span>Active in homepage carousel</span></label><p id={`banner-reason-${banner.retailerId}`}>{banner.publicEligibilityReason}</p><div className="admin-banner-card-actions"><span>Carousel position {banner.bannerOrder === 2147483647 ? "—" : banner.bannerOrder}</span><button className="button button-secondary" type="button" onClick={() => open(banner)}>Edit banner</button></div></div></article>)}</div>{visibleBanners.length === 0 && <p className="admin-empty">No banners match this filter.</p>}</>;
+    <div className="admin-banner-grid">{visibleBanners.map(banner => <article className="admin-banner-card" key={banner.retailerId}><div className="admin-banner-preview" style={{ backgroundImage: `linear-gradient(90deg,rgba(12,35,52,.94),rgba(12,35,52,.38)),url(${banner.assetPath ?? builtInAssets[0].path})` }}><small>{banner.retailer}</small><strong>{banner.title}</strong><span>{banner.subtitle}</span></div><div className="admin-banner-card-body"><div className="admin-banner-card-status"><span className={`status-chip ${banner.isInPublicCarousel ? "status-ready" : banner.isEnabled ? "status-warning" : ""}`}>{banner.isInPublicCarousel ? `Public · position ${banner.publicPosition}` : banner.visibilityState}</span><span>{banner.publicArtworkState === "FALLBACK" ? "Fallback artwork" : banner.assetSource === "CANADADEALSORIGINAL" ? "Deal North original" : "Merchant-approved"}</span></div><label className="admin-toggle"><input type="checkbox" checked={selection[banner.retailerId] ?? false} disabled={!banner.profileId} onChange={event => setSelection(current => ({ ...current, [banner.retailerId]: event.target.checked }))} aria-describedby={`banner-reason-${banner.retailerId}`} /><span>Active in homepage carousel</span></label><p id={`banner-reason-${banner.retailerId}`}>{banner.publicEligibilityReason}</p><div className="admin-banner-card-actions"><span>Carousel position {banner.bannerOrder === 2147483647 ? "—" : banner.bannerOrder}</span><button className="button button-secondary" type="button" onClick={() => open(banner)}>Edit banner</button></div></div></article>)}</div>{visibleBanners.length === 0 && <p className="admin-empty">No banners match this filter.</p>}</>;
 }
 
 function Reports({ dashboard, refresh, notify, reportError }: { dashboard: AdminDashboard; refresh: () => Promise<void>; notify: (value: string | null) => void; reportError: (value: string | null) => void }) {

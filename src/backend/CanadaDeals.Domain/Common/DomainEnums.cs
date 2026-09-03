@@ -127,3 +127,12 @@ public enum IntegrationRunStatus
     Failed = 2,
     Blocked = 3
 }
+
+public enum CatalogSourceState
+{
+    Unmapped = 0,
+    MappedDisabled = 1,
+    MappedPolicyBlocked = 2,
+    ReadyForDryRun = 3,
+    Active = 4
+}

@@ -16,10 +16,20 @@ export function RetailerAction({ offer, stickyOnMobile = false }: { offer: Retai
   const label = retailerActionLabel(offer);
 
   useEffect(() => {
-    if (!stickyOnMobile || !sourceRef.current || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(([entry]) => setShowSticky(!entry.isIntersecting), { threshold: 0.15 });
-    observer.observe(sourceRef.current);
-    return () => observer.disconnect();
+    if (!stickyOnMobile || !sourceRef.current) return;
+    const updateStickyVisibility = () => {
+      const sourceBounds = sourceRef.current?.getBoundingClientRect();
+      // Do not cover content while the primary action is visible or still below
+      // the viewport. The compact action appears only after it was scrolled past.
+      setShowSticky(Boolean(sourceBounds && sourceBounds.bottom < 0));
+    };
+    updateStickyVisibility();
+    window.addEventListener("scroll", updateStickyVisibility, { passive: true });
+    window.addEventListener("resize", updateStickyVisibility);
+    return () => {
+      window.removeEventListener("scroll", updateStickyVisibility);
+      window.removeEventListener("resize", updateStickyVisibility);
+    };
   }, [stickyOnMobile]);
 
   const href = publicHandoffHref(offer.handoffPath, offer.handoffUrl);

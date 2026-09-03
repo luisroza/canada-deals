@@ -260,3 +260,12 @@ Only record decisions that have actually been approved. Proposed options and res
 - **Connector gate:** Rakuten and other connector image URLs remain unpersisted and unpublished. Optional source-listing and merchant-policy references do not grant rights; merchant-specific display and cache permissions must be verified before a later connector implementation.
 - **Scale boundary:** PostgreSQL byte storage is accepted only for the bounded owner-managed MVP. Move the unchanged domain/audit metadata and binary payload to Canadian object storage/CDN when traffic or asset volume justifies it.
 - **Date:** 2026-08-24
+
+### DEC-025 - Provider-neutral multi-network catalog ingestion
+
+- **Status:** Approved by explicit owner instruction; implemented with deterministic fixtures, live activation blocked
+- **Decision:** Treat `RetailerListing` as the public offer identity and normalize Rakuten, eBay Browse, Impact Catalog, Awin Product Feed, and CJ Product Search records through one `IOfferCatalogSource` / `ExternalOffer` boundary. Provider concepts stop at the adapter. Public APIs and rendering remain provider-neutral and never collapse listings into a cross-retailer comparison.
+- **Persistence:** Explicit `(Provider, ProviderAdvertiserId, CatalogId)` merchant mapping, approved destination hosts, MerchantPolicy, default Category, and operator enablement are required before writes. `(Provider, ProviderAdvertiserId, SourceListingKey)` uniquely maps to one `RetailerListing`; title-only matching is forbidden. Strong GTIN/UPC or Brand + MPN identity may reuse/create a canonical Product, while conflicts and weak identity route to review.
+- **Rights:** Technical catalog access does not activate affiliate handoff, image display/cache, price history, or merchant publication rights. `UNKNOWN` blocks. Connector image URLs remain normalization evidence only; no image bytes or external image records are persisted by this increment.
+- **Operations:** Discovery is live/read-only by default, dry-run never mutates Product/listing/observation state, persistence is globally disabled by default, and all providers are disabled until credentials and account-specific rights are supplied outside source control. Amazon Creators API remains gated and no retailer scraping is introduced.
+- **Date:** 2026-09-01

@@ -7,6 +7,19 @@
 
 Canada Deals should feel clear, grounded, and useful. The system favors generous whitespace, legible prices, restrained emphasis, and editorial evidence over urgency. It should not resemble a casino-like coupon wall or an aggressive retailer landing page.
 
+### Public brand identity revision — 2026-09-03
+
+The approved public-facing brand is **Deal North**, using the owner-supplied `deal-north.ca` wordmark. `GreatDeals.ca` remains an internal repository/project identifier during the transition and must not appear beside Deal North in the same user-facing context.
+
+- Brand navy `#0E4C73`: primary actions, links, and selected navigation.
+- Navy hover `#093A59`: hover and pressed action states.
+- Maple red `#C33530`: restrained brand accents only; it is not the default CTA or feedback color.
+- Primary text `#18232E`, secondary text `#596875`, canvas `#F6F8FA`, surface `#FFFFFF`, and border `#D7E0E7`.
+- Brand wash `#EAF2F7`: selected and informational surfaces.
+- Success `#166534` / `#EAF7EE`, warning `#7A4B00` / `#FFF4D6`, error `#B42318` / `#FFF0EE`, and keyboard focus `#1769AA` remain semantically independent from the brand palette.
+
+Desktop and administrative headers use the horizontal wordmark. Mobile navigation uses a compact lockup with the compass/maple mark and the visible name “Deal North”; the global search remains immediately below at full width. The favicon uses the mark without text. Store artwork retains its own visual variety and must not be recolored into retailer trade dress or repeated Canadian-flag motifs.
+
 ## 2. Semantic color roles
 
 Use semantic roles so meaning survives theme changes and accessibility review:

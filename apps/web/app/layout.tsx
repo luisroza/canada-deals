@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AccountNav } from "../components/AccountNav";
+import { BrandLogo } from "../components/BrandLogo";
 import { CatalogMenus } from "../components/CatalogMenus";
 import { GlobalSearch } from "../components/GlobalSearch";
 import { MobileNav } from "../components/MobileNav";
@@ -9,7 +10,7 @@ import { getDeals, type DiscoveryFacet } from "../lib/api";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GreatDeals.ca",
+  title: "Deal North",
   description: "Discover Canadian online offers with clear deal prices, freshness, and product evidence.",
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
@@ -29,12 +30,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   }
 
   return (
-    <html lang="en-CA">
+    <html lang="en-CA" suppressHydrationWarning>
       <body>
         <WishlistProvider>
           <a className="skip-link" href="#main-content">Skip to content</a>
           <header className="site-header">
-            <div className="header-inner header-primary"><Link className="brand" href="/">GreatDeals<span>.ca</span></Link><GlobalSearch /><AccountNav /></div>
+            <div className="header-inner header-primary"><Link className="brand" href="/" aria-label="Deal North home"><BrandLogo /></Link><GlobalSearch /><AccountNav /></div>
             <div className="catalog-bar"><div className="header-inner"><CatalogMenus categories={categories} retailers={retailers} /></div></div>
           </header>
           <main id="main-content" className="page-shell">{children}</main>
